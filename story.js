@@ -140,14 +140,19 @@ async function exploreStory() {
   print(`🗺️ ${an.toUpperCase()}`);
   print("=".repeat(62));
   print(area.description || "");
+  print(`A hub is nearby: ${typeof TOWNS !== "undefined" ? TOWNS[currentTownId()].name : "town"} (type 'town').`);
   if (p.boss && !objectiveComplete()) {
     if (PLAYER.level >= p.level) {
       print(`\nSomething waits deeper in this area: ${title(p.boss)}.`);
-      const c = (await input("Challenge it now, or keep exploring? [boss/explore]: "))
+      const c = (await input("Challenge it now, keep exploring, or visit town? [boss/explore/town]: "))
         .trim()
         .toLowerCase();
       if (c === "boss" || c === "b") {
         await fightMonster(p.boss);
+        return;
+      }
+      if (c === "town" || c === "t") {
+        if (typeof townMenu === "function") await townMenu();
         return;
       }
     } else
@@ -158,6 +163,12 @@ async function exploreStory() {
   const needed = Object.entries(p.kills)
     .filter(([e, n]) => killCount(e) < n && monsters[e])
     .map((x) => x[0]);
+  if (typeof maybeExploreEvent === "function" && !(needed.length && (ch === 0 || Math.random() < 0.4))) {
+    if (await maybeExploreEvent(an)) {
+      if (typeof maybePromptLevelUp === "function") await maybePromptLevelUp();
+      return;
+    }
+  }
   let enemy;
   if (needed.length && (ch === 0 || Math.random() < 0.4)) enemy = needed[0];
   else
@@ -166,8 +177,20 @@ async function exploreStory() {
       enc.map((n) => Math.max(1, monsters[n].chance))
     );
   print(`\nYou travel deeper into ${an}...`);
+  let fightArg = enemy;
+  if (Math.random() < 0.18 && !needed.includes(enemy) && monsters[enemy]?.chance > 0) {
+    const pal = enc.find((n) => n !== enemy) || enemy;
+    fightArg = enemy + "," + pal;
+    print(`A group: ${title(enemy)} and ${title(pal)}.`);
+  } else if (Math.random() < 0.1 && monsters[enemy]?.chance > 0) {
+    print(`This one looks tougher than the others.`);
+    if (typeof makeEnemyState === "function") {
+      await fightMonster(enemy);
+      return;
+    }
+  }
   print(`You encounter ${title(enemy)}.`);
-  await fightMonster(enemy);
+  await fightMonster(fightArg);
 }
 // The 'ending' command: the final three-way choice after The Last Save.
 async function showEnding() {
@@ -197,6 +220,8 @@ async function showEnding() {
       STORY.ending = c;
       STORY.flags.add("ending_complete");
       play(c);
+      if (typeof checkAchievements === "function") checkAchievements();
+      print("\nYou can begin New Game+ with 'ngplus'. Your completed ending is kept.");
       return;
     }
     print("Choose exactly: remember, release, or rewrite.");
