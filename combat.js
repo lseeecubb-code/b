@@ -69,16 +69,16 @@ const ACTION_ALIASES = {
   item: "item",
   "use item": "item",
   use: "item",
-  8: "run",
+  0: "run",
   run: "run",
   flee: "run",
   escape: "run",
   mercy: "run",
-  9: "skill",
+  8: "skill",
   skill: "skill",
   skills: "skill",
   s: "skill",
-  10: "magic",
+  9: "magic",
   magic: "magic",
   spell: "magic",
   spells: "magic",
@@ -217,10 +217,10 @@ function showCombatMenu(f) {
   print("5. 💨 Dodge — avoid a dodgeable attack.");
   print(`6. ⚡ Focus — restore ${C.RECOVER} energy.`);
   print("7. 🧪 Item — use a potion, bomb, or combat aid.");
-  print(`8. 🏃 Escape — attempt to flee (${run}% chance).`);
-  print(`9. ✨ Weapon skill — use a learned technique (${sn}).`);
+  print(`8. ✨ Weapon skill — use a learned technique (${sn}).`);
   const mag = typeof knownSpells === "function" ? knownSpells().length : 0;
-  print(`10. 🔮 Ability — cast a learned spell (${mag ? `${mag} available` : "learn spells in town"}).`);
+  print(`9. 🔮 Ability — cast a learned spell (${mag ? `${mag} available` : "learn spells in town"}).`);
+  print(`0. 🏃 Run away — attempt to flee (${run}% chance).`)
   if (f.enemies && f.enemies.length > 1) print("Switch targets with 'target'; review recent events with 'log'.");
 }
 async function chooseItem() {
@@ -280,10 +280,10 @@ async function chooseSkill(f) {
 // Asks the player for an action and returns it (numbers or names are accepted).
 async function askAction(f) {
   while (true) {
-    const raw = (await input("Choose an action (1-10, or name): ")).trim().toLowerCase(),
+    const raw = (await input("Choose an action (1-9, or 0 to run away): ")).trim().toLowerCase(),
       a = ACTION_ALIASES[raw];
     if (!a) {
-      print("Pick 1-10, or type an action like 'parry', 'magic', 'log'.");
+      print("Pick 1-9, 0 to run away, or type an action like 'parry', 'magic', 'log'.");
       continue;
     }
     if (a === "heavy" && f.energy < C.HEAVY_COST) {
