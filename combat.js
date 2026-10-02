@@ -10,6 +10,13 @@ function moveCost(kind, a) {
   if (kind === "block" || kind === "parry_stance" || kind === "dodge_stance") return 1;
   return 0;
 }
+// [chance %, turns] an enemy attack stuns the player for if it lands. Every attack can stun.
+function enemyStun(a) {
+  const d = C.ENEMY_STUN[a.name === "basic attack" ? "basic" : a.type] || C.ENEMY_STUN.normal;
+  const ch = a.stun ?? d[0],
+    turns = Math.min(C.PLAYER_STUN_MAX, Math.max(1, a.stun_turns ?? d[1]));
+  return [ch, turns];
+}
 // Accuracy after the enemy's own limits: capped, and lower when it is worn out.
 function enemyAccuracy(a, energyAfter) {
   let acc = Math.min(C.ENEMY_MAX_ACC, a.accuracy);
@@ -168,6 +175,7 @@ function showIntent(f) {
   if (k === "heal") {
     print(`${icon} The ${name} is preparing ${an}!`);
     print(`   It will heal ${a.heal[0]}-${a.heal[1]} HP.`);
+    if (a.stun) print(`💫 Can stun you (${a.stun}%, ${enemyStun(a)[1]} turn${enemyStun(a)[1] > 1 ? "s" : ""})`);
     return;
   }
   if (a.warning) {
@@ -183,8 +191,8 @@ function showIntent(f) {
   if (a.element) print(`Element: ${cap(a.element)}`);
   const accNow = enemyAccuracy(a, f.monster_energy - (it.cost || 0));
   print(`Accuracy: ${accNow}%` + (accNow < Math.min(C.ENEMY_MAX_ACC, a.accuracy) ? " (tired!)" : ""));
-  const stunC = a.stun ?? (a.type === "heavy" ? C.HEAVY_STUN_CHANCE : 0);
-  if (stunC) print(`💫 Can stun you (${stunC}% if it hits)`);
+  const [stunC, stunT] = enemyStun(a);
+  if (stunC) print(`💫 Can stun you (${stunC}% if it hits, ${stunT} turn${stunT > 1 ? "s" : ""})`);
   const s = f.stats,
     p = parryChance(a, s),
     d = dodgeChance(a, s);
@@ -673,7 +681,7 @@ function resolveDefense(f, a, inc) {
 }
 // Maybe stuns the player after an enemy hit. Guarding halves the chance; a fresh stun is shrugged off briefly.
 function maybeStunPlayer(f, a) {
-  const base = a.stun ?? (a.type === "heavy" ? C.HEAVY_STUN_CHANCE : 0);
+  const [base, turns] = enemyStun(a);
   if (!base || f.player_stun > 0) return;
   const ch = f.choice === "guard" ? int(base * C.GUARD_STUN_MULT) : base;
   if (!percent(ch)) return;
@@ -681,8 +689,8 @@ function maybeStunPlayer(f, a) {
     print("   🛡️ You're still shaking off the last stun - you resist it!");
     return;
   }
-  f.player_stun = a.stun_turns ?? C.PLAYER_STUN_TURNS;
-  print(`💫 You are STUNNED by ${a.name.toUpperCase()}! You'll lose your next turn${f.player_stun > 1 ? "s" : ""}!`);
+  f.player_stun = turns;
+  print(`💫 You are STUNNED by ${a.name.toUpperCase()}! You'll lose your next ${turns > 1 ? turns + " turns" : "turn"}!`);
 }
 // Maybe puts poison, burn or bleed on the player after an enemy hit.
 function applySpecialEffect(f, a) {
@@ -779,6 +787,11 @@ function monsterTurn(f) {
       h = randint(...a.heal);
     f.monster_hp = Math.min(f.monster.hp, f.monster_hp + h);
     print(`💚 The ${name} heals ${h} HP.`);
+    // Support moves (roars, howls, smoke bombs...) only stun if they set `stun` explicitly.
+    if (a.stun) {
+      print(`📢 ${a.name.toUpperCase()} rattles you!`);
+      maybeStunPlayer(f, a);
+    }
     f.last_move = a.name.toUpperCase();
   } else {
     const a = it.attack;
