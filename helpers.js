@@ -40,6 +40,27 @@ const C = {
   LVL_HP: 8,
   LVL_DMG: 1,
   MAX_LEVEL: 25,
+  // Enemy energy: every move costs energy; with none left the enemy must recover.
+  ENEMY_ENERGY: 6,
+  ENEMY_RECOVER: 3, // energy gained by the "recover" move
+  ENEMY_REGEN: 1, // free energy gained at the end of each enemy turn
+  ENEMY_MAX_ACC: 92, // no enemy attack is ever more accurate than this
+  ENEMY_TIRED_AT: 1, // energy left (after paying) at or below this = tired
+  ENEMY_TIRED_PENALTY: 15, // accuracy lost while tired
+  // Player stun: lose your next turn(s); briefly immune afterwards.
+  PLAYER_STUN_TURNS: 1,
+  PLAYER_STUN_IMMUNE: 1,
+  // Default stun [chance %, turns] for every enemy attack, by type (basic attacks use "basic").
+  // Per move, set `stun: <chance>` and `stun_turns: <n>` in monsters.js to override (`stun: 0` = can't stun).
+  ENEMY_STUN: {
+    basic: [8, 1],
+    fast: [12, 1],
+    normal: [18, 1],
+    slow: [30, 2],
+    heavy: [35, 2],
+  },
+  PLAYER_STUN_MAX: 3, // longest stun a player can be put under
+  GUARD_STUN_MULT: 0.5, // guarding halves the stun chance
 };
 const START_INV = { coin: 100, iron: 5, wood: 5 };
 const SLOTS = ["weapon", "offhand", "head", "armor", "feet", "trinket"];
