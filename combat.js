@@ -1,5 +1,23 @@
 // Combat: enemy AI, combat UI, player actions, fights and the bestiary.
-function enemyWeights(m, last = null) {
+// Energy an enemy move costs. Attacks can set `energy_cost`; otherwise heavy = 3, fast = 1, else 2.
+function attackCost(a) {
+  if (a.energy_cost !== undefined) return a.energy_cost;
+  return a.type === "heavy" ? 3 : a.type === "fast" ? 1 : 2;
+}
+function moveCost(kind, a) {
+  if (kind === "attack") return a.name === "basic attack" ? 1 : attackCost(a);
+  if (kind === "heal") return 2;
+  if (kind === "block" || kind === "parry_stance" || kind === "dodge_stance") return 1;
+  return 0;
+}
+// Accuracy after the enemy's own limits: capped, and lower when it is worn out.
+function enemyAccuracy(a, energyAfter) {
+  let acc = Math.min(C.ENEMY_MAX_ACC, a.accuracy);
+  if (energyAfter !== undefined && energyAfter <= C.ENEMY_TIRED_AT) acc -= C.ENEMY_TIRED_PENALTY;
+  return Math.max(5, acc);
+}
+// `energy` = the enemy's current energy; moves it can't afford are dropped. Omit it for no limit (bestiary).
+function enemyWeights(m, last = null, energy = undefined) {
   const reacting = C.ATTACKING.includes(last),
     o = [];
   let block = m.block_chance || 0;
@@ -27,16 +45,21 @@ function enemyWeights(m, last = null) {
     makeAttack("basic attack", m.basic_attack),
   ]);
   o.push([m.idle_chance || 0, "idle", null]);
-  return o.filter((x) => x[0] > 0);
+  let res = o.filter((x) => x[0] > 0);
+  if (energy !== undefined) {
+    res = res.filter((x) => x[1] === "idle" || moveCost(x[1], x[2]) <= energy);
+    if (!res.length || energy <= 0) res = [[100, "recover", null]];
+  }
+  return res;
 }
 // Picks one move at random from enemyWeights(), using the weights.
-function monsterChoose(m, last) {
-  const o = enemyWeights(m, last),
+function monsterChoose(m, last, energy) {
+  const o = enemyWeights(m, last, energy),
     p = wchoice(
       o,
       o.map((x) => x[0])
     );
-  return { kind: p[1], attack: p[2] };
+  return { kind: p[1], attack: p[2], cost: moveCost(p[1], p[2]) };
 }
 // Chance (%) that the enemy's parry or dodge stance works against an attack of this type.
 function stanceRate(m, st, type) {
@@ -90,7 +113,10 @@ function showStatus(f) {
   print(`You:          ${hpBar(f.player_hp, f.player_max_hp)}`);
   print(`Energy:       ${energyBar(f.energy)}`);
   f.effects.forEach(effLine);
+  if (f.player_stun > 0) print("   💫 STUNNED - you will lose your next turn!");
+  else if (f.player_stun_immune > 0) print("   🛡️ Shaking off the daze - you resist stuns this turn.");
   print(`${pad(cap(f.name), 13)} ${hpBar(f.monster_hp, f.monster.hp)}`);
+  print(`${pad("", 13)} ⚡ ${f.monster_energy}/${f.monster_max_energy}`);
   f.monster_effects.forEach(effLine);
   if (f.guarding) print("   🛡️ GUARDING - your attacks will be weakened this turn!");
   if (f.stance === "parry") print("   🤺 PARRY STANCE - it may turn your attack against you!");
@@ -116,6 +142,11 @@ function showIntent(f) {
   }
   if (k === "idle") {
     print(`${icon} The ${name} ${it.text}`);
+    return;
+  }
+  if (k === "recover") {
+    print(`${icon} The ${name} is out of energy and must recover!`);
+    print(`   It will regain ${C.ENEMY_RECOVER} energy instead of attacking.`);
     return;
   }
   if (k === "block") {
@@ -150,7 +181,10 @@ function showIntent(f) {
   );
   if (a.type !== "normal") print(`Type: ${cap(a.type)}`);
   if (a.element) print(`Element: ${cap(a.element)}`);
-  if (a.accuracy < 100) print(`Accuracy: ${a.accuracy}%`);
+  const accNow = enemyAccuracy(a, f.monster_energy - (it.cost || 0));
+  print(`Accuracy: ${accNow}%` + (accNow < Math.min(C.ENEMY_MAX_ACC, a.accuracy) ? " (tired!)" : ""));
+  const stunC = a.stun ?? (a.type === "heavy" ? C.HEAVY_STUN_CHANCE : 0);
+  if (stunC) print(`💫 Can stun you (${stunC}% if it hits)`);
   const s = f.stats,
     p = parryChance(a, s),
     d = dodgeChance(a, s);
@@ -525,6 +559,15 @@ function useSkill(f, s) {
 async function playerTurn(f) {
   f.owner = "player";
   print("\n🟢 YOUR TURN");
+  if (f.player_stun > 0) {
+    f.player_stun--;
+    print("💫 You are stunned and can't act this turn!");
+    if (f.player_stun > 0) print(`   Still stunned for ${f.player_stun} more turn${f.player_stun > 1 ? "s" : ""} after this.`);
+    else f.player_stun_immune = C.PLAYER_STUN_IMMUNE;
+    f.choice = "stunned";
+    return;
+  }
+  if (f.player_stun_immune > 0) f.player_stun_immune--;
   let action;
   while (true) {
     showCombatMenu(f);
@@ -628,6 +671,19 @@ function resolveDefense(f, a, inc) {
   }
   return inc;
 }
+// Maybe stuns the player after an enemy hit. Guarding halves the chance; a fresh stun is shrugged off briefly.
+function maybeStunPlayer(f, a) {
+  const base = a.stun ?? (a.type === "heavy" ? C.HEAVY_STUN_CHANCE : 0);
+  if (!base || f.player_stun > 0) return;
+  const ch = f.choice === "guard" ? int(base * C.GUARD_STUN_MULT) : base;
+  if (!percent(ch)) return;
+  if (f.player_stun_immune > 0) {
+    print("   🛡️ You're still shaking off the last stun - you resist it!");
+    return;
+  }
+  f.player_stun = a.stun_turns ?? C.PLAYER_STUN_TURNS;
+  print(`💫 You are STUNNED by ${a.name.toUpperCase()}! You'll lose your next turn${f.player_stun > 1 ? "s" : ""}!`);
+}
 // Maybe puts poison, burn or bleed on the player after an enemy hit.
 function applySpecialEffect(f, a) {
   const e = a.special_effect;
@@ -671,6 +727,7 @@ function monsterDealDamage(f, a, inc) {
   print(`💔 You are hit for ${t} damage.`);
   f.player_hp -= t;
   applySpecialEffect(f, a);
+  if (f.player_hp > 0) maybeStunPlayer(f, a);
   return t;
 }
 // Decides what the enemy will do on the coming turn.
@@ -681,7 +738,7 @@ function rollIntent(f) {
     it = { kind: "stunned", attack: null };
   } else if (f.staggered) it = { kind: "staggered", attack: null };
   else {
-    it = monsterChoose(f.monster, f.choice);
+    it = monsterChoose(f.monster, f.choice, f.monster_energy);
     if (it.kind === "idle") it.text = IDLE_LINES[randint(0, IDLE_LINES.length - 1)];
   }
   f.intent = it;
@@ -698,12 +755,19 @@ function monsterTurn(f) {
   print(`\n🔴 THE ${name.toUpperCase()}'S TURN`);
   f.staggered = false;
   let attacked = false;
+  f.monster_energy = Math.max(0, f.monster_energy - (it.cost || 0));
+  const tired = f.monster_energy <= C.ENEMY_TIRED_AT;
   if (k === "stunned") {
     f.last_move = "was stunned and lost its turn";
     // Last stunned turn: it recovers, then resists further stuns briefly.
     if (f.stun_turns <= 0) f.stun_immune = STUN.IMMUNE_TURNS;
   } else if (k === "staggered") {
     f.last_move = "was staggered and lost its turn";
+  } else if (k === "recover") {
+    const g = Math.min(C.ENEMY_RECOVER, f.monster_max_energy - f.monster_energy);
+    f.monster_energy += g;
+    print(`😮‍💨 The ${name} catches its breath and regains ${g} energy.`);
+    f.last_move = "recovered energy";
   } else if (k === "idle") {
     f.last_move = "did nothing";
   } else if (k === "block") {
@@ -723,8 +787,12 @@ function monsterTurn(f) {
       // stun_turns can only become > 0 mid-attack via a perfect parry: stop the rest of the combo.
       if (f.monster_hp <= 0 || f.player_hp <= 0 || f.stun_turns > 0) break;
       if (a.hits > 1) print(`   Strike ${n + 1}/${a.hits}:`);
-      if (!percent(a.accuracy)) {
-        print(`💨 ${a.name.toUpperCase()} misses you completely!`);
+      if (!percent(enemyAccuracy(a, f.monster_energy))) {
+        print(
+          tired
+            ? `💨 The ${name} is exhausted - ${a.name.toUpperCase()} misses you completely!`
+            : `💨 ${a.name.toUpperCase()} misses you completely!`
+        );
         continue;
       }
       attacked = true;
@@ -742,6 +810,7 @@ function monsterTurn(f) {
   if (k !== "stunned" && f.stun_immune > 0) f.stun_immune--;
   f.guarding = false;
   f.stance = null;
+  f.monster_energy = Math.min(f.monster_max_energy, f.monster_energy + C.ENEMY_REGEN + (k === "idle" ? 1 : 0));
   if (f.monster_hp <= 0) return;
   resolveMonsterEffects(f);
   if (f.monster_hp <= 0) return;
@@ -786,6 +855,10 @@ function newFight(n) {
     stance: null,
     stun_turns: 0,
     stun_immune: 0,
+    monster_energy: m.energy ?? C.ENEMY_ENERGY,
+    monster_max_energy: m.energy ?? C.ENEMY_ENERGY,
+    player_stun: 0,
+    player_stun_immune: 0,
     staggered: false,
     last_move: null,
     intent: null,
