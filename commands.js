@@ -139,7 +139,7 @@ async function doFunction(line) {
   if (!m) return;
   const n = resolveCommand(m[1]);
   if (!n) {
-    print("🤔 I don't recognize that command. Type 'menu' to browse your options.");
+    print("Invalid command.");
     return;
   }
   await COMMANDS[n][0](m[2]);
