@@ -3,9 +3,13 @@ const SAVE_KEY = "the-last-save.autosave.v1";
 const termScreen = document.getElementById("screen");
 const termInput = document.getElementById("command");
 const termStatus = document.getElementById("status");
+const AUTOSAVE_INTERVAL_MS = 30_000;
 let pendingInput = null,
   cmdHistory = [],
   cmdIndex = 0;
+let autosaveDueAt = 0,
+  autosaveTicker = null,
+  autosaveAvailable = true;
 
 function showLoadingIndicator(message = "Still working…") {
   termStatus.classList.add("is-loading");
@@ -14,6 +18,16 @@ function showLoadingIndicator(message = "Still working…") {
 
 function clearLoadingIndicator() {
   termStatus.classList.remove("is-loading");
+}
+
+function updateAutosaveCountdown() {
+  if (!autosaveAvailable || !pendingInput || termStatus.classList.contains("is-loading")) return;
+  const secondsLeft = Math.max(0, Math.ceil((autosaveDueAt - Date.now()) / 1000));
+  if (secondsLeft === 0) {
+    autosave();
+    return;
+  }
+  termStatus.textContent = `💾 Saved · saving in ${secondsLeft}s`;
 }
 
 // Adds text to the screen. Text ending in "\n" becomes a finished line; anything else (like the
@@ -32,8 +46,12 @@ function print(...args) {
 function autosave() {
   try {
     localStorage.setItem(SAVE_KEY, saveCode());
-    termStatus.textContent = "Autosaved · progress is stored in this browser";
+    autosaveAvailable = true;
+    autosaveDueAt = Date.now() + AUTOSAVE_INTERVAL_MS;
+    termStatus.textContent = "💾 Saved · saving in 30s";
+    if (autosaveTicker === null) autosaveTicker = setInterval(updateAutosaveCountdown, 1000);
   } catch (e) {
+    autosaveAvailable = false;
     termStatus.textContent = "Autosave unavailable in this browser";
   }
 }
