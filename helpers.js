@@ -5,9 +5,9 @@ const C = {
   ATTACK_HIT: 70,
   CRIT: 25,
   CRIT_MULT: 1.5,
-  MAX_ENERGY: 8,
-  START_ENERGY: 6,
-  RECOVER: 3,
+  MAX_ENERGY: 6,
+  START_ENERGY: 4,
+  RECOVER: 2,
   ATTACK_GAIN: 1,
   HEAVY_COST: 2,
   HEAVY_MULT: 2.0,
@@ -40,37 +40,44 @@ const C = {
   LVL_HP: 8,
   LVL_DMG: 1,
   MAX_LEVEL: 25,
-  // Enemy energy: every move costs energy; with none left the enemy must recover.
-  ENEMY_ENERGY: 6,
-  ENEMY_RECOVER: 3, // energy gained by the "recover" move
-  ENEMY_REGEN: 1, // free energy gained at the end of each enemy turn
-  ENEMY_MAX_ACC: 92, // no enemy attack is ever more accurate than this
-  ENEMY_TIRED_AT: 1, // energy left (after paying) at or below this = tired
-  ENEMY_TIRED_PENALTY: 15, // accuracy lost while tired
-  // Player stun: lose your next turn(s); briefly immune afterwards.
-  PLAYER_STUN_TURNS: 1,
-  PLAYER_STUN_IMMUNE: 1,
-  // Default stun [chance %, turns] for every enemy attack, by type (basic attacks use "basic").
-  // Per move, set `stun: <chance>` and `stun_turns: <n>` in monsters.js to override (`stun: 0` = can't stun).
-  ENEMY_STUN: {
-    basic: [8, 1],
-    fast: [12, 1],
-    normal: [18, 1],
-    slow: [30, 2],
-    heavy: [35, 2],
-  },
-  PLAYER_STUN_MAX: 3, // longest stun a player can be put under
-  GUARD_STUN_MULT: 0.5, // guarding halves the stun chance
 };
 const START_INV = { coin: 100, iron: 5, wood: 5 };
 const SLOTS = ["weapon", "offhand", "head", "armor", "feet", "trinket"];
 let inventory, equipment, PLAYER, STORY;
+function defaultPlayerExtra(p = {}) {
+  return {
+    str: p.str ?? 5,
+    agi: p.agi ?? 5,
+    vit: p.vit ?? 5,
+    foc: p.foc ?? 5,
+    statPoints: p.statPoints ?? 0,
+    skillPoints: p.skillPoints ?? 0,
+    perks: Array.isArray(p.perks) ? [...p.perks] : [],
+    spells: Array.isArray(p.spells) ? [...p.spells] : ["ember spark", "mend"],
+    ngPlus: p.ngPlus ?? 0,
+  };
+}
+function defaultWorld() {
+  return {
+    quests: {},
+    upgrades: {},
+    rarity: {},
+    companions: { recruited: [], active: [], hp: {} },
+    rested: 0,
+    eventsDone: 0,
+    usedCombatItem: false,
+    totalKills: 0,
+    flags: {},
+  };
+}
+let WORLD = defaultWorld();
 // Resets inventory, equipment, level and story progress to a fresh game.
 function resetState() {
   inventory = { ...START_INV };
   equipment = { weapon: null, offhand: null, head: null, armor: null, feet: null, trinket: null };
-  PLAYER = { level: 1, xp: 0 };
+  PLAYER = { level: 1, xp: 0, ...defaultPlayerExtra() };
   STORY = { chapter: 0, fracture: 0, flags: new Set(), seen: new Set(), ending: null, kills: {} };
+  WORLD = defaultWorld();
 }
 resetState();
 
@@ -96,7 +103,8 @@ const hpBar = (c, m, w = 20) => {
   const f = Math.max(0, Math.round((w * Math.max(0, c)) / m));
   return "[" + "#".repeat(f) + "-".repeat(w - f) + `] ${Math.max(0, c)}/${m}`;
 };
-const energyBar = (c, m = C.MAX_ENERGY) => {
+const energyBar = (c, m) => {
+  m = m ?? (typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY);
   c = Math.max(0, Math.min(c, m));
   return "●".repeat(c) + "○".repeat(m - c) + ` ${c}/${m}`;
 };
@@ -113,6 +121,9 @@ function parseItemAmount(t) {
 // Adds items to the inventory (pass quiet = true to skip the message).
 function addItem(n, a, q = false) {
   inventory[n] = (inventory[n] || 0) + a;
+  if (typeof ensureRarity === "function") ensureRarity(n);
+  if (typeof noteQuestCollect === "function") noteQuestCollect();
+  if (typeof checkAchievements === "function") checkAchievements();
   if (!q) print(`added ${a} of ${n}`);
 }
 // Removes items from the inventory; returns false if there aren't enough.
@@ -273,7 +284,7 @@ function describeUsable(n) {
     p = [];
   if ("heal" in d) p.push(d.heal >= 999 ? "fully restores HP" : `heals ${d.heal} HP`);
   if ("energy" in d) p.push(`restores ${d.energy} energy`);
-  if (d.cure) p.push("cures poison, burn and bleed");
+  if (d.cure) p.push("cures poison, burn, bleed and other ailments");
   if ("buff_damage" in d) p.push(`+${d.buff_damage} damage for this fight`);
   if ("buff_defense" in d) p.push(`+${d.buff_defense} defense for this fight`);
   if ("buff_dodge" in d) p.push(`+${d.buff_dodge}% dodge for this fight`);
