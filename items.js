@@ -384,6 +384,19 @@ const USABLE_ITEMS = {
   "frost resistance potion": { buff_frost_resistance: 50 },
   bomb: { damage: 30 },
   "smoke flask": { stun: true, stun_turns: 2 },
+  "fire bomb": { damage: 24, element: "fire", effect: { type: "burn", chance: 70, damage: 4, turns: 3 } },
+  "frost bomb": { damage: 18, element: "frost", effect: { type: "slow", chance: 75, damage: 0, turns: 2 } },
+  "venom vial": { damage: 8, effect: { type: "poison", chance: 90, damage: 5, turns: 3 } },
+  "flash powder": { stun: true, stun_turns: 1, effect: { type: "weakened", chance: 100, damage: 0, turns: 2 } },
+  "ward scroll": { self: { type: "warded", turns: 3 } },
+  "battle focus scroll": { self: { type: "empowered", turns: 3 } },
+  "stone skin scroll": { self: { type: "fortified", turns: 3 } },
+  "barrier charm": { self: { type: "shield", absorb: 28, turns: 3 } },
+  "wyrmfire bomb": { damage: 32, element: "fire", effect: { type: "burn", chance: 75, damage: 5, turns: 3 } },
+  "glacier flask": { damage: 27, element: "frost", effect: { type: "slow", chance: 80, damage: 0, turns: 2 } },
+  "wraith ward scroll": { self: { type: "warded", turns: 4 } },
+  "archivist seal": { self: { type: "shield", absorb: 42, turns: 3 } },
+  "hero's gambit tonic": { buff_damage: 8, buff_crit: 8 },
 };
 
 const recipes = {
@@ -487,6 +500,28 @@ const recipes = {
   "roast meat": { meat: 2, wood: 1 },
   bomb: { coal: 2, iron: 1, coin: 10 },
   "smoke flask": { silk: 1, coal: 1, coin: 15 },
+  "fire bomb": { coal: 2, "ember core": 1, iron: 1, coin: 18 },
+  "frost bomb": { coal: 2, "frost crystal": 1, iron: 1, coin: 18 },
+  "venom vial": { fang: 2, wood: 1, coin: 12 },
+  "flash powder": { coal: 2, feather: 1, coin: 14 },
+  "ward scroll": { silk: 2, crystal: 1, coin: 25 },
+  "battle focus scroll": { silk: 2, fang: 1, coin: 22 },
+  "stone skin scroll": { leather: 2, stone: 2, coin: 20 },
+  "barrier charm": { crystal: 1, iron: 2, coin: 30 },
+  "wyrmfire bomb": { "ember core": 1, "dragon scale": 1, coal: 2 },
+  "glacier flask": { "frost crystal": 1, scale: 1, crystal: 1 },
+  "wraith ward scroll": { "soul shard": 1, silk: 2, crystal: 1 },
+  "archivist seal": { "ancient crystal": 2, "soul shard": 2 },
+  "hero's gambit tonic": { "demon horn": 1, "ancient heart": 1, fang: 2 },
+};
+
+// Regular foes have a modest chance to teach rare formulas; linked bosses guarantee them.
+const RECIPE_DISCOVERY = {
+  "wyrmfire bomb": { wyvern: 18, dragon: 25, "ancient dragon": 35, "the unnamed king": 100 },
+  "glacier flask": { "frost giant": 20, "the leftover": 100 },
+  "wraith ward scroll": { wraith: 18, lich: 10, "the watcher": 100 },
+  "archivist seal": { "archive stalker": 20, "the archivist": 100 },
+  "hero's gambit tonic": { berserker: 12, "the first hero": 100 },
 };
 
 const SHOP_BUY = {
@@ -511,6 +546,9 @@ const SHOP_BUY = {
   "phoenix potion": 180,
   bomb: 40,
   "smoke flask": 35,
+  "fire bomb": 55, "frost bomb": 55, "venom vial": 35, "flash powder": 40,
+  "ward scroll": 65, "battle focus scroll": 55, "stone skin scroll": 50, "barrier charm": 80,
+  "wyrmfire bomb": 80, "glacier flask": 85, "wraith ward scroll": 100, "archivist seal": 150, "hero's gambit tonic": 120,
 };
 
 const SHOP_SELL = {
@@ -538,6 +576,9 @@ const SHOP_SELL = {
   "phoenix potion": 90,
   bomb: 18,
   "smoke flask": 15,
+  "fire bomb": 25, "frost bomb": 25, "venom vial": 16, "flash powder": 18,
+  "ward scroll": 30, "battle focus scroll": 25, "stone skin scroll": 22, "barrier charm": 38,
+  "wyrmfire bomb": 38, "glacier flask": 40, "wraith ward scroll": 48, "archivist seal": 70, "hero's gambit tonic": 55,
   fiber: 2,
   stone: 3,
   "silver ore": 14,

@@ -1,27 +1,56 @@
 // Command router and the main game loop (runGame).
 class Quit extends Error {}
+function openGitHubRepository() {
+  const url = "https://github.com/lseeecubb-code/rpg-game";
+  const tab = window.open(url, "_blank");
+  if (tab) {
+    tab.opener = null;
+    print("🐙 Opening the game's GitHub repository in a new tab.");
+  } else {
+    print(`🐙 Your browser blocked the new tab. Open the repository here: ${url}`);
+  }
+}
 const COMMANDS = {
-  explore: [exploreStory, "explore", "Travel the story area and fight - THE way to progress"],
-  story: [showStory, "story", "Your chapter, objective and progress"],
-  ending: [showEnding, "ending", "Make the final choice (after The Witness)"],
-  fight: [fightCommand, "fight [enemy]", "Pick an enemy you've already beaten, or a random fight"],
-  bestiary: [showBestiary, "bestiary [enemy]", "Enemy moves, drops and unlock status"],
-  inventory: [showInventory, "inventory [category]", "Your items, sorted by category"],
-  stats: [showStats, "stats", "Your stats and equipped gear"],
-  skills: [showSkills, "skills", "Skills of your equipped weapon"],
-  info: [showItemInfo, "info [item]", "Stats, recipe, drops and prices of any item"],
+  explore: [exploreStory, "explore", "Travel the current region, find encounters, and advance the campaign"],
+  story: [showStory, "story", "Review your chapter, objective, and progress"],
+  ending: [showEnding, "ending", "Choose the fate of the world after the final boss"],
+  fight: [fightCommand, "fight [enemy]", "Challenge a discovered foe or enter a random battle"],
+  bestiary: [showBestiary, "bestiary [enemy]", "Study enemy moves, resistances, drops, and encounter odds"],
+  inventory: [showInventory, "inventory [category]", "Browse your carried gear, supplies, and materials"],
+  stats: [showStats, "stats", "Review attributes, combat values, and equipped gear"],
+  skills: [showSkills, "skills", "Review weapon techniques, perks, and known spells"],
+  allocate: [allocateStats, "allocate", "Spend points on Strength, Agility, Vitality, or Focus"],
+  perks: [showPerks, "perks", "Browse the Warrior, Rogue, and Mage perk paths"],
+  magic: [showMagic, "magic", "Review spells that spend Energy in combat"],
+  party: [showParty, "party", "Review your companions and choose who fights beside you"],
+  quests: [showQuestLog, "quests", "Track side quests, objectives, and rewards"],
+  achievements: [showAchievements, "achievements", "Celebrate milestones earned along the way"],
+  settings: [showSettingsMenu, "settings", "Adjust difficulty, combat log, and display preferences"],
+  saves: [saveSlotsMenu, "saves", "Manage your three local save slots"],
+  completed: [loadCompletedRun, "completed", "Restore your most recently completed campaign"],
+  ngplus: [startNewGamePlus, "ngplus", "Begin a tougher replay after choosing an ending"],
+  town: [
+    async () => {
+      if (typeof townMenu === "function") await townMenu();
+      else print("No town is open here yet.");
+    },
+    "town",
+    "Rest, trade, upgrade your gear, or learn from a trainer",
+  ],
+  info: [showItemInfo, "info [item or enemy]", "Inspect an item's bonuses or an enemy's tactics and weaknesses"],
   equip: [equipItem, "equip [item]", "Equip a weapon, armor, shield ..."],
   unequip: [unequipItem, "unequip [item]", "Take something off"],
   craft: [
     craftItem,
     "craft [item] [amount]",
-    "Craft items ('craft potion 5, shield' does several)",
+    "Craft items, or use 'craft locked' to track hidden formulas",
   ],
-  recipes: [showRecipes, "recipes [category]", "Browse recipes by category"],
+  recipes: [showRecipes, "recipes [category|locked|track <name>|tracking]", "Browse formulas and track recipe crafting progress"],
   shop: [shop, "shop [buy|sell|category]", "Browse the shop by category"],
   buy: [buyItem, "buy [item] [amount]", "Buy from the shop"],
   sell: [sellItem, "sell [item] [amount]", "Sell to the shop ('sell all <item>')"],
-  event: [() => print("\n⚠️ " + fourthWall()), "event", "Trigger a fourth-wall event"],
+  event: [() => print("\n🌀 " + fourthWall()), "event", "Invite a strange message from beyond the world"],
+  github: [openGitHubRepository, "github", "Open the game's GitHub repository"],
   copy: [copyData, "copy", "Get your save code"],
   load: [loadWithAdmin, "load", "Load a save code"],
   menu: [() => showMainMenu(), "menu", "Show this list"],
@@ -34,11 +63,11 @@ const COMMANDS = {
   ],
 };
 const MENU = [
-  ["PROGRESS", ["explore", "story", "ending"]],
-  ["BATTLE", ["fight", "bestiary"]],
-  ["CHARACTER", ["inventory", "stats", "skills", "info", "equip", "unequip"]],
-  ["CRAFT & TRADE", ["craft", "recipes", "shop", "buy", "sell"]],
-  ["OTHER", ["event", "copy", "load", "menu", "quit"]],
+  ["📖 STORY & PROGRESS", ["explore", "story", "ending"]],
+  ["⚔️ BATTLE", ["fight", "bestiary"]],
+  ["🧙 HERO & GEAR", ["inventory", "stats", "skills", "allocate", "perks", "magic", "info", "equip", "unequip"]],
+  ["🔨 CRAFT & TRADE", ["craft", "recipes", "shop", "buy", "sell"]],
+  ["🏕️ CAMP & OPTIONS", ["town", "quests", "party", "achievements", "settings", "saves", "completed", "ngplus", "event", "github", "copy", "load", "menu", "quit"]],
 ];
 const ORDER = MENU.flatMap((x) => x[1]),
   cnum = (n) => ORDER.indexOf(n) + 1;
@@ -46,6 +75,15 @@ const ALIASES = {
   progress: "story",
   inspect: "info",
   item: "info",
+  stats: "stats",
+  attributes: "allocate",
+  allocate: "allocate",
+  perk: "perks",
+  spells: "magic",
+  spell: "magic",
+  hub: "town",
+  slots: "saves",
+  "ng+": "ngplus",
   help: "menu",
   m: "menu",
   "?": "menu",
@@ -53,15 +91,15 @@ const ALIASES = {
   q: "quit",
 };
 function showMainMenu() {
-  print("\n=== WHAT DO YOU WANT TO DO? ===");
+  print("\n🧭 YOUR ADVENTURE — CHOOSE WHAT TO DO");
   for (const [t, names] of MENU) {
     print(`\n${t}`);
     names.forEach((n) =>
       print(`  ${rpad(cnum(n), 2)}. ${pad(COMMANDS[n][1], 26)} ${COMMANDS[n][2]}`)
     );
   }
-  print("\nType a number or a command name. Commands that need more details will ask,");
-  print("or type it all at once, e.g. 'buy potion 2', 'info iron sword', 'fight goblin'.");
+  print("\nChoose by number or type a command. Add details in the same line when you know them:");
+  print("💬 Examples: 'buy potion 2' · 'info iron sword' · 'fight goblin'.");
 }
 function keyHint() {
   const ch = curChapter(),
@@ -75,11 +113,11 @@ function keyHint() {
     if (p.boss && PLAYER.level >= p.level && !objectiveComplete())
       print("⚔️  The chapter boss is ready: 'explore', then choose 'boss'.");
   }
-  print("⭐ Key commands:");
+  print("⭐ QUICK ACTIONS");
   print(
     `   ${rpad(cnum("explore"), 2)}. explore  - travel and fight; this is how the story moves forward`
   );
-  print(`   ${rpad(cnum("story"), 2)}. story    - check your objective and progress`);
+  print(`   ${rpad(cnum("story"), 2)}. story    - review your objective and campaign progress`);
   if (fin && !STORY.ending)
     print(`   ${rpad(cnum("ending"), 2)}. ending   - make the final choice`);
   print(`   ${rpad(cnum("menu"), 2)}. menu     - every command (type a number or a name)`);
@@ -101,7 +139,7 @@ async function doFunction(line) {
   if (!m) return;
   const n = resolveCommand(m[1]);
   if (!n) {
-    print("Invalid command! Type 'menu' to see everything you can do.");
+    print("🤔 I don't recognize that command. Type 'menu' to browse your options.");
     return;
   }
   await COMMANDS[n][0](m[2]);
@@ -117,14 +155,15 @@ async function runGame(savedCode) {
       print(`[autosave warning] ${e.message}`);
     }
   }
-  print("\nWelcome to THE LAST SAVE.");
-  print("This is a campaign, not just a sandbox. Your victories unlock the story.");
+  print("\nWelcome to THE LAST SAVE");
+  print("⚔️ A turn-based story RPG. Explore a fractured world, grow stronger, and uncover what waits beyond the final save.");
   storyIntro();
   showStory();
+  if (typeof maybeRecruitFromStory === "function") maybeRecruitFromStory();
   showMainMenu();
   try {
     while (true) {
-      await doFunction((await input("\nwhat do you want to do? (menu/20)")).trim());
+      await doFunction((await input("\n✨ Your move? (menu/20)")).trim());
     }
   } catch (e) {
     if (e instanceof Quit) print("Thanks for playing! (Use New Game or reload to play again.)");
@@ -356,6 +395,7 @@ const ADMIN = (() => {
       const it = resolveItem(name);
       if (it.error) return say(it.error);
       r.inventory[it.name] = (r.inventory[it.name] || 0) + count;
+      if (typeof markRecipeMaterialSeen === "function") markRecipeMaterialSeen(it.name);
       say(`${it.name} x${r.inventory[it.name]}`);
     },
 

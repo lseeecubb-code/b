@@ -91,12 +91,17 @@ const ACTION_ALIASES = {
 // ---------- combat: UI ----------
 function effLine(e) {
   const [i, w] = EFFECT_STYLE[e.type] || ["✨", e.type];
-  print(`   ${i} ${w} (${e.damage} dmg/turn, ${e.turns} turns left)`);
+  const dots = typeof DOT_TYPES !== "undefined" ? DOT_TYPES : new Set(["poison", "burn", "bleed"]);
+  if (dots.has(e.type) && e.damage)
+    print(`   ${i} ${w} (${e.damage} dmg/turn, ${e.turns} turns left)`);
+  else if (e.type === "shield")
+    print(`   ${i} ${w} (absorbs ${e.absorb || e.damage || 0}, ${e.turns} turns left)`);
+  else print(`   ${i} ${w} (${e.turns} turns left)`);
 }
 // Prints both health bars and the player's energy bar.
 function showStatus(f) {
-  print(`You:          ${hpBar(f.player_hp, f.player_max_hp)}`);
-  print(`Energy:       ${energyBar(f.energy, typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY)}`);
+  print(`❤️ You:        ${hpBar(f.player_hp, f.player_max_hp)}`);
+  print(`⚡ Energy:     ${energyBar(f.energy, typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY)}`);
   f.effects.forEach(effLine);
   if (typeof WORLD !== "undefined") {
     (WORLD.companions.active || []).forEach((id) => {
@@ -111,8 +116,8 @@ function showStatus(f) {
     print(`${pad(cap(e.name), 13)} ${hpBar(e.hp, e.monster.hp)}${mark}`);
     (e.effects || []).forEach(effLine);
   });
-  if (f.last_move) print(`   last move: ${f.last_move}`);
-  if (f.guarding) print("   🛡️ GUARDING - your attacks will be weakened this turn!");
+  if (f.last_move) print(`   📝 Last move: ${f.last_move}`);
+  if (f.guarding) print(`   🛡️ ${cap(f.name)} is guarding — your attacks deal ${int((f.monster.block_reduction || 0) * 100)}% less damage this turn.`);
   if (f.stance === "parry") print("   🤺 PARRY STANCE - it may turn your attack against you!");
   if (f.stance === "dodge") print("   💨 DODGE STANCE - it may slip your attack!");
   if (f.staggered) print(`   💫 STAGGERED - takes +${int(C.STAGGER_BONUS * 100)}% damage!`);
@@ -123,7 +128,7 @@ function showIntent(f) {
     k = it.kind,
     name = cap(f.name),
     icon = f.monster.icon || "👹";
-  print("\n=== ENEMY INTENT ===");
+  print("\n👁️ ENEMY INTENT — READ THE TELEGRAPH");
   if (k === "stunned") {
     print(`${icon} The ${name} is stunned and can't act this turn!`);
     if (f.stun_turns > 0)
@@ -139,17 +144,16 @@ function showIntent(f) {
     return;
   }
   if (k === "block") {
-    print(`${icon} The ${name} is raising its guard!`);
-    print("   Your attacks will be weakened this turn.");
+    const reduction = int((f.monster.block_reduction || 0) * 100);
+    print(`${icon} The ${name} is guarding — your attacks will deal ${reduction}% less damage this turn.`);
     return;
   }
   if (k === "parry_stance" || k === "dodge_stance") {
     const st = k.split("_")[0];
     print(`${icon} The ${name} takes a ${st.toUpperCase()} STANCE!`);
     print(
-      `   It will try to ${st === "parry" ? "parry and counter" : "dodge"} your attack (~${stanceRate(f.monster, st, "normal")}% for a normal attack).`
+      `   It will try to ${st === "parry" ? "parry and counter" : "dodge"} your next attack (${stanceRate(f.monster, st, "normal")}% chance).`
     );
-    print("   Fast attacks are harder for it to stop; heavy ones are easier to dodge.");
     return;
   }
   const a = it.attack,
@@ -205,19 +209,19 @@ function showCombatMenu(f) {
   const sn = sk.length
     ? `${sk.filter((s) => f.energy >= s.cost && !(f.cooldowns[s.name] || 0)).length}/${sk.length} ready`
     : "equip a weapon with skills";
-  print("\n=== YOUR ACTION ===");
-  print("1. Attack");
-  print(`2. Heavy Attack (${cn})`);
-  print("3. Guard");
-  print("4. Parry");
-  print("5. Dodge");
-  print(`6. Recover Energy (+${C.RECOVER})`);
-  print("7. Use Item");
-  print(`8. Run (${run}% chance)`);
-  print(`9. Weapon Skill (${sn})`);
+  print("\n📋 CHOOSE YOUR ACTION");
+  print("1. ⚔️ Attack — deal physical damage.");
+  print(`2. 💥 Heavy attack — deal increased damage; costs ${cn}.`);
+  print("3. 🛡️ Guard — reduce damage from the next attack.");
+  print("4. 🤺 Parry — deflect a parryable attack and counter.");
+  print("5. 💨 Dodge — avoid a dodgeable attack.");
+  print(`6. ⚡ Focus — restore ${C.RECOVER} energy.`);
+  print("7. 🧪 Item — use a potion, bomb, or combat aid.");
+  print(`8. 🏃 Escape — attempt to flee (${run}% chance).`);
+  print(`9. ✨ Weapon skill — use a learned technique (${sn}).`);
   const mag = typeof knownSpells === "function" ? knownSpells().length : 0;
-  print(`10. Magic (${mag ? mag + " known" : "learn spells in town"})`);
-  if (f.enemies && f.enemies.length > 1) print("Type 'target' to switch enemy. Type 'log' for the combat log.");
+  print(`10. 🔮 Ability — cast a learned spell (${mag ? `${mag} available` : "learn spells in town"}).`);
+  if (f.enemies && f.enemies.length > 1) print("Switch targets with 'target'; review recent events with 'log'.");
 }
 async function chooseItem() {
   const owned = Object.keys(USABLE_ITEMS).filter((n) => (inventory[n] || 0) > 0);
@@ -225,7 +229,7 @@ async function chooseItem() {
     print("You have no usable items!");
     return null;
   }
-  print("\n--- Usable Items ---");
+  print("\n🧪 BATTLE ITEMS");
   owned.forEach((n, i) => print(`${i + 1}. ${n} x${inventory[n]} (${describeUsable(n)})`));
   print("0. Back");
   while (true) {
@@ -247,7 +251,7 @@ async function chooseSkill(f) {
     const w = f.cooldowns[s.name] || 0;
     return w ? `cooldown: ${w} more turn(s)` : null;
   };
-  print("\n--- Weapon Skills ---");
+  print("\n⚔️ WEAPON TECHNIQUES");
   sk.forEach((s, i) => {
     const y = prob(s);
     print(`${i + 1}. ${title(s.name)} (${s.cost} energy) - ${s.desc}`);
@@ -379,9 +383,12 @@ function useItem(f, name) {
     print(`   ⚡ You recover ${g} energy.`);
   }
   if (d.cure) {
-    if (f.effects.length) {
-      f.effects = [];
+    const ailments = typeof AILMENTS !== "undefined" ? AILMENTS : new Set(["poison", "burn", "bleed"]);
+    const before = f.effects.length;
+    f.effects = f.effects.filter((e) => !ailments.has(e.type));
+    if (f.effects.length < before) {
       print("   ✨ Your ailments are cured!");
+      if (typeof clog === "function") clog(f, "cured ailments");
     } else print("   You had nothing to cure.");
   }
   if ("buff_damage" in d) {
@@ -410,8 +417,16 @@ function useItem(f, name) {
     }
   });
   if ("damage" in d) {
-    f.monster_hp -= d.damage;
-    print(`   💣 It explodes! The ${f.name} takes ${d.damage} damage.`);
+    const resist = d.element ? (f.resist[d.element] || 0) : 0;
+    const damage = Math.max(1, Math.floor(d.damage * (1 - resist / 100)));
+    f.monster_hp -= damage;
+    print(`   💣 It hits! The ${f.name} takes ${damage}${d.element ? ` ${d.element}` : ""} damage${resist ? ` (${resist}% resisted)` : ""}.`);
+    if (typeof clog === "function") clog(f, `${name} deals ${damage} damage`);
+  }
+  if (d.effect) applyMonsterEffect(f, d.effect);
+  if (d.self && typeof applyStatus === "function") {
+    f.effects = applyStatus(f.effects, { ...d.self, chance: 100 }, "You");
+    if (typeof clog === "function") clog(f, `you gain ${d.self.type}`);
   }
   if (d.stun)
     stunEnemy(
@@ -425,6 +440,11 @@ function useItem(f, name) {
   }
 }
 function applyMonsterEffect(f, e) {
+  if (typeof applyStatus === "function") {
+    f.monster_effects = applyStatus(f.monster_effects, e, `The ${f.name}`);
+    if (typeof clog === "function") clog(f, `${f.name} ${e.type}`);
+    return;
+  }
   if (!percent(e.chance ?? 100)) return;
   const [i, w] = EFFECT_STYLE[e.type] || ["✨", e.type];
   f.monster_effects = f.monster_effects.filter((x) => x.type !== e.type);
@@ -439,6 +459,7 @@ function resolveMonsterEffects(f) {
     f.monster_hp -= e.damage;
     e.turns--;
     print(`${i} The ${f.name} takes ${e.damage} ${e.type} damage.`);
+    if (typeof clog === "function") clog(f, `${f.name} ${e.type} ${e.damage}`);
     if (e.turns <= 0) {
       f.monster_effects.splice(f.monster_effects.indexOf(e), 1);
       print(`   The ${f.name}'s ${e.type} wears off.`);
@@ -480,6 +501,7 @@ function enemyRiposte(f) {
 function strike(f, o) {
   const name = f.name;
   let hc = Math.max(5, Math.min(100, o.hit_chance));
+  if (typeof effectMods === "function") hc = Math.max(5, Math.min(100, hc + effectMods(f.effects).accuracy));
   const mult = o.mult ?? 1,
     atk = o.atk_type || "normal";
   if (!percent(hc)) {
@@ -493,11 +515,16 @@ function strike(f, o) {
   }
   if (f.stance === "dodge") {
     if (o.ignore_dodge) print("   (It can't dodge this attack!)");
-    else if (percent(stanceRate(f.monster, "dodge", atk))) {
-      print(`💨 The ${name} dodges your attack!`);
-      if (typeof clog === "function") clog(f, `${name} dodges`);
-      return { result: "dodged", damage: 0, landed: false };
-    } else print(`   The ${name} tries to dodge, but you catch it!`);
+    else {
+      let rate = stanceRate(f.monster, "dodge", atk);
+      if (typeof effectMods === "function")
+        rate = Math.max(5, Math.min(95, rate + effectMods(f.monster_effects).dodge));
+      if (percent(rate)) {
+        print(`💨 The ${name} dodges your attack!`);
+        if (typeof clog === "function") clog(f, `${name} dodges`);
+        return { result: "dodged", damage: 0, landed: false };
+      } else print(`   The ${name} tries to dodge, but you catch it!`);
+    }
   } else if (f.stance === "parry") {
     if (o.ignore_parry) print("   (It can't parry this attack!)");
     else if (percent(stanceRate(f.monster, "parry", atk))) {
@@ -618,9 +645,16 @@ async function playerTurn(f) {
       }
     } else if (action === "skill") useSkill(f, SKILLS[extra]);
     else if (action === "magic") useSpell(f, extra);
-    else if (action === "guard") print("🛡️ You raise your guard!");
-    else if (action === "parry") print("⚔️ You ready yourself to parry!");
-    else if (action === "dodge") print("💨 You get ready to dodge!");
+    else if (action === "guard") {
+      print("🛡️ You raise your guard!");
+      if (typeof clog === "function") clog(f, "you guard");
+    } else if (action === "parry") {
+      print("⚔️ You ready yourself to parry!");
+      if (typeof clog === "function") clog(f, "you prepare parry");
+    } else if (action === "dodge") {
+      print("💨 You get ready to dodge!");
+      if (typeof clog === "function") clog(f, "you prepare dodge");
+    }
     else if (action === "recover") {
       const g = Math.min(C.RECOVER, (typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY) - f.energy);
       f.energy += g;
@@ -650,7 +684,7 @@ function resolveDefense(f, a, inc) {
       print(`❌ ${an} cannot be parried!`);
       return exp;
     }
-    if (!percent(parryChance(a, s))) {
+    if (!percent(parryChance(a, s) + (typeof effectMods === "function" ? effectMods(f.effects).parry : 0))) {
       print("Your timing is off - the parry fails!");
       return inc;
     }
@@ -701,7 +735,7 @@ function resolveDefense(f, a, inc) {
       print(`❌ ${an} cannot be dodged!`);
       return exp;
     }
-    if (percent(dodgeChance(a, s))) {
+    if (percent(dodgeChance(a, s) + (typeof effectMods === "function" ? effectMods(f.effects).dodge : 0))) {
       print("💨 You dodge the attack!");
       if (typeof clog === "function") clog(f, "you dodge");
       return 0;
@@ -714,7 +748,13 @@ function resolveDefense(f, a, inc) {
 // Maybe puts poison, burn or bleed on the player after an enemy hit.
 function applySpecialEffect(f, a) {
   const e = a.special_effect;
-  if (!e || !percent(e.chance ?? 100)) return;
+  if (!e) return;
+  if (typeof applyStatus === "function") {
+    f.effects = applyStatus(f.effects, { ...e, element: e.element || a.element }, "You");
+    if (typeof clog === "function") clog(f, `status ${e.type}`);
+    return;
+  }
+  if (!percent(e.chance ?? 100)) return;
   const [i, w] = EFFECT_STYLE[e.type] || ["✨", e.type];
   f.effects = f.effects.filter((x) => x.type !== e.type);
   f.effects.push({ type: e.type, damage: e.damage || 0, turns: e.turns, element: a.element, absorb: e.absorb || 0 });
@@ -733,6 +773,7 @@ function resolveEffects(f) {
     f.player_hp -= d;
     e.turns--;
     print(`${i} ${cap(e.type)} deals ${d} damage.`);
+    if (typeof clog === "function") clog(f, `${e.type} ticks ${d}`);
     if (e.turns <= 0) {
       f.effects.splice(f.effects.indexOf(e), 1);
       print(`   The ${e.type} wears off.`);
@@ -945,6 +986,7 @@ function winFight(f) {
   const fallen = (f.enemies || [{ name: f.name, monster: f.monster }]).filter((e) => e.hp <= 0);
   const names = fallen.length ? fallen : [{ name: f.name, monster: f.monster }];
   print(`\n🏆 You defeated ${names.map((e) => "the " + e.name).join(" and ")}!`);
+  if (typeof clog === "function") names.forEach((e) => clog(f, `defeated ${e.name}`));
   let xp = 0;
   names.forEach((e) => {
     const m = e.monster || f.monster;
@@ -957,6 +999,7 @@ function winFight(f) {
   names.forEach((e) => rollLoot(e.monster || f.monster));
   names.forEach((e) => {
     const nm = (e.name || "").replace(/^elite /, "");
+    if (typeof discoverRecipeFromEnemy === "function") discoverRecipeFromEnemy(nm);
     const first = killCount(nm) === 0;
     recordVictory(nm);
     if (typeof WORLD !== "undefined") WORLD.totalKills = (WORLD.totalKills || 0) + 1;
@@ -993,7 +1036,7 @@ function checkGate(req) {
   return true;
 }
 // Runs a whole fight, turn by turn, until someone wins or the player runs away.
-async function fightMonster(arg = "") {
+async function fightMonster(arg = "", elite = false) {
   const req = arg.trim().toLowerCase();
   if (!checkGate(req)) return;
   let name;
@@ -1008,6 +1051,7 @@ async function fightMonster(arg = "") {
     );
   }
   const f = newFight(name);
+  if (elite && f.enemies) f.enemies = f.enemies.map((e) => makeEnemyState(e.name, true));
   print(`\n⚔️ A wild ${Array.isArray(name) ? name.map((n) => n.toUpperCase()).join(" & ") : name.toUpperCase()} appeared!`);
   const eq = Object.values(equipment).filter(Boolean);
   if (eq.length) print("🧰 Equipped: " + eq.join(", "));
@@ -1148,7 +1192,7 @@ function showBestiary(arg = "") {
     return;
   }
   const tc = Object.values(monsters).reduce((s, m) => s + m.chance, 0);
-  print("\n--- Bestiary ---");
+  print("\n📖 FIELD BESTIARY");
   for (const n of names) {
     const m = monsters[n],
       w = enemyWeights(m),
@@ -1161,26 +1205,40 @@ function showBestiary(arg = "") {
           : k === "idle"
             ? "idle"
             : a.name;
-    print(`\n${m.icon || "👹"} ${title(n)} - ${m.hp} HP`);
+    print(`\n${m.icon || "👹"} ${title(n)}  ·  ❤️ ${m.hp} HP`);
     print(
-      "   Moves (chance per turn): " +
+      "   🎯 Tactics (chance each turn): " +
         w.map(([x, k, a]) => `${lab(k, a)} ${Math.round((100 * x) / t)}%`).join(", ")
     );
     print(
-      "   Drops: " +
+      "   🎁 Drops: " +
         Object.entries(m.drops)
-          .map(([i, d]) => `${i} ${d.chance}%`)
+        .map(([i, d]) => `${title(i)} x${d.min_drop}-${d.max_drop} (${d.chance}%)`)
           .join(", ")
     );
+    const resists = Object.entries(m.resist || {}).filter(([, v]) => v > 0);
+    if (resists.length) print(`   Resists: ${resists.map(([e, v]) => `${title(e)} ${v}%`).join(", ")}`);
+    const special = Object.entries(m.abilities || {});
+    if (special.length) {
+      print("   Signature moves:");
+      special.forEach(([move, a]) => {
+        const parts = [];
+        if (a.damage) parts.push(`${a.damage[0]}-${a.damage[1]} damage`);
+        if (a.heal) parts.push(`heals ${a.heal[0]}-${a.heal[1]} HP`);
+        if (a.element) parts.push(`${a.element} element`);
+        if (a.special_effect) parts.push(`${a.special_effect.type} effect`);
+        print(`     ${title(move)}: ${parts.join(", ") || "special action"}`);
+      });
+    }
     print(
       m.chance > 0
-        ? `   Encounter chance: ${((100 * m.chance) / tc).toFixed(1)}%   Loot chance: ${m.chance}%`
-        : "   Boss - never a random encounter, always drops loot"
+        ? `   🍃 Encounter chance: ${((100 * m.chance) / tc).toFixed(1)}%   ·   Loot chance: ${m.chance}%`
+        : "   👑 Boss or set encounter — appears through the story and guards its loot"
     );
     const st = [];
     if (m.parry_chance) st.push(`parries ${m.parry_rate}%`);
     if (m.dodge_chance) st.push(`dodges ${m.dodge_rate}%`);
-    if (st.length) print(`   Defense: ${st.join(", ")}`);
+    if (st.length) print(`   🛡️ Defence: ${st.join(", ")}`);
     print(
       fightUnlocked(n)
         ? "   'fight' command: unlocked ✓"

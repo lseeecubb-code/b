@@ -275,34 +275,15 @@ const ACHIEVEMENTS = {
 };
 
 const DOT_TYPES = new Set(["poison", "burn", "bleed"]);
+const AILMENTS = new Set(["poison", "burn", "bleed", "slow", "weakened"]);
 
-function defaultWorld() {
-  return {
-    quests: {},
-    upgrades: {},
-    rarity: {},
-    companions: { recruited: [], active: [], hp: {} },
-    rested: 0,
-    eventsDone: 0,
-    usedCombatItem: false,
-    totalKills: 0,
-    flags: {},
-  };
-}
-
-function defaultPlayerExtra(p = {}) {
-  return {
-    str: p.str ?? 5,
-    agi: p.agi ?? 5,
-    vit: p.vit ?? 5,
-    foc: p.foc ?? 5,
-    statPoints: p.statPoints ?? 0,
-    skillPoints: p.skillPoints ?? 0,
-    perks: Array.isArray(p.perks) ? [...p.perks] : [],
-    spells: Array.isArray(p.spells) ? [...p.spells] : ["ember spark", "mend"],
-    ngPlus: p.ngPlus ?? 0,
-  };
-}
+const SPELL_UNLOCKS = [
+  [1, ["ember spark", "mend"]],
+  [3, ["frostbite"]],
+  [4, ["restore"]],
+  [5, ["ward"]],
+  [7, ["storm lash"]],
+];
 
 function defaultSettings() {
   return {
@@ -314,7 +295,6 @@ function defaultSettings() {
 }
 
 let SETTINGS = defaultSettings();
-let WORLD = defaultWorld();
 let META = { achievements: {} };
 
 function loadSettings() {
@@ -346,14 +326,27 @@ function saveMetaAchievements() {
 }
 
 function applyTextColor() {
+  if (typeof document === "undefined" || !document.body) return;
   const map = { default: "", amber: "theme-amber", green: "theme-green", high: "theme-high" };
-  document.body?.classList.remove("theme-amber", "theme-green", "theme-high");
+  document.body.classList.remove("theme-amber", "theme-green", "theme-high");
   const c = map[SETTINGS.textColor];
   if (c) document.body.classList.add(c);
 }
 
 function hasPerk(id) {
   return !!(PLAYER && PLAYER.perks && PLAYER.perks.includes(id));
+}
+
+function unlockSpellsForLevel(quiet = false) {
+  PLAYER.spells = Array.isArray(PLAYER.spells) ? PLAYER.spells : ["ember spark", "mend"];
+  for (const [lv, names] of SPELL_UNLOCKS) {
+    if (PLAYER.level < lv) continue;
+    for (const n of names) {
+      if (PLAYER.spells.includes(n) || !SPELLS[n]) continue;
+      PLAYER.spells.push(n);
+      if (!quiet) print(`🔓 You learned ${title(n)} (${SPELLS[n].desc})`);
+    }
+  }
 }
 
 function maxEnergy() {
@@ -430,15 +423,17 @@ function gearUpgrade(item) {
 }
 
 function clog(f, msg) {
+  if (typeof SETTINGS !== "undefined" && SETTINGS.combatLog === false) return;
+  if (!f || !msg) return;
   if (!f.log) f.log = [];
   f.log.push(msg);
-  if (f.log.length > 50) f.log.shift();
+  if (f.log.length > 80) f.log.shift();
 }
 
 function showCombatLog(f) {
-  print("\n--- Combat Log ---");
+  print("\n📜 COMBAT LOG — RECENT EVENTS");
   const lines = (f.log || []).slice(-16);
-  if (!lines.length) print("(nothing recorded yet)");
+  if (!lines.length) print("No combat events have been recorded yet.");
   else lines.forEach((l) => print("  " + l));
 }
 
@@ -520,6 +515,7 @@ function effectMods(list) {
     if (e.type === "empowered") m.damage += 0.2;
     if (e.type === "slow") {
       m.dodge -= 12;
+      m.parry -= 8;
       m.accuracy -= 10;
     }
     if (e.type === "fortified") m.taken -= 0.15;
@@ -548,7 +544,7 @@ function unlockAchievement(id, quiet = false) {
   META.achievements[id] = { at: Date.now() };
   saveMetaAchievements();
   if (!quiet) {
-    print(`\n🏅 Achievement unlocked: ${ACHIEVEMENTS[id].name}`);
+    print(`\n🏆 Achievement unlocked: ${ACHIEVEMENTS[id].name}`);
     print(`   ${ACHIEVEMENTS[id].desc}`);
   }
 }
@@ -603,9 +599,10 @@ function companionDamage(id) {
 }
 
 function maybeRecruitFromStory() {
-  if (STORY.chapter >= 0 && STORY.seen.has("chapter_0_intro")) recruitCompanion("mira", false);
-  if (STORY.chapter >= 2) recruitCompanion("kael", WORLD.companions.recruited.indexOf("kael") < 0);
-  if (STORY.chapter >= 3) recruitCompanion("nyx", WORLD.companions.recruited.indexOf("nyx") < 0);
+  const recruited = WORLD.companions.recruited || [];
+  if (STORY.chapter >= 0 && STORY.seen.has("chapter_0_intro") && !recruited.includes("mira")) recruitCompanion("mira");
+  if (STORY.chapter >= 2 && !recruited.includes("kael")) recruitCompanion("kael");
+  if (STORY.chapter >= 3 && !recruited.includes("nyx")) recruitCompanion("nyx");
 }
 
 function questState(id) {
@@ -620,7 +617,7 @@ function offerQuest(id) {
   if (STORY.chapter < q.chapterMin) return false;
   WORLD.quests[id] = { status: "active", progress: 0 };
   if (q.type === "deliver" && q.item) addItem(q.item, 1, true);
-  print(`\n📜 New side quest: ${q.name}`);
+  print(`\n📜 QUEST ACCEPTED: ${q.name}`);
   print(`   ${q.desc}`);
   return true;
 }
@@ -651,7 +648,7 @@ function completeQuest(id) {
   const st = questState(id);
   if (!q || st.status === "done") return;
   WORLD.quests[id] = { status: "done", progress: q.need || 1 };
-  print(`\n🏅 SIDE QUEST COMPLETE: ${q.name}`);
+  print(`\n🎉 SIDE QUEST COMPLETE: ${q.name}`);
   for (const [k, a] of Object.entries(q.reward)) {
     if (k === "xp") {
       print(`   +${a} XP`);
@@ -690,38 +687,38 @@ function currentTownId() {
 }
 
 async function allocateStats() {
-  print("\n--- Stat Allocation ---");
-  print("Each point is a small, lasting bonus. Caps at 25 per stat.");
+  print("\n📊 ATTRIBUTE TRAINING");
+  print("Each point is a permanent bonus. Every attribute caps at 25.");
   while ((PLAYER.statPoints || 0) > 0) {
-    print(`\nUnspent points: ${PLAYER.statPoints}`);
-    for (const [k, n, d] of STAT_INFO) print(`  ${k}  ${n} ${PLAYER[k]}/25  — ${d}`);
-    print("  0  done");
-    const raw = (await input("Spend a point (str/agi/vit/foc): ")).trim().toLowerCase();
+    print(`\n✨ Points to spend: ${PLAYER.statPoints}`);
+    for (const [k, n, d] of STAT_INFO) print(`  ${n} ${PLAYER[k]}/25 — ${d}`);
+    print("  0. Finish training");
+    const raw = (await input("Choose Strength, Agility, Vitality, Focus, or 0: ")).trim().toLowerCase();
     if (["0", "done", "back", ""].includes(raw)) break;
     const key = { strength: "str", agility: "agi", vitality: "vit", focus: "foc", s: "str", a: "agi", v: "vit", f: "foc" }[raw] || raw;
     if (!["str", "agi", "vit", "foc"].includes(key)) {
-      print("Type str, agi, vit, foc, or 0 to stop.");
+      print("Choose STR, AGI, VIT, FOC, or 0 to finish.");
       continue;
     }
     if (PLAYER[key] >= 25) {
-      print("That stat is already at the cap.");
+      print("🏁 That attribute has reached its maximum.");
       continue;
     }
     PLAYER[key]++;
     PLAYER.statPoints--;
-    print(`  ${key} is now ${PLAYER[key]}.`);
+    print(`  ✅ ${STAT_INFO.find(([id]) => id === key)[1]} increased to ${PLAYER[key]}.`);
   }
   showAttributeSummary();
 }
 
 function showAttributeSummary() {
   const s = getStats();
-  print("\nCurrent attributes:");
+  print("\n📈 YOUR ATTRIBUTES");
   print(`  Strength ${PLAYER.str}  →  +${Math.floor(Math.max(0, PLAYER.str - 5) / 2)} physical damage`);
   print(`  Agility  ${PLAYER.agi}  →  +${Math.floor(Math.max(0, PLAYER.agi - 5) / 2)}% dodge/parry`);
   print(`  Vitality ${PLAYER.vit}  →  +${Math.max(0, PLAYER.vit - 5) * 3} max HP`);
   print(`  Focus    ${PLAYER.foc}  →  max energy ${maxEnergy()}, spell power ${int(spellPower() * 100)}%`);
-  print(`  Derived max HP ${s.max_hp}, damage bonus ${s.damage}`);
+  print(`  ❤️ Maximum HP: ${s.max_hp}  ·  ⚔️ Physical damage bonus: ${s.damage}`);
 }
 
 async function maybePromptLevelUp() {
@@ -742,11 +739,11 @@ function perkReady(id) {
 }
 
 async function showPerks() {
-  print("\n--- Perk Trees ---");
-  print(`Perk points: ${PLAYER.skillPoints || 0}`);
+  print("\n🌿 PERK PATHS");
+  print(`✨ Perk points available: ${PLAYER.skillPoints || 0}`);
   const trees = ["Warrior", "Rogue", "Mage"];
   for (const t of trees) {
-    print(`\n[${t}]`);
+    print(`\n${({ Warrior: "⚔️", Rogue: "🗡️", Mage: "🔮" })[t]} ${t.toUpperCase()}`);
     Object.entries(PERKS)
       .filter(([, p]) => p.tree === t)
       .forEach(([id, p]) => {
@@ -755,28 +752,28 @@ async function showPerks() {
       });
   }
   if (!(PLAYER.skillPoints > 0)) return;
-  const raw = (await input("\nLearn which perk? (name, or blank): ")).trim().toLowerCase();
+  const raw = (await input("\nWhich available perk will you learn? (name, or blank to leave): ")).trim().toLowerCase();
   if (!raw) return;
   const id = Object.keys(PERKS).find((k) => k === raw || k.includes(raw));
   if (!id) {
-    print("No perk by that name.");
+    print("🔎 No perk matches that name.");
     return;
   }
   if (hasPerk(id)) {
-    print("You already have that perk.");
+    print("✅ You have already learned that perk.");
     return;
   }
   if (!perkReady(id)) {
-    print(`You still need: ${PERKS[id].req.filter((r) => !hasPerk(r)).join(", ")}`);
+    print(`🔒 Prerequisite needed: ${PERKS[id].req.filter((r) => !hasPerk(r)).join(", ")}`);
     return;
   }
   if ((PLAYER.skillPoints || 0) < 1) {
-    print("No perk points.");
+    print("✨ You need a perk point before you can learn this.");
     return;
   }
   PLAYER.perks.push(id);
   PLAYER.skillPoints--;
-  print(`Unlocked ${title(id)}.`);
+  print(`🌟 Perk learned: ${title(id)}.`);
   checkAchievements();
 }
 
@@ -785,17 +782,17 @@ function knownSpells() {
 }
 
 function showMagic() {
-  print("\n--- Magic (uses Energy) ---");
+  print("\n🔮 SPELLBOOK — spells draw on Energy");
   const ks = knownSpells();
   if (!ks.length) {
-    print("You know no spells. Visit a trainer in town.");
+    print("Your spellbook is empty. Visit a town trainer to learn a spell.");
     return;
   }
   ks.forEach((n) => {
     const s = SPELLS[n];
     print(`- ${title(n)} (${spellCost(s)} energy${s.cooldown ? `, ${s.cooldown} cd` : ""}): ${s.desc}`);
   });
-  print("In combat, choose action 10 / 'magic'.");
+  print("⚡ In battle, choose action 10 to cast a spell.");
 }
 
 async function chooseSpell(f) {
@@ -804,7 +801,7 @@ async function chooseSpell(f) {
     print("You know no spells. A trainer in town can teach you.");
     return null;
   }
-  print("\n--- Spells ---");
+  print("\n✨ CHOOSE A SPELL");
   ks.forEach((n, i) => {
     const s = SPELLS[n];
     const cd = f.cooldowns["spell:" + n] || 0;
@@ -816,18 +813,21 @@ async function chooseSpell(f) {
   while (true) {
     const raw = (await input("Cast which spell? ")).trim().toLowerCase();
     if (["0", "back", ""].includes(raw)) return null;
-    const n = isDigit(raw) && +raw >= 1 && +raw <= ks.length ? ks[+raw - 1] : ks.find((x) => x === raw);
+    const n =
+      isDigit(raw) && +raw >= 1 && +raw <= ks.length
+        ? ks[+raw - 1]
+        : ks.find((x) => x === raw || x.includes(raw));
     if (!n) {
-      print("Pick a number or name.");
+      print("Choose a spell by number or name.");
       continue;
     }
     const s = SPELLS[n];
     if (f.energy < spellCost(s)) {
-      print("Not enough energy.");
+      print("⚡ You don't have enough energy for that spell.");
       continue;
     }
     if (f.cooldowns["spell:" + n]) {
-      print("That spell is still cooling down.");
+      print("⏳ That spell needs another turn before you can cast it again.");
       continue;
     }
     return n;
@@ -835,7 +835,12 @@ async function chooseSpell(f) {
 }
 
 function applyStatus(list, e, label) {
-  if (!percent((e.chance ?? 100) + (hasPerk("lingering hex") && label !== "You" ? 15 : 0))) return;
+  if (!e || !e.type) return list;
+  list = list || [];
+  let chance = e.chance ?? 100;
+  if (hasPerk("lingering hex") && label !== "You") chance += 15;
+  if (hasPerk("venomous") && (e.type === "bleed" || e.type === "poison")) chance += 15;
+  if (!percent(chance)) return list;
   const turns = (e.turns || 2) + (hasPerk("lingering hex") && label !== "You" ? 1 : 0);
   let dmg = e.damage || 0;
   if (DOT_TYPES.has(e.type) && hasPerk("venomous") && (e.type === "bleed" || e.type === "poison"))
@@ -844,7 +849,9 @@ function applyStatus(list, e, label) {
   const row = { type: e.type, damage: dmg, turns, absorb: e.absorb || 0, element: e.element };
   list.push(row);
   const [i, w] = EFFECT_STYLE[e.type] || ["✨", e.type];
-  print(`   ${i} ${label} is ${w}!`);
+  print(label === "You"
+    ? `   ${i} You are ${w} for ${turns} turns.`
+    : `   ${i} ${label} is ${w} for ${turns} turns.`);
   return list;
 }
 
@@ -864,11 +871,13 @@ function useSpell(f, name) {
   }
   if (s.cure) {
     const before = f.effects.length;
-    f.effects = f.effects.filter((e) => !DOT_TYPES.has(e.type));
-    print(before ? "   ✨ Ailments fade." : "   Nothing to cleanse.");
+    f.effects = f.effects.filter((e) => !AILMENTS.has(e.type));
+    const gone = before - f.effects.length;
+    print(gone ? "   ✨ Ailments fade." : "   Nothing to cleanse.");
+    if (gone) clog(f, "cleansed ailments");
   }
   if (s.self) {
-    f.effects = applyStatus(f.effects, { ...s.self, chance: 100 }, "You") || f.effects;
+    f.effects = applyStatus(f.effects, { ...s.self, chance: 100 }, "You");
   }
   if (s.damage) {
     let dmg = int(randint(...s.damage) * spellPower());
@@ -887,7 +896,7 @@ function useSpell(f, name) {
     print(`   💥 ${title(name)} deals ${dmg} ${s.element || ""} damage.`);
     clog(f, `${name} hits ${f.name} for ${dmg}`);
     if (s.effect && f.monster_hp > 0) {
-      f.monster_effects = applyStatus(f.monster_effects, s.effect, `The ${f.name}`) || f.monster_effects;
+      f.monster_effects = applyStatus(f.monster_effects, s.effect, `The ${f.name}`);
     }
   }
 }
@@ -943,7 +952,7 @@ function hurtCompanions(f, amount) {
 }
 
 async function showParty() {
-  print("\n--- Companions ---");
+  print("\n🤝 YOUR COMPANIONS");
   const rec = WORLD.companions.recruited || [];
   if (!rec.length) {
     print("You travel alone for now. Story companions will join when the time is right.");
@@ -974,12 +983,12 @@ async function showParty() {
 }
 
 function showQuestLog() {
-  print("\n--- Quest Log ---");
-  print("Main story: see 'story'.");
+  print("\n📜 QUEST JOURNAL");
+  print("Main campaign objective: type 'story'.");
   const active = Object.entries(WORLD.quests || {}).filter(([, s]) => s.status === "active");
   const done = Object.entries(WORLD.quests || {}).filter(([, s]) => s.status === "done");
-  print("\n[Active]");
-  if (!active.length) print("  (none — visit a town quest giver)");
+  print("\n🟡 ACTIVE QUESTS");
+  if (!active.length) print("  No side quests active. Visit a town quest board to find work.");
   active.forEach(([id, s]) => {
     const q = SIDE_QUESTS[id];
     print(`  • ${q.name}`);
@@ -988,13 +997,13 @@ function showQuestLog() {
       print(`    Progress: ${Math.min(s.progress || 0, q.need)}/${q.need}`);
     print(`    Reward: ${Object.entries(q.reward).map(([k, a]) => `${a} ${k}`).join(", ")}`);
   });
-  print("\n[Completed]");
-  if (!done.length) print("  (none yet)");
+  print("\n✅ COMPLETED QUESTS");
+  if (!done.length) print("  No completed side quests yet.");
   done.forEach(([id]) => print(`  ✓ ${SIDE_QUESTS[id].name}`));
 }
 
 function showAchievements() {
-  print("\n--- Achievements ---");
+  print("\n🏆 ACHIEVEMENTS");
   loadMetaAchievements();
   Object.entries(ACHIEVEMENTS).forEach(([id, a]) => {
     const got = META.achievements[id];
@@ -1004,10 +1013,10 @@ function showAchievements() {
 
 async function showSettingsMenu() {
   loadSettings();
-  print("\n--- Settings (saved on this device, not in a slot) ---");
-  print(`1. Difficulty: ${SETTINGS.difficulty}`);
-  print(`2. Combat log recording: ${SETTINGS.combatLog ? "on" : "off"}`);
-  print(`3. Text colour: ${SETTINGS.textColor}`);
+  print("\n⚙️ GAME SETTINGS — saved on this device");
+  print(`1. 🎚️ Difficulty: ${SETTINGS.difficulty}`);
+  print(`2. 📜 Combat log: ${SETTINGS.combatLog ? "on" : "off"}`);
+  print(`3. 🎨 Text colour: ${SETTINGS.textColor}`);
   print("4. Sound: use the Sound button in the title bar");
   print("5. Text speed: use the Text button in the title bar");
   print("0. Back");
@@ -1041,12 +1050,12 @@ async function townMenu() {
   print(`🏘️  ${t.name.toUpperCase()}`);
   print("=".repeat(62));
   print(t.blurb);
-  print("\n1. Innkeeper (rest)");
-  print("2. Merchant (shop)");
-  print("3. Blacksmith (upgrade gear)");
-  print("4. Quest giver");
-  print("5. Trainer (spells / perks)");
-  print("0. Leave");
+  print("\n🛏️ 1. Innkeeper — rest and recover");
+  print("🛍️ 2. Merchant — buy and sell supplies");
+  print("🔨 3. Blacksmith — upgrade equipment");
+  print("📜 4. Quest board — take optional work");
+  print("🔮 5. Trainer — learn spells and review perks");
+  print("🚪 0. Leave town");
   while (true) {
     const raw = (await input("Visit whom? ")).trim().toLowerCase();
     if (["0", "leave", "back", ""].includes(raw)) return;
@@ -1237,7 +1246,7 @@ async function maybeExploreEvent(areaName) {
 }
 
 async function saveSlotsMenu() {
-  print("\n--- Save Slots ---");
+  print("\n💾 SAVE SLOTS");
   for (let i = 1; i <= SAVE_SLOTS; i++) {
     let info = "(empty)";
     try {
@@ -1251,9 +1260,10 @@ async function saveSlotsMenu() {
     }
     print(`  ${i}. ${info}`);
   }
-  print("  s. Save current game into a slot");
-  print("  l. Load a slot");
-  print("  0. Back");
+  print("  s. 💾 Save your current progress");
+  print("  l. 📂 Load a saved adventure");
+  print("  c. 🔁 Restore your latest completed run");
+  print("  0. ↩️ Back");
   const raw = (await input("Slots: ")).trim().toLowerCase();
   if (["0", "back", ""].includes(raw)) return;
   if (raw === "s" || raw === "save") {
@@ -1297,7 +1307,31 @@ async function saveSlotsMenu() {
         print(`❌ ${e.message}`);
       }
     }
+  } else if (raw === "c" || raw === "completed") {
+    await loadCompletedRun();
   }
+}
+
+async function loadCompletedRun() {
+  let code = "";
+  try {
+    code = localStorage.getItem(COMPLETED_KEY) || "";
+  } catch (e) {}
+  if (!code) {
+    print("There is no completed run saved yet. Finish an ending first.");
+    return;
+  }
+  let data;
+  try {
+    data = await parseSave(code);
+  } catch (e) {
+    print(`❌ The completed run cannot be loaded: ${e.message}`);
+    return;
+  }
+  const answer = (await input("Replace your current progress with the completed run? (y/n): ")).trim().toLowerCase();
+  if (answer !== "y" && answer !== "yes") return;
+  applySave(data);
+  print(`✅ Completed run restored. Level ${PLAYER.level}, Chapter ${STORY.chapter}, ending: ${STORY.ending || "none"}.`);
 }
 
 async function startNewGamePlus() {
@@ -1305,10 +1339,10 @@ async function startNewGamePlus() {
     print("New Game+ unlocks after you make the final choice ('ending').");
     return;
   }
-  print("\n--- New Game+ ---");
-  print("You keep level, stats, perks, spells, gear, gold and companions.");
-  print("The story resets. Enemies come back harder.");
-  print("Your completed run is stored separately and will not be overwritten by NG+.");
+  print("\n🔁 NEW GAME+");
+  print("Carry your level, attributes, perks, spells, gear, coin, and companions into a fresh run.");
+  print("The campaign begins again, and enemies are more dangerous.");
+  print("Your completed run remains saved separately.");
   const y = (await input("Begin New Game+? (y/n): ")).trim().toLowerCase();
   if (y !== "y" && y !== "yes") return;
   try {
@@ -1333,7 +1367,7 @@ async function startNewGamePlus() {
   WORLD.companions = worldKeep.companions;
   WORLD.usedCombatItem = false;
   print(`\n🔁 New Game+ ${PLAYER.ngPlus} begins. This is not your completed file.`);
-  print("Type 'explore' — the Quiet Road remembers you.");
+  print("🗺️ Type 'explore' to begin again. The Quiet Road remembers you.");
   unlockAchievement("ng");
   storyIntro();
 }
@@ -1358,5 +1392,7 @@ function remindHeal(f) {
   }
 }
 
-loadSettings();
-loadMetaAchievements();
+if (typeof document !== "undefined") {
+  loadSettings();
+  loadMetaAchievements();
+}

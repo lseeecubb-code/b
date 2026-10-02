@@ -18,6 +18,12 @@ const EFFECT_STYLE = {
   poison: ["☠️", "poisoned"],
   burn: ["🔥", "burning"],
   bleed: ["🩸", "bleeding"],
+  slow: ["❄️", "slowed"],
+  weakened: ["📉", "weakened"],
+  empowered: ["📈", "empowered"],
+  shield: ["🔰", "shielded"],
+  fortified: ["🛡️", "fortified"],
+  warded: ["✨", "warded"],
 };
 
 const IDLE_LINES = [
@@ -1392,6 +1398,46 @@ Object.assign(monsters, {
     dodge_chance: 35,
     parry_rate: 75,
     dodge_rate: 75,
+  },
+  "clockwork hound": {
+    icon: "🐺", hp: 96, block_chance: 10, block_reduction: 0.25,
+    basic_attack: { damage: [12, 18] },
+    abilities: {
+      "gear bite": { chance: 18, damage: [16, 22], special_effect: { type: "bleed", chance: 35, damage: 3, turns: 2 } },
+      "steam vent": { chance: 12, damage: [10, 16], element: "fire", special_effect: { type: "weakened", chance: 35, damage: 0, turns: 2 } },
+    },
+    chance: 0, drops: { iron: { chance: 80, min_drop: 2, max_drop: 4 }, coal: { chance: 60, min_drop: 1, max_drop: 3 } },
+    parry_chance: 18, dodge_chance: 12, parry_rate: 65, dodge_rate: 55,
+  },
+  "mire witch": {
+    icon: "🧙", hp: 158, block_chance: 6, block_reduction: 0.2,
+    basic_attack: { damage: [18, 25] }, resist: { fire: 0, frost: 35 },
+    abilities: {
+      "bog hex": { chance: 18, damage: [12, 18], special_effect: { type: "poison", chance: 70, damage: 5, turns: 3 } },
+      "sapping mist": { chance: 14, damage: [10, 16], element: "frost", special_effect: { type: "slow", chance: 55, damage: 0, turns: 2 } },
+    },
+    chance: 0, drops: { fang: { chance: 70, min_drop: 1, max_drop: 3 }, "frost crystal": { chance: 20, min_drop: 1, max_drop: 1 } },
+    parry_chance: 12, dodge_chance: 12, parry_rate: 60, dodge_rate: 60,
+  },
+  "archive stalker": {
+    icon: "📚", hp: 420, block_chance: 14, block_reduction: 0.3,
+    basic_attack: { damage: [38, 50] }, resist: { fire: 20, frost: 20 },
+    abilities: {
+      "redacted strike": { chance: 18, damage: [44, 58], blockable: false },
+      "memory leak": { chance: 14, damage: [32, 42], special_effect: { type: "weakened", chance: 70, damage: 0, turns: 2 } },
+    },
+    chance: 0, drops: { "void crystal": { chance: 30, min_drop: 1, max_drop: 2 }, "soul shard": { chance: 50, min_drop: 1, max_drop: 3 } },
+    parry_chance: 28, dodge_chance: 18, parry_rate: 70, dodge_rate: 65,
+  },
+  "margin warden": {
+    icon: "✒️", hp: 860, block_chance: 18, block_reduction: 0.35,
+    basic_attack: { damage: [56, 72] }, resist: { fire: 25, frost: 25 },
+    abilities: {
+      "erase line": { chance: 16, damage: [62, 80], dodgeable: false, special_effect: { type: "slow", chance: 60, damage: 0, turns: 2 } },
+      "correct the record": { chance: 12, heal: [70, 105] },
+    },
+    chance: 0, drops: { "ancient crystal": { chance: 35, min_drop: 1, max_drop: 2 }, "void crystal": { chance: 40, min_drop: 1, max_drop: 3 } },
+    parry_chance: 32, dodge_chance: 20, parry_rate: 72, dodge_rate: 68,
   },
   "the last save": {
     icon: "💾",

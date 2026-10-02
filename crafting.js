@@ -1,11 +1,42 @@
 // Crafting recipes and the shop.
+function recipeKnown(name) {
+  const ingredientsFound = Object.keys(recipes[name] || {}).every((item) =>
+    (WORLD.recipeMaterialsSeen || []).includes(item)
+  );
+  return ingredientsFound && (!RECIPE_DISCOVERY[name] || (WORLD.recipeUnlocks || []).includes(name));
+}
+function recipeUnlockHint(name) {
+  const sources = Object.keys(RECIPE_DISCOVERY[name] || {});
+  const missing = Object.keys(recipes[name] || {}).filter((item) => !(WORLD.recipeMaterialsSeen || []).includes(item));
+  const hints = [];
+  if (missing.length) hints.push(`find ${missing.join(", ")}`);
+  if (sources.length && !(WORLD.recipeUnlocks || []).includes(name)) hints.push(`defeat ${sources.map((n) => title(n)).join(", ")}`);
+  return hints.length ? `Discover it: ${hints.join(" and ")}.` : "";
+}
+function discoverRecipeFromEnemy(enemyName) {
+  if (!WORLD.recipeUnlocks) WORLD.recipeUnlocks = [];
+  for (const [name, sources] of Object.entries(RECIPE_DISCOVERY)) {
+    const chance = sources[enemyName];
+    if (chance === undefined || WORLD.recipeUnlocks.includes(name) || !percent(chance)) continue;
+    WORLD.recipeUnlocks.push(name);
+    print(`\n📜 New recipe discovered: ${title(name)}!`);
+    print(`Track it with 'recipes tracking'. Find each ingredient once to reveal the formula: ${Object.entries(recipes[name]).map(([mat, n]) => `${n} ${mat}`).join(", ")}.`);
+    return name;
+  }
+  return null;
+}
+
 function craftOne(choice, amount) {
   if (!recipes[choice]) {
-    print(`'${choice}' is not a recipe!`);
+    print(`❔ No recipe found for '${choice}'. Browse 'recipes' to see what you can make.`);
+    return;
+  }
+  if (!recipeKnown(choice)) {
+    print(`🔒 ${title(choice)} is still a mystery. ${recipeUnlockHint(choice)}`);
     return;
   }
   if (amount < 1) {
-    print("Amount must be at least 1.");
+    print("⚠️ Choose at least one item to craft.");
     return;
   }
   const need = recipes[choice],
@@ -13,20 +44,62 @@ function craftOne(choice, amount) {
   for (const [i, per] of Object.entries(need))
     if ((inventory[i] || 0) < per * amount) miss.push([i, per * amount - (inventory[i] || 0)]);
   if (miss.length) {
-    print(`Can't craft ${amount} ${choice}:`);
-    miss.forEach(([i, s]) => print(`  Missing ${s} more ${i}.`));
+    print(`🧺 You don't have the materials for ${amount} ${choice} yet:`);
+    miss.forEach(([i, s]) => print(`  • ${s} more ${i} needed.`));
     return;
   }
-  print(`\nCrafting ${amount} ${choice}...`);
+  print(`\n🔨 Crafting ${amount} ${choice}...`);
   for (const [i, per] of Object.entries(need)) removeItem(i, per * amount);
   addItem(choice, amount);
-  print(`Successfully crafted ${amount} ${choice}!`);
-  if (ITEMS[choice]) print(`Type 'equip ${choice}' to use it: ${describeBuffs(choice)}`);
-  else if (USABLE_ITEMS[choice]) print(`Use it during a fight: ${describeUsable(choice)}`);
+  print(`✅ Crafted ${amount} ${choice}!`);
+  if (ITEMS[choice]) print(`🛡️ Equip it with 'equip ${choice}': ${describeBuffs(choice)}`);
+  else if (USABLE_ITEMS[choice]) print(`🧪 Ready for battle: ${describeUsable(choice)}`);
 }
 async function showRecipes(arg = "") {
   let term = arg.trim().toLowerCase(),
     cats;
+  const view = term;
+  if (view.startsWith("track ")) {
+    const name = view.slice(6).trim();
+    if (!recipes[name]) {
+      print(`❔ No recipe named '${name}'. Check 'recipes' or 'recipes locked'.`);
+      return true;
+    }
+    if (!WORLD.trackedRecipes) WORLD.trackedRecipes = [];
+    if (WORLD.trackedRecipes.includes(name)) print(`📌 ${title(name)} is already in your recipe tracker.`);
+    else {
+      WORLD.trackedRecipes.push(name);
+      print(`📌 Tracking ${title(name)}. Use 'recipes tracking' to review its progress.`);
+    }
+    return true;
+  }
+  if (view.startsWith("untrack ")) {
+    const name = view.slice(8).trim();
+    WORLD.trackedRecipes = (WORLD.trackedRecipes || []).filter((item) => item !== name);
+    print(recipes[name] ? `📍 Stopped tracking ${title(name)}.` : `❔ No recipe named '${name}'.`);
+    return true;
+  }
+  if (view === "locked" || view === "tracking") {
+    const locked = Object.entries(recipes).filter(([name]) => !recipeKnown(name));
+    const rows = view === "locked"
+      ? locked
+      : (WORLD.trackedRecipes || []).filter((name) => recipes[name]).map((name) => [name, recipes[name]]);
+    print(view === "locked" ? "\n🔒 HIDDEN RECIPES — DISCOVERY LIST" : "\n📌 TRACKED RECIPES");
+    if (!rows.length) print(view === "locked" ? "✨ Every recipe has been discovered!" : "  Nothing tracked yet. Add one with 'recipes track <recipe name>'.");
+    rows.forEach(([name, ingredients]) => {
+      const found = Object.keys(ingredients).filter((item) => (WORLD.recipeMaterialsSeen || []).includes(item)).length;
+      const ready = Object.entries(ingredients).every(([item, count]) => (inventory[item] || 0) >= count);
+      const state = recipeKnown(name) ? (ready ? "✅ Ready to craft" : "📜 Formula known") : `🔒 ${found}/${Object.keys(ingredients).length} ingredients found`;
+      print(`  ${state} · ${title(name)}`);
+      if (view === "tracking" || !recipeKnown(name)) {
+        print(`    Materials: ${Object.entries(ingredients).map(([item, count]) => `${(WORLD.recipeMaterialsSeen || []).includes(item) ? "✅ found" : "▫️ undiscovered"} ${item} (${inventory[item] || 0}/${count})`).join(", ")}`);
+        if (!recipeKnown(name)) print(`    ${recipeUnlockHint(name)}`);
+      }
+    });
+    if (view === "tracking") print("\n💡 Track or remove recipes with 'recipes track <name>' and 'recipes untrack <name>'.");
+    else print("\n💡 Find every ingredient once to reveal material-based formulas; enemy-taught formulas also need their discovery encounter.");
+    return true;
+  }
   if (!term) {
     const counts = {};
     Object.keys(recipes).forEach((i) => {
@@ -40,29 +113,23 @@ async function showRecipes(arg = "") {
     if (!cats) cats = CAT_ORDER;
     else term = "";
   }
-  print("\n--- Crafting Recipes ---");
+  print("\n📜 CRAFTING — KNOWN FORMULAS");
   let shown = 0;
   for (const c of cats) {
     const rows = Object.entries(recipes).filter(
       ([i, ing]) =>
         itemCategory(i) === c &&
-        (!term || i.includes(term) || Object.keys(ing).some((g) => g.includes(term)))
+        recipeKnown(i) && (!term || i.includes(term) || Object.keys(ing).some((g) => g.includes(term)))
     );
     if (!rows.length) continue;
-    print(`\n[${c}]`);
-    rows.forEach(([i, ing]) =>
-      print(
-        `  ${Object.entries(ing).every(([k, n]) => (inventory[k] || 0) >= n) ? "*" : "-"} ${i} (${Object.entries(
-          ing
-        )
-          .map(([k, a]) => `${a} ${k}`)
-          .join(", ")})`
-      )
-    );
+    print(`\n🧰 ${c.toUpperCase()}`);
+    rows.forEach(([i, ing]) => {
+      print(`  ${Object.entries(ing).every(([k, n]) => (inventory[k] || 0) >= n) ? "✅" : "▫️"} ${i} (${Object.entries(ing).map(([k, a]) => `${a} ${k}`).join(", ")})`);
+    });
     shown += rows.length;
   }
-  if (!shown) print("(no recipes match)");
-  print("\n* = you can craft this right now.");
+  if (!shown) print("🔎 No recipes match that search.");
+  print("\n✅ = ready to craft · ▫️ = materials needed · Hidden formulas appear after you find every ingredient once.");
   print(
     "Filter: 'recipes weapons', 'recipes consumables', 'recipes steel'. 'info <item>' shows details."
   );
@@ -70,6 +137,7 @@ async function showRecipes(arg = "") {
 }
 async function craftItem(choice = "") {
   choice = choice.trim().toLowerCase();
+  if (["locked", "tracking"].includes(choice) || choice.startsWith("track ") || choice.startsWith("untrack ")) return showRecipes(choice);
   if (!choice) {
     if (!(await showRecipes())) return;
     choice = (await input("\nWhat do you want to craft? (e.g. 'sword' or 'potion 5'): "))
@@ -100,7 +168,7 @@ async function shop(arg = "") {
   if (term) {
     cats = categoryFilter(term);
     if (!cats) {
-      print(`No shop category '${term}'. Try: consumables, materials, raw, crystals, parts.`);
+      print(`🛍️ '${term}' isn't a shop category. Try consumables, materials, crystals, or monster parts.`);
       return false;
     }
   } else {
@@ -112,7 +180,7 @@ async function shop(arg = "") {
     cats = await chooseCategory("Shop Categories", counts);
     if (!cats) return false;
   }
-  print("\n--- Shop ---");
+  print("\n🛍️ MERCHANT'S STALL");
   print(`  ${pad("item", 24)}${rpad("BUY", 6)}${rpad("SELL", 7)}`);
   let shown = 0;
   for (const c of cats) {
@@ -124,10 +192,10 @@ async function shop(arg = "") {
     );
     shown += rows.length;
   }
-  if (!shown) print("(nothing here)");
-  print("\nBUY = what you pay, SELL = what the shop pays you ('-' = not available).");
-  print(`(You have ${inventory.coin || 0} coin.)`);
-  print("Use 'buy <item> [amount]', 'sell <item> [amount]' or 'sell all <item>'.");
+  if (!shown) print("Nothing is available in this section.");
+  print("\n💰 BUY is your cost; SELL is the merchant's offer. A dash means unavailable.");
+  print(`🪙 Your purse: ${inventory.coin || 0} coin.`);
+  print("Trade with 'buy <item> [amount]', 'sell <item> [amount]', or 'sell all <item>'.");
   return true;
 }
 async function buyItem(arg = "") {
@@ -142,12 +210,12 @@ async function buyItem(arg = "") {
     return;
   }
   if (!SHOP_BUY[item]) {
-    print(`The shop doesn't sell '${item}'.`);
+    print(`🛍️ The merchant doesn't carry '${item}'.`);
     return;
   }
   const cost = SHOP_BUY[item] * amount;
   if ((inventory.coin || 0) < cost) {
-    print(`Not enough coin! ${amount} ${item} costs ${cost}.`);
+    print(`🪙 Not enough coin: ${amount} ${item} costs ${cost}.`);
     return;
   }
   removeItem("coin", cost);
@@ -160,7 +228,7 @@ async function sellItem(arg = "") {
       Object.keys(inventory).filter((n) => inventory[n] > 0 && SHOP_SELL[n])
     );
     if (!names.length) {
-      print("You have nothing the shop wants.");
+      print("🎒 You don't have anything this merchant will buy.");
       return;
     }
     print("\n--- Your Sellable Items ---");
@@ -187,7 +255,7 @@ async function sellItem(arg = "") {
     return;
   }
   if (!SHOP_SELL[item]) {
-    print(`The shopkeeper doesn't want '${item}'.`);
+    print(`🛍️ The merchant isn't buying '${item}'.`);
     return;
   }
   if (all) amount = inventory[item] || 0;

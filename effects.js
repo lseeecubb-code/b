@@ -271,9 +271,9 @@ const FX = (() => {
 
     // --- damage taken ---
     hurt: () => {
-      thump(0.28, 130);
-      tone(160, 0.24, { type: "sawtooth", slideTo: 50, vol: 0.08, lp: 1400 });
-      crunch(0.1);
+      thump(0.19, 130);
+      tone(170, 0.18, { type: "triangle", slideTo: 75, vol: 0.055, lp: 1400 });
+      crunch(0.065);
     },
     hurtBig: () => {
       thump(0.4, 100);
@@ -287,8 +287,9 @@ const FX = (() => {
       tone(504, 0.3, { type: "sawtooth", slideTo: 162, vol: 0.04, lp: 1800 });
     },
     explosion: () => {
-      noise(0.7, { vol: 0.25, type: "lowpass", f0: 2500, f1: 60, q: 0.7, wet: 0.25 });
-      tone(90, 0.6, { vol: 0.3, slideTo: 30, wet: 0.1 });
+      noise(0.34, { vol: 0.13, type: "lowpass", f0: 1900, f1: 180, q: 0.7, wet: 0.14 });
+      tone(105, 0.32, { vol: 0.16, slideTo: 48, wet: 0.06 });
+      noise(0.12, { vol: 0.035, f0: 3800, f1: 1200, delay: 0.025, wet: 0.04 });
     },
 
     // --- enemy ---
@@ -343,6 +344,10 @@ const FX = (() => {
     cure: () => {
       sparkle(4, 900, 0, 0.04);
       tone(660, 0.3, { type: "sine", vol: 0.04, delay: 0.1, wet: 0.4 });
+    },
+    status: () => {
+      tone(560, 0.12, { type: "triangle", vol: 0.035, wet: 0.12 });
+      tone(760, 0.16, { type: "sine", vol: 0.025, delay: 0.055, wet: 0.16 });
     },
 
     // --- items, healing, buffs ---
@@ -451,9 +456,9 @@ const FX = (() => {
     },
     talk: () => tone(rand(280, 340), 0.045, { type: "square", vol: 0.018, lp: 1600, wet: 0.05 }),
     encounter: () => {
-      tone(110, 0.4, { type: "sawtooth", slideTo: 60, vol: 0.09, lp: 900, wet: 0.2 });
-      noise(0.35, { vol: 0.06, f0: 200, f1: 1200, q: 0.8, attack: 0.15 });
-      thump(0.2, 80, 0.2);
+      tone(125, 0.32, { type: "triangle", slideTo: 72, vol: 0.065, lp: 900, wet: 0.16 });
+      noise(0.24, { vol: 0.04, f0: 250, f1: 1100, q: 0.8, attack: 0.12 });
+      thump(0.14, 90, 0.16);
     },
     warning: () => {
       for (let i = 0; i < 3; i++) {
@@ -638,6 +643,7 @@ const FX = (() => {
       cls: "fx-hit",
       run: (m) => hitFx("skill", m),
     },
+    { match: /💣 It hits! The .* takes (\d+)/, cls: "fx-hit", run: (m) => hitFx("explosion", m) },
     { match: /You hit the .* for (\d+) damage/, cls: "fx-hit", run: (m) => hitFx("hit", m) },
     {
       match: /Critical hit! It's your turn again/,
@@ -724,6 +730,7 @@ const FX = (() => {
     },
     { match: /^(☠️|🔥|🩸) (Poison|Burn|Bleed|The .* takes)/, cls: "fx-status", run: () => play("tick") },
     { match: /wears off/, cls: "fx-dim", run: () => play("hint") },
+    { match: /You gain .* status for|The .* is .* for \d+ turns/, cls: "fx-status", run: () => play("status") },
 
     // ----- fight flow -----
     {
@@ -775,7 +782,7 @@ const FX = (() => {
     { match: /🚫 The .* can't attack/, run: () => play("error") },
 
     // ----- enemy intent (the slow, dialogue-style section) -----
-    { match: /=== ENEMY INTENT ===/, cls: "fx-intent-head", run: () => play("intent") },
+    { match: /ENEMY INTENT — READ THE TELEGRAPH|=== ENEMY INTENT ===/, cls: "fx-intent-head", run: () => play("intent") },
     { match: /WARNING!/, cls: "fx-warning", run: () => play("warning") },
     { match: /^✓ /, cls: "fx-can", run: () => play("yes") },
     { match: /^✗ /, cls: "fx-cant", run: () => play("no") },
@@ -785,18 +792,18 @@ const FX = (() => {
     { match: /🟢 YOUR TURN/, cls: "fx-turn-player", run: () => play("turnPlayer") },
     { match: /🔴 THE .* TURN/, cls: "fx-turn-enemy", run: () => play("turnEnemy") },
     { match: /^===== Turn \d+ =====$/, cls: "fx-dim", run: () => play("turnTick") },
-    { match: /^\s*--- .+ ---$|^=== (WHAT DO YOU WANT TO DO\?|YOUR ACTION) ===$/, run: () => play("menuOpen") },
+    { match: /^\s*--- .+ ---$|^📋 CHOOSE YOUR ACTION$|^🧭 YOUR ADVENTURE/, run: () => play("menuOpen") },
 
     // ----- gear, crafting, trading -----
     { match: /^🧰 Equipped [^:]/, run: () => play("equip") },
     { match: /^Swapping your /, run: () => play("unequip") },
     { match: /^🎒 Unequipped/, run: () => play("unequip") },
-    { match: /^Crafting \d+/, run: () => play("hammer") },
-    { match: /^Successfully crafted/, cls: "fx-heal", run: () => play("craftDone") },
-    { match: /^added \d+ of coin/, cls: "fx-loot", run: () => play("coin") },
-    { match: /^added \d+ of /, cls: "fx-loot", run: () => play("pickup") },
-    { match: /^removed \d+ of coin/, cls: "fx-dim", run: () => play("spend") },
-    { match: /^removed \d+ of /, cls: "fx-dim", run: () => play("drop") },
+    { match: /^(🔨 )?Crafting \d+/, run: () => play("hammer") },
+    { match: /^(✅ Crafted|Successfully crafted)/, cls: "fx-heal", run: () => play("craftDone") },
+    { match: /^(🎒 Added \d+ × coin|added \d+ of coin)/, cls: "fx-loot", run: () => play("coin") },
+    { match: /^(🎒 Added \d+ × |added \d+ of )/, cls: "fx-loot", run: () => play("pickup") },
+    { match: /^(📦 Removed \d+ × coin|removed \d+ of coin)/, cls: "fx-dim", run: () => play("spend") },
+    { match: /^(📦 Removed \d+ × |removed \d+ of )/, cls: "fx-dim", run: () => play("drop") },
 
     // ----- story and exploring -----
     {

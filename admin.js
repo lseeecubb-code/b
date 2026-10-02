@@ -19,9 +19,9 @@
   // Everything an admin can touch, under short prefixes: player.* inventory.* equipment.* story.*
   function root() {
     const player = readGlobal("PLAYER"), inventory = readGlobal("inventory");
-    const equipment = readGlobal("equipment"), story = readGlobal("STORY");
+    const equipment = readGlobal("equipment"), story = readGlobal("STORY"), world = readGlobal("WORLD");
     if (!isObj(player) || !isObj(inventory) || !isObj(story)) return null;
-    return { player, inventory, equipment, story };
+    return { player, inventory, equipment, story, world };
   }
 
   // ---------- output ----------
@@ -126,11 +126,12 @@
 
   const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
-  // Item names live as keys of the global ITEMS table.
+  // Resolve gear, consumables, materials, crafted items, and items already in a save.
   function resolveItem(name) {
-    const items = readGlobal("ITEMS");
-    if (!isObj(items)) return { name }; // can't validate; trust the player
-    const keys = Object.keys(items);
+    const tables = ["ITEMS", "USABLE_ITEMS", "recipes", "RAW", "CRYS"]
+      .map(readGlobal).filter(isObj);
+    const keys = [...new Set([...tables.flatMap(Object.keys), ...Object.keys((readGlobal("inventory") || {}))])];
+    if (!keys.length) return { name };
     const lower = name.toLowerCase();
     const exact = keys.find((k) => k.toLowerCase() === lower);
     if (exact) return { name: exact };
@@ -139,7 +140,7 @@
     return {
       error: part.length
         ? "'" + name + "' matches several items: " + part.slice(0, 8).join(", ")
-        : "Unknown item '" + name + "'. Use the names from 'info' or 'recipes'.",
+        : "Unknown item '" + name + "'. Try 'admin items' to list valid names.",
     };
   }
 
@@ -164,6 +165,9 @@
           "  admin level <n>              set your level",
           "  admin xp <n>                 add xp",
           "  admin give <item> [n]        add items   (admin give iron sword 2)",
+          "  admin items [filter]         list valid gear, supplies, and materials",
+          "  admin perk <id>              unlock a permanent perk",
+          "  admin spell <id>             learn an ability",
           "  admin take <item> [n]        remove items",
           "  admin chapter <n>            jump to a chapter",
           "  admin fracture <n>           set fracture (0-10)",
@@ -242,8 +246,41 @@
       if (!name) return bad("Usage: admin give <item> [n]");
       const it = resolveItem(name);
       if (it.error) return bad(it.error);
-      r.inventory[it.name] = (r.inventory[it.name] || 0) + count;
+      if (!Number.isSafeInteger(count) || count < 1) return bad("Item count must be a positive whole number.");
+      const add = gameFn("addItem");
+      if (add) add(it.name, count, true);
+      else {
+        r.inventory[it.name] = (r.inventory[it.name] || 0) + count;
+        if (typeof markRecipeMaterialSeen === "function") markRecipeMaterialSeen(it.name);
+      }
       ok(it.name + " x" + r.inventory[it.name]);
+    },
+
+    items(r, [filter = ""]) {
+      const tables = ["ITEMS", "USABLE_ITEMS", "recipes", "RAW", "CRYS"].map(readGlobal).filter(isObj);
+      const names = [...new Set([...tables.flatMap(Object.keys), ...Object.keys(r.inventory)])]
+        .filter((n) => n.toLowerCase().includes(filter.toLowerCase())).sort();
+      out(names.join(", ") || "No matching items.");
+    },
+
+    perk(r, [id]) {
+      const p = readGlobal("PERKS");
+      if (!id) return bad("Usage: admin perk <id>");
+      const key = p && Object.keys(p).find((k) => k.toLowerCase() === id.toLowerCase());
+      if (!key) return bad("Unknown perk '" + id + "'.");
+      r.player.perks = Array.isArray(r.player.perks) ? r.player.perks : [];
+      if (!r.player.perks.includes(key)) r.player.perks.push(key);
+      out("Perk unlocked: " + key);
+    },
+
+    spell(r, [id]) {
+      const spells = readGlobal("SPELLS");
+      if (!id || !isObj(spells)) return bad("Usage: admin spell <id>");
+      const key = Object.keys(spells).find((k) => k.toLowerCase() === id.toLowerCase());
+      if (!key) return bad("Unknown ability '" + id + "'.");
+      r.player.spells = Array.isArray(r.player.spells) ? r.player.spells : [];
+      if (!r.player.spells.includes(key)) r.player.spells.push(key);
+      out("Ability learned: " + key);
     },
 
     take(r, args) {
@@ -286,11 +323,11 @@
       else { flags.add(name); ok("flag set: " + name); }
     },
 
-    call(r, [fnName, ...args]) {
+    async call(r, [fnName, ...args]) {
       if (!fnName) return bad("Usage: admin call <fn> [args...]");
       const fn = readGlobal(fnName);
       if (typeof fn !== "function") return bad("No global function '" + fnName + "'");
-      const result = fn(...args.map(parseArg));
+      const result = await fn(...args.map(parseArg));
       ok(fnName + "() done" + (result !== undefined ? " -> " + brief(result) : ""));
     },
 

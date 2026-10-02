@@ -24,13 +24,13 @@ function objectiveComplete() {
 function chapterRewards(ch) {
   for (const [qn, q] of Object.entries(STORY_QUESTS)) {
     if (q.chapter !== ch) continue;
-    print(`\n🏅 QUEST COMPLETE: ${qn}`);
+    print(`\n🎉 QUEST COMPLETE: ${qn}`);
     for (const [k, a] of Object.entries(q.reward)) {
       if (k === "xp") {
-        print(`   +${a} XP`);
+        print(`   ✨ +${a} XP`);
         grantXp(a);
       } else {
-        print(`   +${a} ${k}`);
+        print(`   🎁 +${a} ${k}`);
         addItem(k, a, true);
       }
     }
@@ -61,15 +61,16 @@ function recordVictory(mn) {
     return;
   }
   STORY.chapter++;
+  if (typeof maybeRecruitFromStory === "function") maybeRecruitFromStory();
   STORY.fracture = STORY_CHAPTERS[STORY.chapter].fracture;
   const nw = curChapter();
   STORY.flags.add(`chapter_${nw.id}_unlocked`);
   print("\n" + "=".repeat(62));
-  print(`📖 CHAPTER ${nw.id} UNLOCKED`);
+  print(`📖 CHAPTER ${nw.id} — NEW CHAPTER`);
   print(nw.title);
   print("=".repeat(62));
   print(`\n${nw.summary}`);
-  print(`Location: ${nw.area}`);
+  print(`🗺️ New region: ${nw.area}`);
   const sid = STORY_SCENE_BY_CHAPTER[nw.id];
   if (sid) {
     print();
@@ -77,10 +78,10 @@ function recordVictory(mn) {
     STORY.seen.add(sid);
   }
   const cl = CHAPTER_CHARACTER_LINES[nw.id];
-  if (cl) print(`\n[${cl[0]}] ${STORY_CHARACTERS[cl[0]][cl[1]]}`);
-  print("\nNew objective:");
+  if (cl) print(`\n💬 ${cl[0]}: ${STORY_CHARACTERS[cl[0]][cl[1]]}`);
+  print("\n🎯 YOUR NEXT OBJECTIVE");
   print(STORY_PROGRESS[nw.id].objective);
-  print("\nUnlocked:");
+  print("\n🔓 NEWLY AVAILABLE");
   STORY_UNLOCKS[nw.id].forEach((u) => print(`  • ${u}`));
   print(`\n⚠️ FRACTURE LEVEL: ${STORY.fracture}/10`);
 }
@@ -93,7 +94,7 @@ function storyIntro() {
   scene("chapter_0_intro").forEach((l) => print(l));
   STORY.seen.add("chapter_0_intro");
   STORY.flags.add("story_started");
-  print("\nYour first objective:");
+  print("\n🎯 FIRST OBJECTIVE");
   print(STORY_PROGRESS[0].objective);
 }
 // The 'story' command: chapter, objective and progress.
@@ -102,23 +103,23 @@ function showStory() {
     id = ch.id,
     p = STORY_PROGRESS[id];
   print("\n" + "=".repeat(62));
-  print("📖 STORY / CAMPAIGN");
+  print("📖 CAMPAIGN JOURNAL — YOUR STORY SO FAR");
   print("=".repeat(62));
-  print(`Chapter ${id}: ${ch.title}`);
-  print(`Area: ${ch.area}`);
+  print(`Chapter ${id} — ${ch.title}`);
+  print(`Current region: ${ch.area}`);
   print(`\n${ch.summary}`);
-  print(`\nFracture level: ${STORY.fracture}/10`);
-  print("\nCurrent objective:");
+  print(`\nWorld fracture: ${STORY.fracture}/10`);
+  print("\n🎯 CURRENT OBJECTIVE");
   print(`  ${p.objective}`);
-  print("\nProgress:");
-  print(`  Level: ${PLAYER.level}/${p.level}`);
+  print("\n📈 CHAPTER PROGRESS");
+  print(`  Hero level: ${PLAYER.level}/${p.level}`);
   for (const [e, a] of Object.entries(p.kills))
     print(`  ${title(e)}: ${Math.min(killCount(e), a)}/${a}`);
   if (p.boss)
-    print(`  Boss: ${title(p.boss)} (${killCount(p.boss) > 0 ? "defeated" : "not defeated"})`);
-  print("\nAvailable here:");
+    print(`  👑 Chapter boss: ${title(p.boss)} (${killCount(p.boss) > 0 ? "defeated" : "still waiting"})`);
+  print("\n🔓 AVAILABLE IN THIS CHAPTER");
   STORY_UNLOCKS[id].forEach((u) => print(`  • ${u}`));
-  print("\nType 'explore' to enter the current story area.");
+  print("\n🗺️ Type 'explore' to travel the region, find encounters, and advance the story.");
   const b = STORY_BOSS_BY_CHAPTER[id];
   if (b)
     print(
@@ -140,11 +141,11 @@ async function exploreStory() {
   print(`🗺️ ${an.toUpperCase()}`);
   print("=".repeat(62));
   print(area.description || "");
-  print(`A hub is nearby: ${typeof TOWNS !== "undefined" ? TOWNS[currentTownId()].name : "town"} (type 'town').`);
+  print(`🏘️ Nearby safe hub: ${typeof TOWNS !== "undefined" ? TOWNS[currentTownId()].name : "town"} — type 'town' to rest, trade, or prepare.`);
   if (p.boss && !objectiveComplete()) {
     if (PLAYER.level >= p.level) {
-      print(`\nSomething waits deeper in this area: ${title(p.boss)}.`);
-      const c = (await input("Challenge it now, keep exploring, or visit town? [boss/explore/town]: "))
+      print(`\n👑 A powerful foe blocks the way forward: ${title(p.boss)}.`);
+      const c = (await input("Choose: challenge the boss, keep exploring, or return to town? [boss/explore/town]: "))
         .trim()
         .toLowerCase();
       if (c === "boss" || c === "b") {
@@ -176,27 +177,25 @@ async function exploreStory() {
       enc,
       enc.map((n) => Math.max(1, monsters[n].chance))
     );
-  print(`\nYou travel deeper into ${an}...`);
+  print(`\n👣 You press farther into ${an}, watching for movement...`);
   let fightArg = enemy;
   if (Math.random() < 0.18 && !needed.includes(enemy) && monsters[enemy]?.chance > 0) {
     const pal = enc.find((n) => n !== enemy) || enemy;
     fightArg = enemy + "," + pal;
-    print(`A group: ${title(enemy)} and ${title(pal)}.`);
+    print(`⚠️ Two enemies move to surround you: ${title(enemy)} and ${title(pal)}.`);
   } else if (Math.random() < 0.1 && monsters[enemy]?.chance > 0) {
-    print(`This one looks tougher than the others.`);
-    if (typeof makeEnemyState === "function") {
-      await fightMonster(enemy);
-      return;
-    }
+    print(`🌟 The air shifts. An elite ${title(enemy)} steps into your path!`);
+    await fightMonster(enemy, true);
+    return;
   }
-  print(`You encounter ${title(enemy)}.`);
+  print(`⚠️ ${title(enemy)} appears. Prepare for battle!`);
   await fightMonster(fightArg);
 }
 // The 'ending' command: the final three-way choice after The Last Save.
 async function showEnding() {
   if (!STORY.flags.has("final_defeated")) {
-    print("\nThe final choice is not available yet.");
-    print("Defeat The Last Save at the end of Chapter 10.");
+    print("\n🔒 The final choice is still out of reach.");
+    print("⚔️ Defeat The Last Save at the end of Chapter 10 to unlock it.");
     return;
   }
   const play = (c) => {
@@ -221,7 +220,7 @@ async function showEnding() {
       STORY.flags.add("ending_complete");
       play(c);
       if (typeof checkAchievements === "function") checkAchievements();
-      print("\nYou can begin New Game+ with 'ngplus'. Your completed ending is kept.");
+      print("\n🔁 You can begin New Game+ with 'ngplus'. Your completed ending stays safe.");
       return;
     }
     print("Choose exactly: remember, release, or rewrite.");

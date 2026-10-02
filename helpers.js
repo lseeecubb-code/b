@@ -33,7 +33,7 @@ const C = {
   COUNTER_MULT: 2,
   WEAK_MULT: 0.5,
   BASIC_MIN: 20,
-  ATTACKING: ["attack", "heavy", "skill"],
+  ATTACKING: ["attack", "heavy", "skill", "magic"],
   RIPOSTE: 0.6,
   RUN: 60,
   RUN_MAX: 90,
@@ -62,6 +62,9 @@ function defaultWorld() {
     quests: {},
     upgrades: {},
     rarity: {},
+    recipeUnlocks: [],
+    recipeMaterialsSeen: [],
+    trackedRecipes: [],
     companions: { recruited: [], active: [], hp: {} },
     rested: 0,
     eventsDone: 0,
@@ -78,6 +81,7 @@ function resetState() {
   PLAYER = { level: 1, xp: 0, ...defaultPlayerExtra() };
   STORY = { chapter: 0, fracture: 0, flags: new Set(), seen: new Set(), ending: null, kills: {} };
   WORLD = defaultWorld();
+  WORLD.recipeMaterialsSeen = Object.keys(inventory).filter((name) => name !== "coin");
 }
 resetState();
 
@@ -119,23 +123,29 @@ function parseItemAmount(t) {
   return [p.join(" "), a];
 }
 // Adds items to the inventory (pass quiet = true to skip the message).
+function markRecipeMaterialSeen(name) {
+  if (!WORLD || name === "coin") return;
+  if (!Array.isArray(WORLD.recipeMaterialsSeen)) WORLD.recipeMaterialsSeen = [];
+  if (!WORLD.recipeMaterialsSeen.includes(name)) WORLD.recipeMaterialsSeen.push(name);
+}
 function addItem(n, a, q = false) {
   inventory[n] = (inventory[n] || 0) + a;
+  markRecipeMaterialSeen(n);
   if (typeof ensureRarity === "function") ensureRarity(n);
   if (typeof noteQuestCollect === "function") noteQuestCollect();
   if (typeof checkAchievements === "function") checkAchievements();
-  if (!q) print(`added ${a} of ${n}`);
+  if (!q) print(`🎒 Added ${a} × ${n} to your inventory.`);
 }
 // Removes items from the inventory; returns false if there aren't enough.
 function removeItem(n, a, q = false) {
   const c = inventory[n] || 0;
   if (a > c) {
-    print(`You don't have enough ${n}!`);
+    print(`⚠️ You don't have enough ${n}.`);
     return false;
   }
   inventory[n] = c - a;
   if (inventory[n] === 0) delete inventory[n];
-  if (!q) print(`removed ${a} of ${n}`);
+  if (!q) print(`📦 Removed ${a} × ${n} from your inventory.`);
   return true;
 }
 
@@ -230,7 +240,7 @@ function printNumbered(names, label) {
   names.forEach((n, i) => {
     const c = itemCategory(n);
     if (c !== last) {
-      print(`\n[${c}]`);
+      print(`\n📦 ${c.toUpperCase()}`);
       last = c;
     }
     print(`  ${rpad(i + 1, 2)}. ${label ? label(n) : n}`);
@@ -247,10 +257,10 @@ async function chooseCategory(ttl, counts) {
     print("\n(Nothing to show.)");
     return null;
   }
-  print(`\n--- ${ttl} ---`);
-  cats.forEach((c, i) => print(`${i + 1}. ${c} (${counts[c]})`));
-  print(`${cats.length + 1}. Everything`);
-  print("0. Back");
+    print(`\n🗂️ ${ttl.toUpperCase()}`);
+  cats.forEach((c, i) => print(`${i + 1}. ${c} (${counts[c]} available)`));
+  print(`${cats.length + 1}. 🌟 Everything`);
+  print("0. ↩️ Back");
   while (true) {
     const raw = (await input("Pick a category (number or name): ")).trim().toLowerCase();
     if (["0", "back", ""].includes(raw)) return null;
@@ -293,8 +303,10 @@ function describeUsable(n) {
   if ("buff_frost_resistance" in d)
     p.push(`-${d.buff_frost_resistance}% frost damage for this fight`);
   if (d.revive) p.push("can save you from defeat");
-  if ("damage" in d) p.push(`deals ${d.damage} damage to the enemy`);
+  if ("damage" in d) p.push(`deals ${d.damage}${d.element ? ` ${d.element}` : ""} damage to the enemy`);
   if (d.stun) p.push("stuns the enemy so it loses its turn");
+  if (d.effect) p.push(`may inflict ${d.effect.type} for ${d.effect.turns} turns`);
+  if (d.self) p.push(`grants ${d.self.type} for ${d.self.turns} turns`);
   return p.join(", ");
 }
 // One-line summary of a weapon skill's numbers.

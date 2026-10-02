@@ -61,6 +61,7 @@ function grantXp(a) {
     print(`🎊 LEVEL UP! You are now level ${PLAYER.level}!`);
     print(`   +${C.LVL_HP} max HP, +${C.LVL_DMG} damage, +2 stat points`);
     if (PLAYER.level % 2 === 0) print("   +1 perk point");
+    if (typeof unlockSpellsForLevel === "function") unlockSpellsForLevel();
   }
 }
 const guardReduction = (s) => Math.min(C.GUARD_MAX, C.GUARD_RED + s.guard);
@@ -81,9 +82,9 @@ const weaponSkills = () => {
 function showInventory(arg = "") {
   const held = {};
   for (const n in inventory) if (inventory[n] > 0) held[n] = inventory[n];
-  print("\n--- Inventory ---");
+  print("\n🎒 INVENTORY");
   if (!Object.keys(held).length) {
-    print("(empty)");
+    print("Your pack is empty. Explore, trade, or craft to gather supplies.");
     return;
   }
   let wanted = CAT_ORDER;
@@ -96,7 +97,7 @@ function showInventory(arg = "") {
       return;
     }
   }
-  print(`coin: ${held.coin || 0}`);
+  print(`🪙 Coin: ${held.coin || 0}`);
   delete held.coin;
   const groups = {};
   for (const n in held) (groups[itemCategory(n)] ??= []).push(n);
@@ -104,21 +105,21 @@ function showInventory(arg = "") {
   for (const c of CAT_ORDER) {
     if (!wanted.includes(c) || !groups[c]) continue;
     shown = true;
-    print(`\n[${c}]`);
+    print(`\n📦 ${c.toUpperCase()}`);
     groups[c]
       .sort()
       .forEach((n) =>
         print(`  ${n}: ${held[n]}${Object.values(equipment).includes(n) ? " (equipped)" : ""}`)
       );
   }
-  if (!shown) print("\n(nothing in that category)");
-  print("\nTip: 'info <item>' shows an item's stats, recipe, drops and prices.");
+  if (!shown) print("\nNothing in this category yet.");
+  print("\n🔍 Use 'info <item>' to inspect its stats, recipe, source, and value.");
 }
 function showSkills() {
   const s = weaponSkills();
-  print("\n--- Weapon Skills ---");
+  print("\n⚔️ WEAPON TECHNIQUES");
   if (!s.length) {
-    print("Your weapon has no skills (or you have no weapon equipped).");
+    print("No weapon techniques available. Equip a weapon to learn its moves.");
   } else
     s.forEach((k) => {
       print(`- ${title(k.name)} (${k.cost} energy): ${k.desc}`);
@@ -126,7 +127,7 @@ function showSkills() {
     });
   if (typeof showMagic === "function") showMagic();
   if (typeof PERKS !== "undefined") {
-    print("\nPermanent perks (independent of weapon):");
+    print("\n✨ PERMANENT PERKS — active with any weapon");
     const ps = PLAYER.perks || [];
     if (!ps.length) print("  (none yet — type 'perks')");
     else ps.forEach((id) => print(`  ✓ ${title(id)} — ${PERKS[id]?.desc || ""}`));
@@ -134,29 +135,29 @@ function showSkills() {
 }
 function showStats() {
   const s = getStats();
-  print("\n--- Player Stats ---");
+  print("\n📊 HERO STATUS");
   print(
     PLAYER.level >= C.MAX_LEVEL
-      ? `Level:      ${PLAYER.level} (MAX)`
-      : `Level:      ${PLAYER.level}   XP: ${PLAYER.xp}/${xpNeeded(PLAYER.level)}`
+      ? `🏅 Level: ${PLAYER.level} (MAX)`
+      : `🏅 Level: ${PLAYER.level}   ·   ✨ XP: ${PLAYER.xp}/${xpNeeded(PLAYER.level)}`
   );
-  if (PLAYER.ngPlus) print(`Run:        New Game+ ${PLAYER.ngPlus}`);
-  print(`Attributes: STR ${PLAYER.str ?? 5}  AGI ${PLAYER.agi ?? 5}  VIT ${PLAYER.vit ?? 5}  FOC ${PLAYER.foc ?? 5}`);
-  if (PLAYER.statPoints) print(`Unspent stat points: ${PLAYER.statPoints}  (type 'allocate')`);
-  if (PLAYER.skillPoints) print(`Unspent perk points: ${PLAYER.skillPoints}  (type 'perks')`);
-  print(`Max HP:     ${s.max_hp}`);
-  print(`Damage:     ${C.PLAYER_DAMAGE[0] + s.damage}-${C.PLAYER_DAMAGE[1] + s.damage}`);
-  print(`Hit chance: ${C.ATTACK_HIT}%   Crit chance: ${C.CRIT + s.crit}%`);
-  print(`Energy:     start ${C.START_ENERGY}, max ${typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY}`);
-  print(`Guard:      -${int(guardReduction(s) * 100)}% damage (not vs. piercing/unblockable)`);
-  print(`Defense:    -${s.defense} damage per hit (min ${C.MIN_DMG})`);
-  print(`Parry:      ${C.PARRY + s.parry}% base`);
-  print(`Dodge:      ${C.DODGE + s.dodge}% base`);
-  print(`Run:        ${Math.min(C.RUN_MAX, C.RUN + s.dodge)}% chance`);
+  if (PLAYER.ngPlus) print(`🔁 Run: New Game+ ${PLAYER.ngPlus}`);
+  print(`💪 Attributes: STR ${PLAYER.str ?? 5}  AGI ${PLAYER.agi ?? 5}  VIT ${PLAYER.vit ?? 5}  FOC ${PLAYER.foc ?? 5}`);
+  if (PLAYER.statPoints) print(`✨ Stat points to spend: ${PLAYER.statPoints} — type 'allocate'`);
+  if (PLAYER.skillPoints) print(`🌿 Perk points to spend: ${PLAYER.skillPoints} — type 'perks'`);
+  print(`❤️ Maximum HP: ${s.max_hp}`);
+  print(`⚔️ Damage range: ${C.PLAYER_DAMAGE[0] + s.damage}–${C.PLAYER_DAMAGE[1] + s.damage}`);
+  print(`🎯 Hit chance: ${C.ATTACK_HIT}%   ·   Critical chance: ${C.CRIT + s.crit}%`);
+  print(`⚡ Energy: ${C.START_ENERGY} starting, ${typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY} maximum`);
+  print(`🛡️ Guard: reduces damage by ${int(guardReduction(s) * 100)}% (piercing attacks bypass it)`);
+  print(`🧱 Defence: blocks ${s.defense} damage per hit (minimum ${C.MIN_DMG})`);
+  print(`🤺 Parry chance: ${C.PARRY + s.parry}% base`);
+  print(`💨 Dodge chance: ${C.DODGE + s.dodge}% base`);
+  print(`🏃 Escape chance: ${Math.min(C.RUN_MAX, C.RUN + s.dodge)}%`);
   if (typeof showAttributeSummary === "function") {
     print("\nSTR → physical damage · AGI → dodge/parry · VIT → max HP · FOC → energy/spells");
   }
-  print("\n--- Equipped ---");
+  print("\n🧰 EQUIPPED GEAR");
   for (const slot in equipment) {
     const n = equipment[slot];
     if (!n) {
@@ -179,10 +180,10 @@ async function equipItem(choice = "") {
   if (!choice) {
     const owned = groupedNames(Object.keys(ITEMS).filter((n) => (inventory[n] || 0) > 0));
     if (!owned.length) {
-      print("You don't have anything to equip!");
+      print("🎒 No usable gear in your pack yet. Find equipment through exploration, crafting, or trade.");
       return;
     }
-    print("\n--- Items You Can Equip ---");
+    print("\n🧰 GEAR IN YOUR PACK");
     printNumbered(
       owned,
       (n) => `${n} (${describeBuffs(n)})` + (equipment[ITEMS[n].id] === n ? " (equipped)" : "")
@@ -215,7 +216,7 @@ async function unequipItem(choice = "") {
   if (!choice) {
     const worn = groupedNames(Object.values(equipment).filter(Boolean));
     if (!worn.length) {
-      print("You have nothing equipped.");
+      print("🧥 You aren't wearing any equipment.");
       return;
     }
     print("\n--- Items You Can Unequip ---");
@@ -299,19 +300,28 @@ async function showItemInfo(arg = "") {
     );
     if (!text) return;
   }
+  // Exact enemy names (and unique partial matches) open an enemy dossier.
+  const enemyNames = Object.keys(monsters);
+  const enemy = enemyNames.find((n) => n.toLowerCase() === text) ||
+    (enemyNames.filter((n) => n.toLowerCase().includes(text)).length === 1
+      ? enemyNames.find((n) => n.toLowerCase().includes(text)) : null);
+  if (enemy) {
+    showEnemyInfo(enemy);
+    return;
+  }
   const name = findItem(text);
   if (name === null) return;
   print("\n" + "=".repeat(50));
-  print(`${title(name)}  [${itemCategory(name)}]`);
+  print(`🔎 ${title(name)}  ·  ${itemCategory(name)}`);
   print("=".repeat(50));
   print(
-    `You own: ${inventory[name] || 0}` +
+    `🎒 In your pack: ${inventory[name] || 0}` +
       (Object.values(equipment).includes(name) ? " (equipped)" : "")
   );
   if (ITEMS[name]) {
     const it = ITEMS[name];
-    print(`Slot:   ${it.id}`);
-    print(`Stats:  ${describeBuffs(name)}`);
+    print(`🧩 Slot: ${it.id}`);
+    print(`📊 Bonuses: ${describeBuffs(name)}`);
     if (it.description) print(`        "${it.description}"`);
     const cur = equipment[it.id];
     if (cur === null) print(`Your ${it.id} slot is empty, so you'd gain all of the above.`);
@@ -325,11 +335,13 @@ async function showItemInfo(arg = "") {
       });
     }
   }
-  if (USABLE_ITEMS[name]) print(`Effect: ${describeUsable(name)}`);
+  if (USABLE_ITEMS[name]) print(`✨ Effect: ${describeUsable(name)}`);
   if (recipes[name]) {
     const r = recipes[name];
-    print(
-      "Recipe: " +
+    if (typeof recipeKnown === "function" && !recipeKnown(name)) {
+      print(`🔒 Recipe undiscovered. ${recipeUnlockHint(name)}`);
+    } else print(
+      "📜 Recipe: " +
         Object.entries(r)
           .map(([i, a]) => `${a} ${i}`)
           .join(", ") +
@@ -350,7 +362,7 @@ async function showItemInfo(arg = "") {
     .map(([n, m]) => [n, m.drops[name].chance]);
   if (dr.length)
     print(
-      "Dropped by: " +
+      "🐾 Dropped by: " +
         dr
           .slice(0, 10)
           .map(([n, c]) => `${n} ${c}%`)
@@ -361,8 +373,42 @@ async function showItemInfo(arg = "") {
     s = SHOP_SELL[name];
   print(
     b || s
-      ? "Shop:   " +
+      ? "🛍️ Shop: " +
           [b ? `buy for ${b} coin` : "", s ? `sells for ${s} coin` : ""].filter(Boolean).join(", ")
-      : "Shop:   not traded"
+      : "🛍️ Shop: not traded"
   );
+}
+
+function showEnemyInfo(name) {
+  const m = monsters[name];
+  const areas = typeof STORY_AREAS !== "undefined"
+    ? Object.entries(STORY_AREAS).filter(([, a]) => a.encounters.includes(name)).map(([a]) => a)
+    : [];
+  print("\n" + "=".repeat(50));
+  print(`${m.icon || "👹"} ${title(name)} — ENEMY DOSSIER`);
+  print("=".repeat(50));
+  print(`❤️ Health: ${m.hp} HP  |  ${m.chance > 0 ? "Field encounter" : "Set encounter / boss"}`);
+  const defense = [`${m.block_chance || 0}% chance to guard`];
+  if (m.parry_chance) defense.push(`${m.parry_chance}% chance to parry (${m.parry_rate}% strength)`);
+  if (m.dodge_chance) defense.push(`${m.dodge_chance}% chance to dodge (${m.dodge_rate}% strength)`);
+  print(`🛡️ Defences: ${defense.join("; ")}`);
+  const resists = Object.entries(m.resist || {}).filter(([, value]) => value > 0);
+  print(resists.length ? `🧯 Resistances: ${resists.map(([e, v]) => `${title(e)} ${v}%`).join(", ")}` : "🧯 Resistances: none known");
+  print("\n⚔️ ATTACKS & ABILITIES");
+  print(`  Basic attack: ${m.basic_attack?.damage ? `${m.basic_attack.damage[0]}–${m.basic_attack.damage[1]} damage` : "standard strike"}`);
+  const abilities = Object.entries(m.abilities || {});
+  if (!abilities.length) print("  No special abilities recorded.");
+  abilities.forEach(([ability, a]) => {
+    const details = [];
+    if (a.damage) details.push(`${a.damage[0]}–${a.damage[1]} damage`);
+    if (a.heal) details.push(`heals ${a.heal[0]}–${a.heal[1]} HP`);
+    if (a.element) details.push(`${a.element} damage`);
+    if (a.special_effect) details.push(`may inflict ${a.special_effect.type}`);
+    print(`  ${title(ability)} — ${details.join("; ") || "special move"} (about ${a.chance}% chance)`);
+  });
+  print("\n🎁 POSSIBLE DROPS");
+  Object.entries(m.drops || {}).forEach(([item, d]) => print(`  ${title(item)} — ${d.min_drop}–${d.max_drop} (${d.chance}% chance)`));
+  if (areas.length) print(`\nFound in: ${areas.join(", ")}`);
+  print(`📖 Status: ${fightUnlocked(name) ? "discovered — you can challenge it with 'fight'" : `undiscovered — ${lockReason(name)}`}`);
+  print("Use 'bestiary <enemy>' to review its move pattern and encounter odds.");
 }

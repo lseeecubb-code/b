@@ -26,6 +26,7 @@ function saveCode() {
           ending: STORY.ending,
           kills: STORY.kills,
         },
+        world: typeof WORLD !== "undefined" ? WORLD : undefined,
       })
     )
   );
@@ -65,12 +66,21 @@ async function parseSave(code) {
   if (!Number.isInteger(pl.level) || pl.level < 1 || pl.level > C.MAX_LEVEL)
     throw new Error("Bad level in save data.");
   if (!Number.isInteger(pl.xp) || pl.xp < 0) throw new Error("Bad XP in save data.");
-  return { inv: cl, eq, pl, st: data.story || {} };
+  return { inv: cl, eq, pl, st: data.story || {}, world: data.world || null };
 }
-function applySave({ inv, eq, pl, st }) {
+function applySave({ inv, eq, pl, st, world }) {
   inventory = inv;
   SLOTS.forEach((s) => (equipment[s] = eq[s] || null));
-  PLAYER = { level: pl.level, xp: pl.xp };
+  const extra = defaultPlayerExtra(pl);
+  PLAYER = { ...extra, level: pl.level, xp: pl.xp };
+  ["str", "agi", "vit", "foc"].forEach((k) => {
+    PLAYER[k] = Math.max(1, Math.min(25, parseInt(PLAYER[k]) || 5));
+  });
+  PLAYER.statPoints = Math.max(0, parseInt(PLAYER.statPoints) || 0);
+  PLAYER.skillPoints = Math.max(0, parseInt(PLAYER.skillPoints) || 0);
+  PLAYER.perks = (PLAYER.perks || []).filter((id) => typeof PERKS === "undefined" || PERKS[id]);
+  PLAYER.spells = (PLAYER.spells || []).filter((n) => typeof SPELLS === "undefined" || SPELLS[n]);
+  if (!PLAYER.spells.length) PLAYER.spells = ["ember spark", "mend"];
   const ci = (v, lo, hi) => Math.max(lo, Math.min(hi, parseInt(v) || 0));
   STORY.chapter = ci(st.chapter, 0, STORY_CHAPTERS.length - 1);
   STORY.fracture = ci(st.fracture, 0, 10);
@@ -80,6 +90,42 @@ function applySave({ inv, eq, pl, st }) {
   STORY.kills = {};
   if (st.kills && typeof st.kills === "object")
     for (const k in st.kills) STORY.kills[k] = ci(st.kills[k], 0, 1e9);
+  if (world && typeof WORLD !== "undefined" && typeof defaultWorld === "function") {
+    const base = defaultWorld();
+    WORLD = {
+      ...base,
+      ...world,
+      companions: { ...base.companions, ...(world.companions || {}) },
+      flags: { ...base.flags, ...(world.flags || {}) },
+      quests: world.quests && typeof world.quests === "object" ? world.quests : {},
+      upgrades: world.upgrades && typeof world.upgrades === "object" ? world.upgrades : {},
+      rarity: world.rarity && typeof world.rarity === "object" ? world.rarity : {},
+      recipeUnlocks: Array.isArray(world.recipeUnlocks)
+        ? world.recipeUnlocks.filter((n) => typeof RECIPE_DISCOVERY !== "undefined" && RECIPE_DISCOVERY[n])
+        : [],
+      recipeMaterialsSeen: [...new Set([
+        ...(Array.isArray(world.recipeMaterialsSeen) ? world.recipeMaterialsSeen.filter((n) => typeof n === "string") : []),
+        ...Object.keys(inv).filter((n) => n !== "coin"),
+      ])],
+      trackedRecipes: Array.isArray(world.trackedRecipes)
+        ? [...new Set(world.trackedRecipes.filter((n) => typeof n === "string" && recipes[n]))]
+        : [],
+    };
+  }
+  if (typeof WORLD !== "undefined")
+    WORLD.recipeUnlocks = Array.isArray(world?.recipeUnlocks)
+      ? world.recipeUnlocks.filter((n) => typeof RECIPE_DISCOVERY !== "undefined" && RECIPE_DISCOVERY[n])
+      : [];
+  if (typeof WORLD !== "undefined")
+    WORLD.recipeMaterialsSeen = [...new Set([
+      ...(Array.isArray(world?.recipeMaterialsSeen) ? world.recipeMaterialsSeen.filter((n) => typeof n === "string") : []),
+      ...Object.keys(inv).filter((n) => n !== "coin"),
+    ])];
+  if (typeof WORLD !== "undefined")
+    WORLD.trackedRecipes = Array.isArray(world?.trackedRecipes)
+      ? [...new Set(world.trackedRecipes.filter((n) => typeof n === "string" && recipes[n]))]
+      : [];
+  if (typeof unlockSpellsForLevel === "function") unlockSpellsForLevel(true);
   // Old saves ended the game after The Witness. The story now continues to Chapter 10.
   if (STORY.flags.has("witness_defeated")) {
     STORY.flags.delete("witness_defeated");

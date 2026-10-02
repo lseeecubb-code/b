@@ -152,11 +152,11 @@ const STORY_PROGRESS = {
 const STORY_AREAS = {
   "The Quiet Road": {
     description: "A familiar road beneath an ordinary sky.",
-    encounters: ["rat", "slime", "wolf", "goblin", "wild boar", "dire wolf"],
+    encounters: ["rat", "slime", "wolf", "goblin", "wild boar", "dire wolf", "clockwork hound"],
   },
   "The Broken Frontier": {
     description: "A wilderness split by a thin black line that nobody remembers seeing yesterday.",
-    encounters: ["skeleton", "orc", "bandit", "witch", "werewolf", "ogre", "wraith", "wyvern"],
+    encounters: ["skeleton", "orc", "bandit", "witch", "werewolf", "ogre", "wraith", "wyvern", "mire witch"],
   },
   "The Cathedral of Ash": {
     description: "A dead cathedral whose stained glass shows places that do not exist.",
@@ -184,7 +184,7 @@ const STORY_AREAS = {
   },
   "The Archive of Attempts": {
     description: "Endless shelves of journals, each one a life you do not remember living.",
-    encounters: ["wraith", "lich", "demon", "stone golem", "ancient dragon", "troll"],
+    encounters: ["wraith", "lich", "demon", "stone golem", "ancient dragon", "troll", "archive stalker"],
   },
   "The Hollow Kingdom": {
     description: "A kingdom of empty armor, still standing guard over heroes who gave up.",
@@ -192,7 +192,7 @@ const STORY_AREAS = {
   },
   "The Margin": {
     description: "A white strip at the edge of the world, covered in tiny corrections.",
-    encounters: ["wraith", "demon", "ancient dragon", "lich", "frost giant", "stone golem"],
+    encounters: ["wraith", "demon", "ancient dragon", "lich", "frost giant", "stone golem", "margin warden"],
   },
   "The Blank Page": {
     description: "Nothing is written here. The silence is waiting for the next word.",
