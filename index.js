@@ -7,6 +7,15 @@ let pendingInput = null,
   cmdHistory = [],
   cmdIndex = 0;
 
+function showLoadingIndicator(message = "Still working…") {
+  termStatus.classList.add("is-loading");
+  termStatus.textContent = message;
+}
+
+function clearLoadingIndicator() {
+  termStatus.classList.remove("is-loading");
+}
+
 // Adds text to the screen. Text ending in "\n" becomes a finished line; anything else (like the
 // "what do you want to do?" prompt) stays on the same line as what the player types next.
 function write(text) {
@@ -33,6 +42,7 @@ function autosave() {
 // It waits for the typewriter to finish showing everything first, so the prompt never appears
 // in the middle of a battle line.
 async function input(prompt = "") {
+  clearLoadingIndicator();
   write(prompt);
   autosave();
   await Typewriter.idle();
@@ -65,7 +75,8 @@ termInput.addEventListener("keydown", (e) => {
     write(value + "\n");
     const resolve = pendingInput;
     pendingInput = null;
-    resolve(value);
+    showLoadingIndicator();
+    requestAnimationFrame(() => setTimeout(() => resolve(value), 0));
   } else if (e.key === "ArrowUp") {
     e.preventDefault();
     if (cmdHistory.length) {
@@ -107,4 +118,13 @@ let savedCode = "";
 try {
   savedCode = localStorage.getItem(SAVE_KEY) || "";
 } catch (e) {}
-runGame(savedCode).catch((e) => write("\n[error] " + ((e && e.stack) || e) + "\n"));
+showLoadingIndicator("Starting your game…");
+requestAnimationFrame(() =>
+  setTimeout(
+    () => runGame(savedCode).catch((e) => {
+      clearLoadingIndicator();
+      write("\n[error] " + ((e && e.stack) || e) + "\n");
+    }),
+    0
+  )
+);
