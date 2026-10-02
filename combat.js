@@ -92,7 +92,6 @@ function showStatus(f) {
   f.effects.forEach(effLine);
   print(`${pad(cap(f.name), 13)} ${hpBar(f.monster_hp, f.monster.hp)}`);
   f.monster_effects.forEach(effLine);
-  if (f.last_move) print(`   last move: ${f.last_move}`);
   if (f.guarding) print("   🛡️ GUARDING - your attacks will be weakened this turn!");
   if (f.stance === "parry") print("   🤺 PARRY STANCE - it may turn your attack against you!");
   if (f.stance === "dodge") print("   💨 DODGE STANCE - it may slip your attack!");
@@ -690,6 +689,7 @@ function rollIntent(f) {
   f.stance = { parry_stance: "parry", dodge_stance: "dodge" }[it.kind] || null;
 }
 // Plays out the enemy's turn.
+// The enemy's move was already announced in the ENEMY INTENT block, so only results are printed here.
 function monsterTurn(f) {
   f.owner = "monster";
   const name = f.name;
@@ -699,37 +699,25 @@ function monsterTurn(f) {
   f.staggered = false;
   let attacked = false;
   if (k === "stunned") {
-    print(`😵 The ${name} is stunned and can't act!`);
     f.last_move = "was stunned and lost its turn";
     // Last stunned turn: it recovers, then resists further stuns briefly.
     if (f.stun_turns <= 0) f.stun_immune = STUN.IMMUNE_TURNS;
   } else if (k === "staggered") {
-    print(`💫 The ${name} is staggered and can't act!`);
     f.last_move = "was staggered and lost its turn";
   } else if (k === "idle") {
-    print(`💤 The ${name} ${it.text}`);
     f.last_move = "did nothing";
   } else if (k === "block") {
-    print(`🛡️ The ${name} holds its guard.`);
     f.last_move = "guarded";
   } else if (k === "parry_stance" || k === "dodge_stance") {
-    const st = k.split("_")[0];
-    print(
-      st === "parry"
-        ? `🤺 The ${name} holds its parry stance.`
-        : `💨 The ${name} holds its dodge stance.`
-    );
-    f.last_move = `${st} stance`;
+    f.last_move = `${k.split("_")[0]} stance`;
   } else if (k === "heal") {
     const a = it.attack,
       h = randint(...a.heal);
     f.monster_hp = Math.min(f.monster.hp, f.monster_hp + h);
-    print(`✨ The ${name} uses ${a.name.toUpperCase()}!`);
-    print(`💚 It heals ${h} HP.`);
+    print(`💚 The ${name} heals ${h} HP.`);
     f.last_move = a.name.toUpperCase();
   } else {
     const a = it.attack;
-    print(`✨ The ${name} uses ${a.name.toUpperCase()}!`);
     f.last_move = a.name.toUpperCase();
     for (let n = 0; n < a.hits; n++) {
       // stun_turns can only become > 0 mid-attack via a perfect parry: stop the rest of the combo.
