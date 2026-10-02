@@ -1,30 +1,5 @@
 // Combat: enemy AI, combat UI, player actions, fights and the bestiary.
-// Energy an enemy move costs. Attacks can set `energy_cost`; otherwise heavy = 3, fast = 1, else 2.
-function attackCost(a) {
-  if (a.energy_cost !== undefined) return a.energy_cost;
-  return a.type === "heavy" ? 3 : a.type === "fast" ? 1 : 2;
-}
-function moveCost(kind, a) {
-  if (kind === "attack") return a.name === "basic attack" ? 1 : attackCost(a);
-  if (kind === "heal") return 2;
-  if (kind === "block" || kind === "parry_stance" || kind === "dodge_stance") return 1;
-  return 0;
-}
-// [chance %, turns] an enemy attack stuns the player for if it lands. Every attack can stun.
-function enemyStun(a) {
-  const d = C.ENEMY_STUN[a.name === "basic attack" ? "basic" : a.type] || C.ENEMY_STUN.normal;
-  const ch = a.stun ?? d[0],
-    turns = Math.min(C.PLAYER_STUN_MAX, Math.max(1, a.stun_turns ?? d[1]));
-  return [ch, turns];
-}
-// Accuracy after the enemy's own limits: capped, and lower when it is worn out.
-function enemyAccuracy(a, energyAfter) {
-  let acc = Math.min(C.ENEMY_MAX_ACC, a.accuracy);
-  if (energyAfter !== undefined && energyAfter <= C.ENEMY_TIRED_AT) acc -= C.ENEMY_TIRED_PENALTY;
-  return Math.max(5, acc);
-}
-// `energy` = the enemy's current energy; moves it can't afford are dropped. Omit it for no limit (bestiary).
-function enemyWeights(m, last = null, energy = undefined) {
+function enemyWeights(m, last = null) {
   const reacting = C.ATTACKING.includes(last),
     o = [];
   let block = m.block_chance || 0;
@@ -52,21 +27,16 @@ function enemyWeights(m, last = null, energy = undefined) {
     makeAttack("basic attack", m.basic_attack),
   ]);
   o.push([m.idle_chance || 0, "idle", null]);
-  let res = o.filter((x) => x[0] > 0);
-  if (energy !== undefined) {
-    res = res.filter((x) => x[1] === "idle" || moveCost(x[1], x[2]) <= energy);
-    if (!res.length || energy <= 0) res = [[100, "recover", null]];
-  }
-  return res;
+  return o.filter((x) => x[0] > 0);
 }
 // Picks one move at random from enemyWeights(), using the weights.
-function monsterChoose(m, last, energy) {
-  const o = enemyWeights(m, last, energy),
+function monsterChoose(m, last) {
+  const o = enemyWeights(m, last),
     p = wchoice(
       o,
       o.map((x) => x[0])
     );
-  return { kind: p[1], attack: p[2], cost: moveCost(p[1], p[2]) };
+  return { kind: p[1], attack: p[2] };
 }
 // Chance (%) that the enemy's parry or dodge stance works against an attack of this type.
 function stanceRate(m, st, type) {
@@ -108,6 +78,14 @@ const ACTION_ALIASES = {
   skill: "skill",
   skills: "skill",
   s: "skill",
+  10: "magic",
+  magic: "magic",
+  spell: "magic",
+  spells: "magic",
+  cast: "magic",
+  target: "target",
+  t: "target",
+  log: "log",
 };
 
 // ---------- combat: UI ----------
@@ -118,13 +96,22 @@ function effLine(e) {
 // Prints both health bars and the player's energy bar.
 function showStatus(f) {
   print(`You:          ${hpBar(f.player_hp, f.player_max_hp)}`);
-  print(`Energy:       ${energyBar(f.energy)}`);
+  print(`Energy:       ${energyBar(f.energy, typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY)}`);
   f.effects.forEach(effLine);
-  if (f.player_stun > 0) print("   💫 STUNNED - you will lose your next turn!");
-  else if (f.player_stun_immune > 0) print("   🛡️ Shaking off the daze - you resist stuns this turn.");
-  print(`${pad(cap(f.name), 13)} ${hpBar(f.monster_hp, f.monster.hp)}`);
-  print(`${pad("", 13)} ⚡ ${f.monster_energy}/${f.monster_max_energy}`);
-  f.monster_effects.forEach(effLine);
+  if (typeof WORLD !== "undefined") {
+    (WORLD.companions.active || []).forEach((id) => {
+      const d = COMPANION_DEFS[id];
+      const max = companionMaxHp(id);
+      const hp = WORLD.companions.hp[id] ?? max;
+      print(`${pad(d.name, 13)} ${hpBar(hp, max)}`);
+    });
+  }
+  (f.enemies || [{ name: f.name, hp: f.monster_hp, monster: f.monster, effects: f.monster_effects }]).forEach((e, i) => {
+    const mark = f.enemies && i === f.target ? " <" : "";
+    print(`${pad(cap(e.name), 13)} ${hpBar(e.hp, e.monster.hp)}${mark}`);
+    (e.effects || []).forEach(effLine);
+  });
+  if (f.last_move) print(`   last move: ${f.last_move}`);
   if (f.guarding) print("   🛡️ GUARDING - your attacks will be weakened this turn!");
   if (f.stance === "parry") print("   🤺 PARRY STANCE - it may turn your attack against you!");
   if (f.stance === "dodge") print("   💨 DODGE STANCE - it may slip your attack!");
@@ -151,11 +138,6 @@ function showIntent(f) {
     print(`${icon} The ${name} ${it.text}`);
     return;
   }
-  if (k === "recover") {
-    print(`${icon} The ${name} is out of energy and must recover!`);
-    print(`   It will regain ${C.ENEMY_RECOVER} energy instead of attacking.`);
-    return;
-  }
   if (k === "block") {
     print(`${icon} The ${name} is raising its guard!`);
     print("   Your attacks will be weakened this turn.");
@@ -175,7 +157,6 @@ function showIntent(f) {
   if (k === "heal") {
     print(`${icon} The ${name} is preparing ${an}!`);
     print(`   It will heal ${a.heal[0]}-${a.heal[1]} HP.`);
-    if (a.stun) print(`💫 Can stun you (${a.stun}%, ${enemyStun(a)[1]} turn${enemyStun(a)[1] > 1 ? "s" : ""})`);
     return;
   }
   if (a.warning) {
@@ -189,10 +170,7 @@ function showIntent(f) {
   );
   if (a.type !== "normal") print(`Type: ${cap(a.type)}`);
   if (a.element) print(`Element: ${cap(a.element)}`);
-  const accNow = enemyAccuracy(a, f.monster_energy - (it.cost || 0));
-  print(`Accuracy: ${accNow}%` + (accNow < Math.min(C.ENEMY_MAX_ACC, a.accuracy) ? " (tired!)" : ""));
-  const [stunC, stunT] = enemyStun(a);
-  if (stunC) print(`💫 Can stun you (${stunC}% if it hits, ${stunT} turn${stunT > 1 ? "s" : ""})`);
+  if (a.accuracy < 100) print(`Accuracy: ${a.accuracy}%`);
   const s = f.stats,
     p = parryChance(a, s),
     d = dodgeChance(a, s);
@@ -237,6 +215,9 @@ function showCombatMenu(f) {
   print("7. Use Item");
   print(`8. Run (${run}% chance)`);
   print(`9. Weapon Skill (${sn})`);
+  const mag = typeof knownSpells === "function" ? knownSpells().length : 0;
+  print(`10. Magic (${mag ? mag + " known" : "learn spells in town"})`);
+  if (f.enemies && f.enemies.length > 1) print("Type 'target' to switch enemy. Type 'log' for the combat log.");
 }
 async function chooseItem() {
   const owned = Object.keys(USABLE_ITEMS).filter((n) => (inventory[n] || 0) > 0);
@@ -295,10 +276,10 @@ async function chooseSkill(f) {
 // Asks the player for an action and returns it (numbers or names are accepted).
 async function askAction(f) {
   while (true) {
-    const raw = (await input("Choose an action (1-9): ")).trim().toLowerCase(),
+    const raw = (await input("Choose an action (1-10, or name): ")).trim().toLowerCase(),
       a = ACTION_ALIASES[raw];
     if (!a) {
-      print("Pick 1-9, or type an action like 'parry'.");
+      print("Pick 1-10, or type an action like 'parry', 'magic', 'log'.");
       continue;
     }
     if (a === "heavy" && f.energy < C.HEAVY_COST) {
@@ -314,6 +295,32 @@ async function askAction(f) {
       const s = await chooseSkill(f);
       if (!s) continue;
       return [a, s.name];
+    }
+    if (a === "magic") {
+      const s = typeof chooseSpell === "function" ? await chooseSpell(f) : null;
+      if (!s) continue;
+      return [a, s];
+    }
+    if (a === "target") {
+      if (!f.enemies || f.enemies.length < 2) {
+        print("There is only one enemy.");
+        continue;
+      }
+      print("Living enemies:");
+      f.enemies.forEach((e, i) => {
+        if (e.hp > 0) print(`  ${i + 1}. ${e.name} (${e.hp} HP)${i === f.target ? " <" : ""}`);
+      });
+      const rawT = (await input("Target which? ")).trim();
+      const idx = parseInt(rawT, 10) - 1;
+      if (f.enemies[idx] && f.enemies[idx].hp > 0) {
+        f.target = idx;
+        print(`Targeting the ${f.enemies[idx].name}.`);
+      }
+      continue;
+    }
+    if (a === "log") {
+      if (typeof showCombatLog === "function") showCombatLog(f);
+      continue;
     }
     return [a, null];
   }
@@ -356,6 +363,7 @@ function stunEnemy(f, turns = 1, msg = "", immediate = true) {
   return true;
 }
 function useItem(f, name) {
+  if (typeof WORLD !== "undefined") WORLD.usedCombatItem = true;
   const d = USABLE_ITEMS[name],
     s = f.stats;
   removeItem(name, 1);
@@ -366,7 +374,7 @@ function useItem(f, name) {
     print(`   You recover ${f.player_hp - b} HP.`);
   }
   if ("energy" in d) {
-    const g = Math.min(d.energy, C.MAX_ENERGY - f.energy);
+    const g = Math.min(d.energy, (typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY) - f.energy);
     f.energy += g;
     print(`   ⚡ You recover ${g} energy.`);
   }
@@ -425,6 +433,8 @@ function applyMonsterEffect(f, e) {
 }
 function resolveMonsterEffects(f) {
   for (const e of [...f.monster_effects]) {
+    if (typeof DOT_TYPES !== "undefined" && !DOT_TYPES.has(e.type)) continue;
+    if (!e.damage) continue;
     const [i] = EFFECT_STYLE[e.type] || ["✨"];
     f.monster_hp -= e.damage;
     e.turns--;
@@ -435,8 +445,22 @@ function resolveMonsterEffects(f) {
     }
     if (f.monster_hp <= 0) return;
   }
+  if (typeof tickNonDot === "function") tickNonDot(f.monster_effects, `The ${f.name}`);
 }
 function reducePlayerDamage(f, amt) {
+  const mods = typeof effectMods === "function" ? effectMods(f.effects) : { taken: 1, absorb: 0 };
+  if (mods.absorb > 0 && amt > 0) {
+    const use = Math.min(mods.absorb, amt);
+    amt -= use;
+    const sh = f.effects.find((e) => e.type === "shield");
+    if (sh) {
+      sh.absorb = (sh.absorb || sh.damage || 0) - use;
+      if (sh.absorb <= 0) f.effects = f.effects.filter((e) => e.type !== "shield");
+    }
+    print(`🔰 Your shield absorbs ${use} damage.`);
+  }
+  amt = int(amt * (mods.taken || 1));
+  if (typeof hurtCompanions === "function") amt = hurtCompanions(f, amt);
   const d = f.stats.defense;
   if (d > 0 && amt > 0) {
     const r = Math.max(C.MIN_DMG, amt - d);
@@ -464,24 +488,31 @@ function strike(f, o) {
         ? `❌ Your ${o.skill_name} misses the ${name}!`
         : `❌ You ${o.heavy ? "swing heavily at" : "swing at"} the ${name} and miss!`
     );
+    if (typeof clog === "function") clog(f, `miss vs ${name}`);
     return { result: "miss", damage: 0, landed: false };
   }
   if (f.stance === "dodge") {
     if (o.ignore_dodge) print("   (It can't dodge this attack!)");
     else if (percent(stanceRate(f.monster, "dodge", atk))) {
       print(`💨 The ${name} dodges your attack!`);
+      if (typeof clog === "function") clog(f, `${name} dodges`);
       return { result: "dodged", damage: 0, landed: false };
     } else print(`   The ${name} tries to dodge, but you catch it!`);
   } else if (f.stance === "parry") {
     if (o.ignore_parry) print("   (It can't parry this attack!)");
     else if (percent(stanceRate(f.monster, "parry", atk))) {
       print(`🤺 The ${name} parries your attack!`);
+      if (typeof clog === "function") clog(f, `${name} parries`);
       enemyRiposte(f);
       return { result: "parried", damage: 0, landed: false };
     } else print(`   The ${name}'s parry fails!`);
   }
   let dmg = randint(...C.PLAYER_DAMAGE) + f.stats.damage + f.temporary_damage;
   dmg = int(dmg * mult);
+  const pmod = typeof effectMods === "function" ? effectMods(f.effects) : { damage: 1 };
+  dmg = int(dmg * pmod.damage);
+  const emod = typeof effectMods === "function" ? effectMods(f.monster_effects) : { taken: 1 };
+  dmg = int(dmg * emod.taken);
   const crit = percent(C.CRIT + f.stats.crit + (o.crit_bonus || 0));
   if (crit) dmg = int(dmg * C.CRIT_MULT);
   if (f.staggered) dmg = int(dmg * (1 + C.STAGGER_BONUS));
@@ -500,6 +531,7 @@ function strike(f, o) {
         ? "💥 HEAVY HIT!"
         : "💥 HIT!";
   print(`${label} ${ht}`);
+  if (typeof clog === "function") clog(f, `${crit ? "CRIT " : ""}${dmg} to ${name}`);
   f.monster_hp -= dmg;
   return { result: crit ? "crit" : "hit", damage: dmg, landed: true };
 }
@@ -511,7 +543,7 @@ function playerAttack(f, heavy = false) {
     atk_type: heavy ? "heavy" : "normal",
     heavy,
   });
-  if (r.landed && !heavy) f.energy = Math.min(C.MAX_ENERGY, f.energy + C.ATTACK_GAIN);
+  if (r.landed && !heavy) f.energy = Math.min(typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY, f.energy + C.ATTACK_GAIN);
   return r.result;
 }
 // Uses one of the equipped weapon's skills.
@@ -551,7 +583,7 @@ function useSkill(f, s) {
     print(`   💚 You drain ${f.player_hp - b} HP.`);
   }
   if (landed && s.energy_gain) {
-    const g = Math.min(s.energy_gain, C.MAX_ENERGY - f.energy);
+    const g = Math.min(s.energy_gain, (typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY) - f.energy);
     f.energy += g;
     if (g) print(`   ⚡ You gain ${g} energy.`);
   }
@@ -567,15 +599,6 @@ function useSkill(f, s) {
 async function playerTurn(f) {
   f.owner = "player";
   print("\n🟢 YOUR TURN");
-  if (f.player_stun > 0) {
-    f.player_stun--;
-    print("💫 You are stunned and can't act this turn!");
-    if (f.player_stun > 0) print(`   Still stunned for ${f.player_stun} more turn${f.player_stun > 1 ? "s" : ""} after this.`);
-    else f.player_stun_immune = C.PLAYER_STUN_IMMUNE;
-    f.choice = "stunned";
-    return;
-  }
-  if (f.player_stun_immune > 0) f.player_stun_immune--;
   let action;
   while (true) {
     showCombatMenu(f);
@@ -594,11 +617,12 @@ async function playerTurn(f) {
         continue;
       }
     } else if (action === "skill") useSkill(f, SKILLS[extra]);
+    else if (action === "magic") useSpell(f, extra);
     else if (action === "guard") print("🛡️ You raise your guard!");
     else if (action === "parry") print("⚔️ You ready yourself to parry!");
     else if (action === "dodge") print("💨 You get ready to dodge!");
     else if (action === "recover") {
-      const g = Math.min(C.RECOVER, C.MAX_ENERGY - f.energy);
+      const g = Math.min(C.RECOVER, (typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY) - f.energy);
       f.energy += g;
       print(`⚡ You recover ${g} energy.`);
     } else if (action === "run") {
@@ -634,7 +658,7 @@ function resolveDefense(f, a, inc) {
       print("⚡ PERFECT PARRY!");
       print("You perfectly time your defense!");
       stunEnemy(f, C.PERFECT_STUN_TURNS ?? STUN.PERFECT_TURNS, `The ${f.name} is stunned!`, false);
-      f.energy = Math.min(C.MAX_ENERGY, f.energy + C.PERFECT_ENERGY);
+      f.energy = Math.min(typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY, f.energy + C.PERFECT_ENERGY);
       print(`⚡ You restore ${C.PERFECT_ENERGY} energy.`);
       const c = Math.max(
         1,
@@ -642,11 +666,18 @@ function resolveDefense(f, a, inc) {
       );
       f.monster_hp -= c;
       print(`⚔️ Counterattack deals ${c} damage!`);
+      if (typeof clog === "function") clog(f, `perfect parry counter ${c}`);
       // Fully nullified: no damage, no status effect, no drain heal for the enemy.
       return 0;
     } else {
       print("⚔️ PARRY!");
       print("You deflect the attack!");
+      if (typeof clog === "function") clog(f, "parry");
+      if (typeof hasPerk === "function" && hasPerk("iron counter") && f.monster_hp > 0) {
+        const cc = Math.max(1, int((randint(...C.PLAYER_DAMAGE) + s.damage) * 0.35));
+        f.monster_hp -= cc;
+        print(`⚔️ Iron Counter deals ${cc} damage!`);
+      }
       if (percent(C.PARRY_STAGGER)) {
         f.staggered = true;
         print(`💫 The ${f.name} is staggered!`);
@@ -672,6 +703,7 @@ function resolveDefense(f, a, inc) {
     }
     if (percent(dodgeChance(a, s))) {
       print("💨 You dodge the attack!");
+      if (typeof clog === "function") clog(f, "you dodge");
       return 0;
     }
     print("😵 You fail to dodge!");
@@ -679,31 +711,21 @@ function resolveDefense(f, a, inc) {
   }
   return inc;
 }
-// Maybe stuns the player after an enemy hit. Guarding halves the chance; a fresh stun is shrugged off briefly.
-function maybeStunPlayer(f, a) {
-  const [base, turns] = enemyStun(a);
-  if (!base || f.player_stun > 0) return;
-  const ch = f.choice === "guard" ? int(base * C.GUARD_STUN_MULT) : base;
-  if (!percent(ch)) return;
-  if (f.player_stun_immune > 0) {
-    print("   🛡️ You're still shaking off the last stun - you resist it!");
-    return;
-  }
-  f.player_stun = turns;
-  print(`💫 You are STUNNED by ${a.name.toUpperCase()}! You'll lose your next ${turns > 1 ? turns + " turns" : "turn"}!`);
-}
 // Maybe puts poison, burn or bleed on the player after an enemy hit.
 function applySpecialEffect(f, a) {
   const e = a.special_effect;
   if (!e || !percent(e.chance ?? 100)) return;
   const [i, w] = EFFECT_STYLE[e.type] || ["✨", e.type];
   f.effects = f.effects.filter((x) => x.type !== e.type);
-  f.effects.push({ type: e.type, damage: e.damage, turns: e.turns, element: a.element });
-  print(`${i} You are ${w}! (${e.damage} damage for ${e.turns} turns)`);
+  f.effects.push({ type: e.type, damage: e.damage || 0, turns: e.turns, element: a.element, absorb: e.absorb || 0 });
+  print(`${i} You are ${w}!` + (e.damage ? ` (${e.damage} damage for ${e.turns} turns)` : ` (${e.turns} turns)`));
+  if (typeof clog === "function") clog(f, `status ${e.type}`);
 }
 // Deals this turn's damage from poison, burn and bleed on the player.
 function resolveEffects(f) {
   for (const e of [...f.effects]) {
+    if (typeof DOT_TYPES !== "undefined" && !DOT_TYPES.has(e.type)) continue;
+    if (!e.damage) continue;
     const [i] = EFFECT_STYLE[e.type] || ["✨"];
     let d = e.damage;
     const r = f.resist[e.element] || 0;
@@ -716,6 +738,7 @@ function resolveEffects(f) {
       print(`   The ${e.type} wears off.`);
     }
   }
+  if (typeof tickNonDot === "function") tickNonDot(f.effects, "Your");
 }
 // Applies one enemy hit to the player (defense, resistances, damage reduction).
 function monsterDealDamage(f, a, inc) {
@@ -725,7 +748,7 @@ function monsterDealDamage(f, a, inc) {
   }
   let t = resolveDefense(f, a, inc);
   if (f.monster_hp <= 0 || t <= 0) return 0;
-  const r = f.resist[a.element] || 0;
+  const r = (f.resist[a.element] || 0) + (typeof effectMods === "function" ? effectMods(f.effects).elemResist : 0);
   if (r) {
     t = int(t * (1 - r / 100));
     print(`🧯 Your resistance shrugs off ${r}% of the ${a.element} damage.`);
@@ -733,9 +756,9 @@ function monsterDealDamage(f, a, inc) {
   }
   t = reducePlayerDamage(f, t);
   print(`💔 You are hit for ${t} damage.`);
+  if (typeof clog === "function") clog(f, `you take ${t}`);
   f.player_hp -= t;
   applySpecialEffect(f, a);
-  if (f.player_hp > 0) maybeStunPlayer(f, a);
   return t;
 }
 // Decides what the enemy will do on the coming turn.
@@ -746,7 +769,7 @@ function rollIntent(f) {
     it = { kind: "stunned", attack: null };
   } else if (f.staggered) it = { kind: "staggered", attack: null };
   else {
-    it = monsterChoose(f.monster, f.choice, f.monster_energy);
+    it = monsterChoose(f.monster, f.choice);
     if (it.kind === "idle") it.text = IDLE_LINES[randint(0, IDLE_LINES.length - 1)];
   }
   f.intent = it;
@@ -754,7 +777,6 @@ function rollIntent(f) {
   f.stance = { parry_stance: "parry", dodge_stance: "dodge" }[it.kind] || null;
 }
 // Plays out the enemy's turn.
-// The enemy's move was already announced in the ENEMY INTENT block, so only results are printed here.
 function monsterTurn(f) {
   f.owner = "monster";
   const name = f.name;
@@ -763,49 +785,45 @@ function monsterTurn(f) {
   print(`\n🔴 THE ${name.toUpperCase()}'S TURN`);
   f.staggered = false;
   let attacked = false;
-  f.monster_energy = Math.max(0, f.monster_energy - (it.cost || 0));
-  const tired = f.monster_energy <= C.ENEMY_TIRED_AT;
   if (k === "stunned") {
+    print(`😵 The ${name} is stunned and can't act!`);
     f.last_move = "was stunned and lost its turn";
     // Last stunned turn: it recovers, then resists further stuns briefly.
     if (f.stun_turns <= 0) f.stun_immune = STUN.IMMUNE_TURNS;
   } else if (k === "staggered") {
+    print(`💫 The ${name} is staggered and can't act!`);
     f.last_move = "was staggered and lost its turn";
-  } else if (k === "recover") {
-    const g = Math.min(C.ENEMY_RECOVER, f.monster_max_energy - f.monster_energy);
-    f.monster_energy += g;
-    print(`😮‍💨 The ${name} catches its breath and regains ${g} energy.`);
-    f.last_move = "recovered energy";
   } else if (k === "idle") {
+    print(`💤 The ${name} ${it.text}`);
     f.last_move = "did nothing";
   } else if (k === "block") {
+    print(`🛡️ The ${name} holds its guard.`);
     f.last_move = "guarded";
   } else if (k === "parry_stance" || k === "dodge_stance") {
-    f.last_move = `${k.split("_")[0]} stance`;
+    const st = k.split("_")[0];
+    print(
+      st === "parry"
+        ? `🤺 The ${name} holds its parry stance.`
+        : `💨 The ${name} holds its dodge stance.`
+    );
+    f.last_move = `${st} stance`;
   } else if (k === "heal") {
     const a = it.attack,
       h = randint(...a.heal);
     f.monster_hp = Math.min(f.monster.hp, f.monster_hp + h);
-    print(`💚 The ${name} heals ${h} HP.`);
-    // Support moves (roars, howls, smoke bombs...) only stun if they set `stun` explicitly.
-    if (a.stun) {
-      print(`📢 ${a.name.toUpperCase()} rattles you!`);
-      maybeStunPlayer(f, a);
-    }
+    print(`✨ The ${name} uses ${a.name.toUpperCase()}!`);
+    print(`💚 It heals ${h} HP.`);
     f.last_move = a.name.toUpperCase();
   } else {
     const a = it.attack;
+    print(`✨ The ${name} uses ${a.name.toUpperCase()}!`);
     f.last_move = a.name.toUpperCase();
     for (let n = 0; n < a.hits; n++) {
       // stun_turns can only become > 0 mid-attack via a perfect parry: stop the rest of the combo.
       if (f.monster_hp <= 0 || f.player_hp <= 0 || f.stun_turns > 0) break;
       if (a.hits > 1) print(`   Strike ${n + 1}/${a.hits}:`);
-      if (!percent(enemyAccuracy(a, f.monster_energy))) {
-        print(
-          tired
-            ? `💨 The ${name} is exhausted - ${a.name.toUpperCase()} misses you completely!`
-            : `💨 ${a.name.toUpperCase()} misses you completely!`
-        );
+      if (!percent(a.accuracy)) {
+        print(`💨 ${a.name.toUpperCase()} misses you completely!`);
         continue;
       }
       attacked = true;
@@ -823,7 +841,6 @@ function monsterTurn(f) {
   if (k !== "stunned" && f.stun_immune > 0) f.stun_immune--;
   f.guarding = false;
   f.stance = null;
-  f.monster_energy = Math.min(f.monster_max_energy, f.monster_energy + C.ENEMY_REGEN + (k === "idle" ? 1 : 0));
   if (f.monster_hp <= 0) return;
   resolveMonsterEffects(f);
   if (f.monster_hp <= 0) return;
@@ -851,30 +868,20 @@ const BOSS_UNLOCKS = {
   "ash demon": "demon",
 };
 // Creates the state object that tracks one fight (HP, energy, effects, cooldowns...).
-function newFight(n) {
-  const m = monsters[n],
-    s = getStats();
-  return {
-    name: n,
-    monster: m,
+function newFight(n, extras = []) {
+  const names = Array.isArray(n) ? n : [n, ...extras];
+  const s = getStats();
+  const f = {
+    enemies: names.map((nm) =>
+      typeof makeEnemyState === "function" ? makeEnemyState(nm) : { name: nm, monster: monsters[nm], hp: monsters[nm].hp, effects: [], guarding: false, stance: null, stun_turns: 0, stun_immune: 0, staggered: false, last_move: null, intent: null }
+    ),
+    target: 0,
     stats: s,
     player_hp: s.max_hp,
     player_max_hp: s.max_hp,
-    energy: C.START_ENERGY,
+    energy: Math.min(C.START_ENERGY, typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY),
     effects: [],
-    monster_hp: m.hp,
-    monster_effects: [],
-    guarding: false,
-    stance: null,
-    stun_turns: 0,
-    stun_immune: 0,
-    monster_energy: m.energy ?? C.ENEMY_ENERGY,
-    monster_max_energy: m.energy ?? C.ENEMY_ENERGY,
-    player_stun: 0,
-    player_stun_immune: 0,
-    staggered: false,
     last_move: null,
-    intent: null,
     choice: null,
     owner: "player",
     cooldowns: {},
@@ -882,7 +889,22 @@ function newFight(n) {
     resist: { fire: 0, frost: 0 },
     phoenix_available: false,
     fled: false,
+    log: [],
   };
+  if (typeof attachEnemyAccessors === "function") attachEnemyAccessors(f);
+  else {
+    f.name = names[0];
+    f.monster = monsters[names[0]];
+    f.monster_hp = f.monster.hp;
+    f.monster_effects = [];
+    f.guarding = false;
+    f.stance = null;
+    f.stun_turns = 0;
+    f.stun_immune = 0;
+    f.staggered = false;
+    f.intent = null;
+  }
+  return f;
 }
 function tickCooldowns(f) {
   for (const k of Object.keys(f.cooldowns)) {
@@ -920,14 +942,28 @@ function rollLoot(m) {
 }
 // Victory: grants XP and loot, records the kill for the story.
 function winFight(f) {
-  print(`\n🏆 You defeated the ${f.name}!`);
-  const xp = Math.floor(f.monster.hp / 2) + 5;
-  print(`✨ You gain ${xp} XP from the ${f.name}.`);
+  const fallen = (f.enemies || [{ name: f.name, monster: f.monster }]).filter((e) => e.hp <= 0);
+  const names = fallen.length ? fallen : [{ name: f.name, monster: f.monster }];
+  print(`\n🏆 You defeated ${names.map((e) => "the " + e.name).join(" and ")}!`);
+  let xp = 0;
+  names.forEach((e) => {
+    const m = e.monster || f.monster;
+    xp += Math.floor(m.hp / 2) + 5;
+  });
+  const xm = names[0]?.monster?._xpMult || 1;
+  xp = Math.floor(xp * xm);
+  print(`✨ You gain ${xp} XP.`);
   grantXp(xp);
-  rollLoot(f.monster);
-  const first = killCount(f.name) === 0;
-  recordVictory(f.name);
-  if (first) print(`\n🔓 ${title(f.name)} unlocked! You can now pick it with 'fight'.`);
+  names.forEach((e) => rollLoot(e.monster || f.monster));
+  names.forEach((e) => {
+    const nm = (e.name || "").replace(/^elite /, "");
+    const first = killCount(nm) === 0;
+    recordVictory(nm);
+    if (typeof WORLD !== "undefined") WORLD.totalKills = (WORLD.totalKills || 0) + 1;
+    if (typeof noteQuestKill === "function") noteQuestKill(nm);
+    if (first) print(`\n🔓 ${title(nm)} unlocked! You can now pick it with 'fight'.`);
+  });
+  if (typeof checkAchievements === "function") checkAchievements();
   maybeFourthWall();
 }
 // Defeat: the player drops half their coins.
@@ -961,7 +997,9 @@ async function fightMonster(arg = "") {
   const req = arg.trim().toLowerCase();
   if (!checkGate(req)) return;
   let name;
-  if (monsters[req]) name = req;
+    if (monsters[req]) name = req;
+    else if (req.includes(",") && req.split(",").every((x) => monsters[x.trim()]))
+      name = req.split(",").map((x) => x.trim());
   else {
     const pool = Object.keys(monsters).filter((n) => monsters[n].chance > 0);
     name = wchoice(
@@ -970,38 +1008,84 @@ async function fightMonster(arg = "") {
     );
   }
   const f = newFight(name);
-  print(`\n⚔️ A wild ${name.toUpperCase()} appeared!`);
+  print(`\n⚔️ A wild ${Array.isArray(name) ? name.map((n) => n.toUpperCase()).join(" & ") : name.toUpperCase()} appeared!`);
   const eq = Object.values(equipment).filter(Boolean);
   if (eq.length) print("🧰 Equipped: " + eq.join(", "));
+  if (typeof applyRested === "function") applyRested(f);
+  if (typeof SETTINGS !== "undefined" && SETTINGS.difficulty !== "normal")
+    print(`⚙️ Difficulty: ${SETTINGS.difficulty}${PLAYER.ngPlus ? ` · NG+${PLAYER.ngPlus}` : ""}`);
   let turn = 0;
+  const down = () => (typeof foesDown === "function" ? foesDown(f) : f.monster_hp <= 0);
   while (true) {
     turn++;
     tickCooldowns(f);
     print(`\n===== Turn ${turn} =====`);
-    rollIntent(f);
+    if (f.enemies) {
+      f.enemies.forEach((e, i) => {
+        if (e.hp <= 0) return;
+        f.target = i;
+        rollIntent(f);
+      });
+      const live = f.enemies.findIndex((e) => e.hp > 0);
+      if (live >= 0) f.target = live;
+    } else rollIntent(f);
     showStatus(f);
-    showIntent(f);
+    if (f.enemies && f.enemies.length > 1) {
+      f.enemies.forEach((e, i) => {
+        if (e.hp <= 0) return;
+        f.target = i;
+        showIntent(f);
+      });
+      const live = f.enemies.findIndex((e) => e.hp > 0);
+      if (live >= 0) f.target = live;
+    } else showIntent(f);
+    if (typeof remindHeal === "function") remindHeal(f);
     await playerTurn(f);
     if (f.fled) {
       print("(No XP or loot from a fight you ran from.)");
       return;
     }
-    if (f.monster_hp <= 0) {
+    if (down()) {
       winFight(f);
+      if (typeof maybePromptLevelUp === "function") await maybePromptLevelUp();
       return;
     }
     if (playerDown(f)) {
       loseFight(f);
       return;
     }
-    monsterTurn(f);
-    if (f.monster_hp <= 0) {
+    if (typeof companionTurns === "function") await companionTurns(f);
+    if (down()) {
       winFight(f);
+      if (typeof maybePromptLevelUp === "function") await maybePromptLevelUp();
       return;
     }
-    if (playerDown(f)) {
-      loseFight(f);
-      return;
+    if (f.enemies) {
+      for (let i = 0; i < f.enemies.length; i++) {
+        if (f.enemies[i].hp <= 0) continue;
+        f.target = i;
+        monsterTurn(f);
+        if (down()) {
+          winFight(f);
+          if (typeof maybePromptLevelUp === "function") await maybePromptLevelUp();
+          return;
+        }
+        if (playerDown(f)) {
+          loseFight(f);
+          return;
+        }
+      }
+    } else {
+      monsterTurn(f);
+      if (down()) {
+        winFight(f);
+        if (typeof maybePromptLevelUp === "function") await maybePromptLevelUp();
+        return;
+      }
+      if (playerDown(f)) {
+        loseFight(f);
+        return;
+      }
     }
   }
 }
