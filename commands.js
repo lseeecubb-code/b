@@ -163,7 +163,7 @@ async function runGame(savedCode) {
   showMainMenu();
   try {
     while (true) {
-      await doFunction((await input("\n✨ Your move?")).trim());
+      await doFunction((await input("\nYour move: ")).trim());
     }
   } catch (e) {
     if (e instanceof Quit) print("Thanks for playing! (Use New Game or reload to play again.)");
