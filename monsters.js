@@ -80,9 +80,9 @@ const monsters = {
     basic_attack: { damage: [4, 8] },
     abilities: {
       "dagger stab": { chance: 30, damage: [6, 10], type: "fast" },
-      "thrown rock": { chance: 20, damage: [5, 9], parryable: false, telegraph: "hurls" },
+      "thrown rock": { chance: 20, stun: 25, stun_turns: 1, damage: [5, 9], parryable: false, telegraph: "hurls" },
       "dirty trick": {
-        chance: 10,
+        chance: 10, stun: 30, stun_turns: 1,
         damage: [3, 6],
         accuracy: 90,
         special_effect: { type: "bleed", chance: 60, damage: 2, turns: 3 },
@@ -114,13 +114,13 @@ const monsters = {
         special_effect: { type: "bleed", chance: 45, damage: 3, turns: 3 },
       },
       pounce: {
-        chance: 20,
+        chance: 20, stun: 30, stun_turns: 2,
         damage: [11, 16],
         type: "heavy",
         parryable: false,
         telegraph: "coils up to unleash",
       },
-      howl: { chance: 10, heal: [5, 10], telegraph: "raises its head and uses" },
+      howl: { chance: 10, stun: 20, stun_turns: 2, heal: [5, 10], telegraph: "raises its head and uses" },
     },
     chance: 100,
     drops: {
@@ -141,7 +141,7 @@ const monsters = {
     basic_attack: { damage: [7, 11] },
     abilities: {
       charge: {
-        chance: 25,
+        chance: 25, stun: 40, stun_turns: 2,
         damage: [12, 18],
         type: "heavy",
         telegraph: "lowers its head and charges",
@@ -172,7 +172,7 @@ const monsters = {
       },
       "rotten lunge": { chance: 20, damage: [9, 13], type: "slow", telegraph: "slowly winds up" },
       grab: {
-        chance: 12,
+        chance: 12, stun: 30, stun_turns: 2,
         damage: [6, 10],
         parryable: false,
         blockable: false,
@@ -214,7 +214,7 @@ const monsters = {
         special_effect: { type: "poison", chance: 25, damage: 2, turns: 2 },
       },
       "web trap": {
-        chance: 10,
+        chance: 10, stun: 35, stun_turns: 2,
         damage: [2, 5],
         parryable: false,
         blockable: false,
@@ -247,7 +247,7 @@ const monsters = {
         telegraph: "hurls a",
       },
       "shield bash": {
-        chance: 20,
+        chance: 20, stun: 40, stun_turns: 2,
         damage: [10, 14],
         type: "heavy",
         pierces_guard: true,
@@ -313,7 +313,7 @@ const monsters = {
         special_effect: { type: "bleed", chance: 40, damage: 2, turns: 3 },
       },
       "piercing screech": {
-        chance: 15,
+        chance: 15, stun: 30, stun_turns: 2,
         damage: [3, 6],
         parryable: false,
         blockable: false,
@@ -338,8 +338,8 @@ const monsters = {
     block_reduction: 0.55,
     basic_attack: { damage: [7, 11] },
     abilities: {
-      "shield bash": { chance: 20, damage: [6, 9], type: "heavy" },
-      "guard break": { chance: 15, damage: [9, 13] },
+      "shield bash": { chance: 20, stun: 40, stun_turns: 2, damage: [6, 9], type: "heavy" },
+      "guard break": { chance: 15, stun: 35, stun_turns: 2, damage: [9, 13] },
     },
     chance: 55,
     drops: {
@@ -362,7 +362,7 @@ const monsters = {
       cleave: { chance: 25, damage: [14, 20], type: "heavy" },
       "reckless swing": { chance: 20, damage: [11, 16], type: "fast", accuracy: 75 },
       "crushing blow": {
-        chance: 12,
+        chance: 12, stun: 40, stun_turns: 3,
         damage: [16, 22],
         type: "slow",
         parryable: false,
@@ -370,7 +370,7 @@ const monsters = {
         warning: true,
         telegraph: "raises its club to deliver",
       },
-      "battle roar": { chance: 8, heal: [10, 18] },
+      "battle roar": { chance: 8, stun: 25, stun_turns: 2, heal: [10, 18] },
     },
     chance: 70,
     drops: {
@@ -405,7 +405,7 @@ const monsters = {
         accuracy: 90,
         telegraph: "draws and throws",
       },
-      "smoke bomb": { chance: 10, heal: [8, 15] },
+      "smoke bomb": { chance: 10, stun: 30, stun_turns: 2, heal: [8, 15] },
     },
     chance: 70,
     drops: {
@@ -536,7 +536,7 @@ const monsters = {
         telegraph: "bares its fangs and lunges with",
       },
       frenzy: { chance: 15, damage: [8, 14], type: "fast", accuracy: 80 },
-      "moonlit howl": { chance: 10, heal: [10, 18], telegraph: "howls at the moon and uses" },
+      "moonlit howl": { chance: 10, stun: 25, stun_turns: 2, heal: [10, 18], telegraph: "howls at the moon and uses" },
     },
     chance: 40,
     drops: {
@@ -558,7 +558,7 @@ const monsters = {
     basic_attack: { damage: [9, 14] },
     abilities: {
       "double bite": { chance: 25, damage: [6, 10], hits: 2, type: "fast" },
-      "pack howl": { chance: 10, heal: [8, 15] },
+      "pack howl": { chance: 10, stun: 25, stun_turns: 2, heal: [8, 15] },
     },
     chance: 60,
     drops: {
@@ -579,14 +579,14 @@ const monsters = {
     basic_attack: { damage: [11, 18], type: "slow" },
     abilities: {
       "club smash": {
-        chance: 25,
+        chance: 25, stun: 40, stun_turns: 3,
         damage: [18, 27],
         type: "heavy",
         warning: true,
         telegraph: "raises a huge club to",
       },
       "ground slam": {
-        chance: 20,
+        chance: 20, stun: 35, stun_turns: 2,
         damage: [12, 20],
         type: "slow",
         parryable: false,
@@ -627,7 +627,7 @@ const monsters = {
         element: "frost",
       },
       "freezing blast": {
-        chance: 12,
+        chance: 12, stun: 30, stun_turns: 2,
         damage: [12, 18],
         type: "slow",
         pierces_guard: true,
@@ -686,12 +686,12 @@ const monsters = {
     basic_attack: { damage: [16, 24] },
     abilities: {
       "club smash": {
-        chance: 25,
+        chance: 25, stun: 40, stun_turns: 3,
         damage: [24, 34],
         type: "heavy",
         telegraph: "raises its club high",
       },
-      roar: { chance: 10, heal: [10, 20] },
+      roar: { chance: 10, stun: 25, stun_turns: 2, heal: [10, 20] },
     },
     chance: 30,
     drops: {
@@ -759,7 +759,7 @@ const monsters = {
     abilities: {
       "soul bolt": { chance: 30, damage: [14, 20], type: "fast", parryable: false },
       "death grip": {
-        chance: 15,
+        chance: 15, stun: 35, stun_turns: 2,
         damage: [10, 16],
         type: "slow",
         parryable: false,
@@ -820,7 +820,7 @@ const monsters = {
     basic_attack: { damage: [10, 16] },
     abilities: {
       "fire breath": {
-        chance: 30,
+        chance: 30, stun: 30, stun_turns: 2,
         damage: [18, 26],
         type: "heavy",
         parryable: false,
@@ -832,9 +832,9 @@ const monsters = {
         special_effect: { type: "burn", chance: 50, damage: 4, turns: 2 },
         element: "fire",
       },
-      "tail swipe": { chance: 25, damage: [12, 18], type: "heavy" },
+      "tail swipe": { chance: 25, stun: 35, stun_turns: 2, damage: [12, 18], type: "heavy" },
       earthquake: {
-        chance: 10,
+        chance: 10, stun: 40, stun_turns: 3,
         damage: [10, 16],
         type: "slow",
         parryable: false,
@@ -843,7 +843,7 @@ const monsters = {
         warning: true,
         telegraph: "is about to unleash",
       },
-      "dragon roar": { chance: 8, heal: [12, 20] },
+      "dragon roar": { chance: 8, stun: 25, stun_turns: 2, heal: [12, 20] },
     },
     chance: 50,
     drops: {
@@ -866,7 +866,7 @@ const monsters = {
     basic_attack: { damage: [14, 22], type: "heavy" },
     abilities: {
       inferno: {
-        chance: 30,
+        chance: 30, stun: 30, stun_turns: 2,
         damage: [25, 35],
         type: "heavy",
         parryable: false,
@@ -887,7 +887,7 @@ const monsters = {
       },
       "ancient regeneration": { chance: 15, heal: [20, 35] },
       cataclysm: {
-        chance: 8,
+        chance: 8, stun: 40, stun_turns: 3,
         damage: [20, 30],
         type: "slow",
         parryable: false,
@@ -919,7 +919,7 @@ const monsters = {
     basic_attack: { damage: [20, 30] },
     abilities: {
       "fire breath": {
-        chance: 25,
+        chance: 25, stun: 30, stun_turns: 2,
         damage: [25, 38],
         parryable: false,
         dodgeable: true,
@@ -981,7 +981,7 @@ const monsters = {
     block_reduction: 0.6,
     basic_attack: { damage: [24, 36] },
     abilities: {
-      "ice smash": { chance: 25, damage: [30, 45], type: "heavy", element: "frost" },
+      "ice smash": { chance: 25, stun: 35, stun_turns: 3, damage: [30, 45], type: "heavy", element: "frost" },
       "frost wave": { chance: 18, damage: [18, 28], parryable: false, element: "frost" },
     },
     chance: 8,
@@ -1044,8 +1044,8 @@ const monsters = {
     block_reduction: 0.6,
     basic_attack: { damage: [28, 42] },
     abilities: {
-      "warlord smash": { chance: 25, damage: [38, 55], type: "heavy" },
-      "battle roar": { chance: 15, heal: [20, 35] },
+      "warlord smash": { chance: 25, stun: 40, stun_turns: 3, damage: [38, 55], type: "heavy" },
+      "battle roar": { chance: 15, stun: 25, stun_turns: 2, heal: [20, 35] },
     },
     chance: 0,
     drops: {
@@ -1065,7 +1065,7 @@ const monsters = {
     block_reduction: 0.7,
     basic_attack: { damage: [32, 48] },
     abilities: {
-      "ancient fist": { chance: 25, damage: [45, 65], type: "heavy" },
+      "ancient fist": { chance: 25, stun: 40, stun_turns: 3, damage: [45, 65], type: "heavy" },
       "crystal burst": { chance: 18, damage: [25, 40], parryable: false },
     },
     chance: 0,
@@ -1086,7 +1086,7 @@ const monsters = {
     block_reduction: 0.65,
     basic_attack: { damage: [38, 55] },
     abilities: {
-      "king's hammer": { chance: 25, damage: [50, 72], type: "heavy", element: "frost" },
+      "king's hammer": { chance: 25, stun: 40, stun_turns: 3, damage: [50, 72], type: "heavy", element: "frost" },
       blizzard: { chance: 18, damage: [30, 45], parryable: false, warning: true, element: "frost" },
       "frost guard": { chance: 12, heal: [25, 45] },
     },
@@ -1108,7 +1108,7 @@ const monsters = {
     block_reduction: 0.6,
     basic_attack: { damage: [42, 60] },
     abilities: {
-      inferno: { chance: 25, damage: [50, 75], parryable: false, warning: true, element: "fire" },
+      inferno: { chance: 25, stun: 30, stun_turns: 2, damage: [50, 75], parryable: false, warning: true, element: "fire" },
       "demon drain": { chance: 18, damage: [25, 40], heal: [20, 35] },
       "void curse": {
         chance: 15,
@@ -1149,7 +1149,7 @@ const monsters = {
         dodgeable: true,
       },
       godfall: {
-        chance: 8,
+        chance: 8, stun: 40, stun_turns: 3,
         damage: [45, 66],
         type: "slow",
         parryable: false,
@@ -1180,7 +1180,7 @@ const monsters = {
       "invalid state": { chance: 18, damage: [24, 42], type: "fast", dodgeable: false },
       rollback: { chance: 10, heal: [40, 70] },
       "out of bounds": {
-        chance: 8,
+        chance: 8, stun: 35, stun_turns: 3,
         damage: [52, 77],
         type: "slow",
         parryable: false,
@@ -1233,7 +1233,7 @@ const monsters = {
       forget: { chance: 14, damage: [42, 66], blockable: false, dodgeable: true },
       reload: { chance: 8, heal: [75, 125] },
       "fourth wall": {
-        chance: 7,
+        chance: 7, stun: 40, stun_turns: 3,
         damage: [56, 84],
         type: "slow",
         parryable: false,
@@ -1268,7 +1268,7 @@ Object.assign(monsters, {
       "overdue notice": { chance: 16, damage: [48, 72], parryable: false },
       "restore backup": { chance: 10, heal: [60, 110] },
       "sealed vault": {
-        chance: 8,
+        chance: 8, stun: 40, stun_turns: 3,
         damage: [62, 90],
         type: "slow",
         parryable: false,
@@ -1306,7 +1306,7 @@ Object.assign(monsters, {
       },
       "give up": { chance: 8, heal: [80, 140] },
       "last attempt": {
-        chance: 8,
+        chance: 8, stun: 35, stun_turns: 2,
         damage: [74, 104],
         type: "slow",
         parryable: false,
@@ -1337,7 +1337,7 @@ Object.assign(monsters, {
       redact: { chance: 18, damage: [50, 78], blockable: false },
       revise: { chance: 10, heal: [90, 150] },
       "delete scene": {
-        chance: 8,
+        chance: 8, stun: 35, stun_turns: 3,
         damage: [86, 120],
         type: "slow",
         parryable: false,
@@ -1373,7 +1373,7 @@ Object.assign(monsters, {
       },
       "second draft": { chance: 10, heal: [100, 170] },
       "deus ex machina": {
-        chance: 8,
+        chance: 8, stun: 40, stun_turns: 3,
         damage: [94, 130],
         type: "heavy",
         parryable: false,
@@ -1410,7 +1410,7 @@ Object.assign(monsters, {
       },
       "load previous": { chance: 10, heal: [120, 200] },
       overwrite: {
-        chance: 8,
+        chance: 8, stun: 40, stun_turns: 3,
         damage: [100, 140],
         type: "slow",
         parryable: false,
