@@ -128,7 +128,7 @@ function showIntent(f) {
     k = it.kind,
     name = cap(f.name),
     icon = f.monster.icon || "👹";
-  print("\n👁️");
+  print("\n👁️ ENEMY INTENT");
   if (k === "stunned") {
     print(`${icon} The ${name} is stunned and can't act this turn!`);
     if (f.stun_turns > 0)
@@ -209,7 +209,7 @@ function showCombatMenu(f) {
   const sn = sk.length
     ? `${sk.filter((s) => f.energy >= s.cost && !(f.cooldowns[s.name] || 0)).length}/${sk.length} ready`
     : "equip a weapon with skills";
-  print("\n📋");
+  print("\n📋 COMBAT ACTIONS");
   print("1. ⚔️ Attack — deal physical damage.");
   print(`2. 💥 Heavy attack — deal increased damage; costs ${cn}.`);
   print("3. 🛡️ Guard — reduce damage from the next attack.");
@@ -229,7 +229,7 @@ async function chooseItem() {
     print("You have no usable items!");
     return null;
   }
-  print("\n🧪");
+  print("\n🧪 YOUR ITEMS");
   owned.forEach((n, i) => print(`${i + 1}. ${n} x${inventory[n]} (${describeUsable(n)})`));
   print("0. Back");
   while (true) {
@@ -251,7 +251,7 @@ async function chooseSkill(f) {
     const w = f.cooldowns[s.name] || 0;
     return w ? `cooldown: ${w} more turn(s)` : null;
   };
-  print("\n⚔️");
+  print("\n⚔️ WEAPON SKILLS");
   sk.forEach((s, i) => {
     const y = prob(s);
     print(`${i + 1}. ${title(s.name)} (${s.cost} energy) - ${s.desc}`);
@@ -625,7 +625,7 @@ function useSkill(f, s) {
 // Runs the player's turn: asks for an action and carries it out.
 async function playerTurn(f) {
   f.owner = "player";
-  print("\n🟢");
+  print("\n🟢 YOUR TURN");
   let action;
   while (true) {
     showCombatMenu(f);
@@ -823,7 +823,7 @@ function monsterTurn(f) {
   const name = f.name;
   const it = f.intent,
     k = it.kind;
-  print("\n🔴");
+  print("\n🔴 ENEMY TURN");
   f.staggered = false;
   let attacked = false;
   if (k === "stunned") {
@@ -1145,7 +1145,7 @@ function lockReason(n) {
 // Menu for choosing which unlocked enemy to fight.
 async function pickEnemy() {
   const names = Object.keys(monsters).filter(fightUnlocked);
-  print("\n⚔️");
+  print("\n⚔️ CHOOSE AN ENEMY");
   print(" R. Random encounter");
   if (names.length)
     names.forEach((n, i) => {
