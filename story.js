@@ -48,7 +48,7 @@ function recordVictory(mn) {
     if (name !== p.boss) return;
   } else if (Object.entries(p.kills).some(([e, n]) => killCount(e) < n)) return;
   if (PLAYER.level < p.level) {
-    print("\n📜 STORY PROGRESS: The next chapter is close.");
+    print("\n📜");
     print(`   Reach level ${p.level} (you are level ${PLAYER.level}).`);
     return;
   }
@@ -66,7 +66,8 @@ function recordVictory(mn) {
   const nw = curChapter();
   STORY.flags.add(`chapter_${nw.id}_unlocked`);
   print("\n" + "=".repeat(62));
-  print(`📖 CHAPTER ${nw.id} — NEW CHAPTER`);
+  print("📖");
+  print(`Chapter ${nw.id}: ${nw.title}`);
   print(nw.title);
   print("=".repeat(62));
   print(`\n${nw.summary}`);
@@ -79,9 +80,9 @@ function recordVictory(mn) {
   }
   const cl = CHAPTER_CHARACTER_LINES[nw.id];
   if (cl) print(`\n💬 ${cl[0]}: ${STORY_CHARACTERS[cl[0]][cl[1]]}`);
-  print("\n🎯 YOUR NEXT OBJECTIVE");
+  print("\n🎯");
   print(STORY_PROGRESS[nw.id].objective);
-  print("\n🔓 NEWLY AVAILABLE");
+  print("\n🔓");
   STORY_UNLOCKS[nw.id].forEach((u) => print(`  • ${u}`));
   print(`\n⚠️ FRACTURE LEVEL: ${STORY.fracture}/10`);
 }
@@ -89,12 +90,12 @@ function recordVictory(mn) {
 function storyIntro() {
   if (STORY.seen.has("chapter_0_intro")) return;
   print("\n" + "=".repeat(62));
-  print("📖 THE LAST SAVE");
+  print("📖");
   print("=".repeat(62));
   scene("chapter_0_intro").forEach((l) => print(l));
   STORY.seen.add("chapter_0_intro");
   STORY.flags.add("story_started");
-  print("\n🎯 FIRST OBJECTIVE");
+  print("\n🎯");
   print(STORY_PROGRESS[0].objective);
 }
 // The 'story' command: chapter, objective and progress.
@@ -103,21 +104,21 @@ function showStory() {
     id = ch.id,
     p = STORY_PROGRESS[id];
   print("\n" + "=".repeat(62));
-  print("📖 CAMPAIGN JOURNAL — YOUR STORY SO FAR");
+  print("📖");
   print("=".repeat(62));
   print(`Chapter ${id} — ${ch.title}`);
   print(`Current region: ${ch.area}`);
   print(`\n${ch.summary}`);
   print(`\nWorld fracture: ${STORY.fracture}/10`);
-  print("\n🎯 CURRENT OBJECTIVE");
+  print("\n🎯");
   print(`  ${p.objective}`);
-  print("\n📈 CHAPTER PROGRESS");
+  print("\n📈");
   print(`  Hero level: ${PLAYER.level}/${p.level}`);
   for (const [e, a] of Object.entries(p.kills))
     print(`  ${title(e)}: ${Math.min(killCount(e), a)}/${a}`);
   if (p.boss)
     print(`  👑 Chapter boss: ${title(p.boss)} (${killCount(p.boss) > 0 ? "defeated" : "still waiting"})`);
-  print("\n🔓 AVAILABLE IN THIS CHAPTER");
+  print("\n🔓");
   STORY_UNLOCKS[id].forEach((u) => print(`  • ${u}`));
   print("\n🗺️ Type 'explore' to travel the region, find encounters, and advance the story.");
   const b = STORY_BOSS_BY_CHAPTER[id];

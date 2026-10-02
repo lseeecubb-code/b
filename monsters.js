@@ -1261,6 +1261,58 @@ const monsters = {
   },
 };
 
+Object.assign(monsters, {
+  "dust jackal": {
+    icon: "🐕", hp: 27, block_chance: 4, block_reduction: 0.25,
+    basic_attack: { damage: [4, 7] },
+    abilities: { "pack lunge": { chance: 22, damage: [6, 10], type: "fast" } },
+    chance: 52,
+    drops: { meat: { chance: 70, min_drop: 1, max_drop: 2 }, fur: { chance: 45, min_drop: 1, max_drop: 2 }, "moon herb": { chance: 12, min_drop: 1, max_drop: 1 } },
+    parry_chance: 4, dodge_chance: 24, parry_rate: 45, dodge_rate: 65,
+  },
+  "frontier marksman": {
+    icon: "🏹", hp: 82, block_chance: 8, block_reduction: 0.25,
+    basic_attack: { damage: [9, 14], type: "fast" },
+    abilities: {
+      "pinning shot": { chance: 22, damage: [12, 18], type: "fast", special_effect: { type: "slow", chance: 35, damage: 0, turns: 2 } },
+      "barbed arrow": { chance: 14, damage: [10, 15], special_effect: { type: "bleed", chance: 45, damage: 3, turns: 2 } },
+    },
+    chance: 38, drops: { coin: { chance: 100, min_drop: 18, max_drop: 42 }, "clockwork spring": { chance: 18, min_drop: 1, max_drop: 1 }, leather: { chance: 35, min_drop: 1, max_drop: 2 } },
+    parry_chance: 12, dodge_chance: 22, parry_rate: 55, dodge_rate: 65,
+  },
+  "bellbound acolyte": {
+    icon: "🔔", hp: 142, block_chance: 18, block_reduction: 0.35,
+    basic_attack: { damage: [15, 21] }, resist: { frost: 15 },
+    abilities: {
+      "resonant strike": { chance: 20, damage: [19, 26], type: "slow", special_effect: { type: "weakened", chance: 35, damage: 0, turns: 2 } },
+      "cinder prayer": { chance: 12, heal: [18, 28] },
+    },
+    chance: 28, drops: { "black salt": { chance: 42, min_drop: 1, max_drop: 2 }, crystal: { chance: 25, min_drop: 1, max_drop: 1 }, coin: { chance: 100, min_drop: 28, max_drop: 60 } },
+    parry_chance: 20, dodge_chance: 8, parry_rate: 62, dodge_rate: 42,
+  },
+  "null leech": {
+    icon: "🪱", hp: 228, block_chance: 5, block_reduction: 0.2,
+    basic_attack: { damage: [22, 30], type: "fast" }, resist: { fire: 10, frost: 10 },
+    abilities: {
+      "energy bite": { chance: 20, damage: [26, 34], special_effect: { type: "weakened", chance: 45, damage: 0, turns: 2 } },
+      "split in two": { chance: 12, heal: [28, 44] },
+    },
+    chance: 24, drops: { "void crystal": { chance: 16, min_drop: 1, max_drop: 1 }, "moon herb": { chance: 35, min_drop: 1, max_drop: 2 }, "soul shard": { chance: 20, min_drop: 1, max_drop: 1 } },
+    parry_chance: 16, dodge_chance: 25, parry_rate: 58, dodge_rate: 68,
+  },
+  "footnote mimic": {
+    icon: "📕", hp: 510, block_chance: 24, block_reduction: 0.42,
+    basic_attack: { damage: [43, 56] }, resist: { fire: 15, frost: 15 },
+    abilities: {
+      "paper cut": { chance: 24, damage: [46, 60], type: "fast", special_effect: { type: "bleed", chance: 55, damage: 5, turns: 3 } },
+      "misfile": { chance: 16, damage: [34, 46], special_effect: { type: "slow", chance: 55, damage: 0, turns: 2 } },
+      "close the book": { chance: 9, stun: 25, stun_turns: 1, damage: [52, 66], warning: true, telegraph: "slams its covers shut" },
+    },
+    chance: 16, drops: { "soul shard": { chance: 45, min_drop: 1, max_drop: 2 }, "black salt": { chance: 50, min_drop: 1, max_drop: 3 }, "ancient crystal": { chance: 12, min_drop: 1, max_drop: 1 } },
+    parry_chance: 25, dodge_chance: 10, parry_rate: 72, dodge_rate: 45,
+  },
+});
+
 // ---------- Chapter 6-10 story bosses ----------
 Object.assign(monsters, {
   "the archivist": {

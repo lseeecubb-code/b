@@ -63,11 +63,11 @@ const COMMANDS = {
   ],
 };
 const MENU = [
-  ["📖 STORY & PROGRESS", ["explore", "story", "ending"]],
-  ["⚔️ BATTLE", ["fight", "bestiary"]],
-  ["🧙 HERO & GEAR", ["inventory", "stats", "skills", "allocate", "perks", "magic", "info", "equip", "unequip"]],
-  ["🔨 CRAFT & TRADE", ["craft", "recipes", "shop", "buy", "sell"]],
-  ["🏕️ CAMP & OPTIONS", ["town", "quests", "party", "achievements", "settings", "saves", "completed", "ngplus", "event", "github", "copy", "load", "menu", "quit"]],
+  ["📖", ["explore", "story", "ending"]],
+  ["⚔️", ["fight", "bestiary"]],
+  ["🧙", ["inventory", "stats", "skills", "allocate", "perks", "magic", "info", "equip", "unequip"]],
+  ["🔨", ["craft", "recipes", "shop", "buy", "sell"]],
+  ["🏕️", ["town", "quests", "party", "achievements", "settings", "saves", "completed", "ngplus", "event", "github", "copy", "load", "menu", "quit"]],
 ];
 const ORDER = MENU.flatMap((x) => x[1]),
   cnum = (n) => ORDER.indexOf(n) + 1;
@@ -91,7 +91,7 @@ const ALIASES = {
   q: "quit",
 };
 function showMainMenu() {
-  print("\n🧭 YOUR ADVENTURE — CHOOSE WHAT TO DO");
+  print("\n🧭");
   for (const [t, names] of MENU) {
     print(`\n${t}`);
     names.forEach((n) =>
@@ -113,7 +113,7 @@ function keyHint() {
     if (p.boss && PLAYER.level >= p.level && !objectiveComplete())
       print("⚔️  The chapter boss is ready: 'explore', then choose 'boss'.");
   }
-  print("⭐ QUICK ACTIONS");
+  print("⭐");
   print(
     `   ${rpad(cnum("explore"), 2)}. explore  - travel and fight; this is how the story moves forward`
   );
@@ -155,7 +155,7 @@ async function runGame(savedCode) {
       print(`[autosave warning] ${e.message}`);
     }
   }
-  print("\nWelcome to THE LAST SAVE");
+  print("\n👋");
   print("⚔️ A turn-based story RPG. Explore a fractured world, grow stronger, and uncover what waits beyond the final save.");
   storyIntro();
   showStory();

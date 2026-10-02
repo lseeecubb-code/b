@@ -110,6 +110,9 @@ function applySave({ inv, eq, pl, st, world }) {
       trackedRecipes: Array.isArray(world.trackedRecipes)
         ? [...new Set(world.trackedRecipes.filter((n) => typeof n === "string" && recipes[n]))]
         : [],
+      recipesCrafted: Array.isArray(world.recipesCrafted)
+        ? [...new Set(world.recipesCrafted.filter((n) => typeof n === "string" && recipes[n]))]
+        : [],
     };
   }
   if (typeof WORLD !== "undefined")
@@ -124,6 +127,10 @@ function applySave({ inv, eq, pl, st, world }) {
   if (typeof WORLD !== "undefined")
     WORLD.trackedRecipes = Array.isArray(world?.trackedRecipes)
       ? [...new Set(world.trackedRecipes.filter((n) => typeof n === "string" && recipes[n]))]
+      : [];
+  if (typeof WORLD !== "undefined")
+    WORLD.recipesCrafted = Array.isArray(world?.recipesCrafted)
+      ? [...new Set(world.recipesCrafted.filter((n) => typeof n === "string" && recipes[n]))]
       : [];
   if (typeof unlockSpellsForLevel === "function") unlockSpellsForLevel(true);
   // Old saves ended the game after The Witness. The story now continues to Chapter 10.

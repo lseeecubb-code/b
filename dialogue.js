@@ -152,11 +152,11 @@ const STORY_PROGRESS = {
 const STORY_AREAS = {
   "The Quiet Road": {
     description: "A familiar road beneath an ordinary sky.",
-    encounters: ["rat", "slime", "wolf", "goblin", "wild boar", "dire wolf", "clockwork hound"],
+    encounters: ["rat", "slime", "wolf", "goblin", "wild boar", "dire wolf", "clockwork hound", "dust jackal"],
   },
   "The Broken Frontier": {
     description: "A wilderness split by a thin black line that nobody remembers seeing yesterday.",
-    encounters: ["skeleton", "orc", "bandit", "witch", "werewolf", "ogre", "wraith", "wyvern", "mire witch"],
+    encounters: ["skeleton", "orc", "bandit", "witch", "werewolf", "ogre", "wraith", "wyvern", "mire witch", "frontier marksman"],
   },
   "The Cathedral of Ash": {
     description: "A dead cathedral whose stained glass shows places that do not exist.",
@@ -168,11 +168,12 @@ const STORY_AREAS = {
       "wraith",
       "fire elemental",
       "demon",
+      "bellbound acolyte",
     ],
   },
   "The Null Expanse": {
     description: "A colorless horizon where distance, gravity, and memory no longer agree.",
-    encounters: ["lich", "demon", "frost giant", "dragon", "stone golem", "ancient dragon"],
+    encounters: ["lich", "demon", "frost giant", "dragon", "stone golem", "ancient dragon", "null leech"],
   },
   "The Unfinished Room": {
     description: "A grey room made from missing textures, unused doors, and pieces of the world.",
@@ -184,7 +185,7 @@ const STORY_AREAS = {
   },
   "The Archive of Attempts": {
     description: "Endless shelves of journals, each one a life you do not remember living.",
-    encounters: ["wraith", "lich", "demon", "stone golem", "ancient dragon", "troll", "archive stalker"],
+    encounters: ["wraith", "lich", "demon", "stone golem", "ancient dragon", "troll", "archive stalker", "footnote mimic"],
   },
   "The Hollow Kingdom": {
     description: "A kingdom of empty armor, still standing guard over heroes who gave up.",

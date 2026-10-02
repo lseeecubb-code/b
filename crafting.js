@@ -20,7 +20,7 @@ function discoverRecipeFromEnemy(enemyName) {
     if (chance === undefined || WORLD.recipeUnlocks.includes(name) || !percent(chance)) continue;
     WORLD.recipeUnlocks.push(name);
     print(`\n📜 New recipe discovered: ${title(name)}!`);
-    print(`Track it with 'recipes tracking'. Find each ingredient once to reveal the formula: ${Object.entries(recipes[name]).map(([mat, n]) => `${n} ${mat}`).join(", ")}.`);
+    print(`Use 'recipes track ${name}' to follow it. Find each ingredient once to reveal the formula: ${Object.entries(recipes[name]).map(([mat, n]) => `${n} ${mat}`).join(", ")}.`);
     return name;
   }
   return null;
@@ -51,6 +51,9 @@ function craftOne(choice, amount) {
   print(`\n🔨 Crafting ${amount} ${choice}...`);
   for (const [i, per] of Object.entries(need)) removeItem(i, per * amount);
   addItem(choice, amount);
+  if (!WORLD.recipesCrafted) WORLD.recipesCrafted = [];
+  if (!WORLD.recipesCrafted.includes(choice)) WORLD.recipesCrafted.push(choice);
+  if (typeof checkAchievements === "function") checkAchievements();
   print(`✅ Crafted ${amount} ${choice}!`);
   if (ITEMS[choice]) print(`🛡️ Equip it with 'equip ${choice}': ${describeBuffs(choice)}`);
   else if (USABLE_ITEMS[choice]) print(`🧪 Ready for battle: ${describeUsable(choice)}`);
@@ -84,7 +87,7 @@ async function showRecipes(arg = "") {
     const rows = view === "locked"
       ? locked
       : (WORLD.trackedRecipes || []).filter((name) => recipes[name]).map((name) => [name, recipes[name]]);
-    print(view === "locked" ? "\n🔒 HIDDEN RECIPES — DISCOVERY LIST" : "\n📌 TRACKED RECIPES");
+    print(view === "locked" ? "\n🔒" : "\n📌");
     if (!rows.length) print(view === "locked" ? "✨ Every recipe has been discovered!" : "  Nothing tracked yet. Add one with 'recipes track <recipe name>'.");
     rows.forEach(([name, ingredients]) => {
       const found = Object.keys(ingredients).filter((item) => (WORLD.recipeMaterialsSeen || []).includes(item)).length;
@@ -113,7 +116,7 @@ async function showRecipes(arg = "") {
     if (!cats) cats = CAT_ORDER;
     else term = "";
   }
-  print("\n📜 CRAFTING — KNOWN FORMULAS");
+  print("\n📜");
   let shown = 0;
   for (const c of cats) {
     const rows = Object.entries(recipes).filter(
@@ -122,7 +125,7 @@ async function showRecipes(arg = "") {
         recipeKnown(i) && (!term || i.includes(term) || Object.keys(ing).some((g) => g.includes(term)))
     );
     if (!rows.length) continue;
-    print(`\n🧰 ${c.toUpperCase()}`);
+    print(`\n${CAT_EMOJI[c] || "🧰"}`);
     rows.forEach(([i, ing]) => {
       print(`  ${Object.entries(ing).every(([k, n]) => (inventory[k] || 0) >= n) ? "✅" : "▫️"} ${i} (${Object.entries(ing).map(([k, a]) => `${a} ${k}`).join(", ")})`);
     });
@@ -180,8 +183,8 @@ async function shop(arg = "") {
     cats = await chooseCategory("Shop Categories", counts);
     if (!cats) return false;
   }
-  print("\n🛍️ MERCHANT'S STALL");
-  print(`  ${pad("item", 24)}${rpad("BUY", 6)}${rpad("SELL", 7)}`);
+  print("\n🛍️");
+  print(`  ${pad("📦", 24)}${rpad("📥", 6)}${rpad("📤", 7)}`);
   let shown = 0;
   for (const c of cats) {
     const rows = names.filter((n) => itemCategory(n) === c);
@@ -231,7 +234,7 @@ async function sellItem(arg = "") {
       print("🎒 You don't have anything this merchant will buy.");
       return;
     }
-    print("\n--- Your Sellable Items ---");
+    print("\n🪙");
     printNumbered(names, (n) => `${n} x${inventory[n]} - ${SHOP_SELL[n]} coin each`);
     const raw = (await input("\nSell what? (number or name [amount], or 'all <item>'): "))
       .trim()

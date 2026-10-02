@@ -522,6 +522,8 @@ const RECIPE_DISCOVERY = {
   "wraith ward scroll": { wraith: 18, lich: 10, "the watcher": 100 },
   "archivist seal": { "archive stalker": 20, "the archivist": 100 },
   "hero's gambit tonic": { berserker: 12, "the first hero": 100 },
+  "margin seal": { "margin warden": 20, "the editor": 100 },
+  "last line tonic": { "the author": 100, "the last save": 100 },
 };
 
 const SHOP_BUY = {
@@ -660,4 +662,40 @@ Object.assign(recipes, {
   redline: { "void crystal": 25, "ancient heart": 5, "demon core": 3 },
   "inkbound seal": { "void crystal": 22, "ancient heart": 5, "ancient crystal": 14 },
   finalis: { "void crystal": 35, "ancient heart": 8, "ancient crystal": 20 },
+});
+
+Object.assign(USABLE_ITEMS, {
+  "moonlit poultice": { heal: 48, cure: true },
+  "salt ward": { self: { type: "warded", turns: 4 } },
+  "clockwork charge": { energy: 4, buff_damage: 4 },
+  "sunfire bomb": { damage: 30, element: "fire", effect: { type: "burn", chance: 85, damage: 5, turns: 3 } },
+  "margin seal": { self: { type: "shield", absorb: 50, turns: 3 } },
+  "last line tonic": { heal: 65, energy: 3, buff_damage: 8 },
+});
+Object.assign(ITEMS, {
+  "trailbreaker bow": { id: "weapon", damage: 15, crit: 8, dodge: 5, skills: ["aimed shot", "volley"], description: "A frontier scout's bow rebuilt around a spring-steel limb." },
+  bellguard: { id: "offhand", defense: 5, guard: 0.08, max_hp: 28, description: "A small shield that hums when danger is close." },
+  "nullweave coat": { id: "armor", max_hp: 82, defense: 7, dodge: 4, parry: 3, description: "Cloth woven from a place the world tried to forget." },
+  "archivist's ring": { id: "trinket", max_hp: 42, crit: 6, damage: 5, description: "A catalog mark that helps its wearer find the opening." },
+});
+Object.assign(recipes, {
+  "moonlit poultice": { "moon herb": 2, meat: 1 },
+  "salt ward": { "black salt": 2, silk: 1 },
+  "clockwork charge": { "clockwork spring": 1, crystal: 1 },
+  "sunfire bomb": { "ember core": 1, "moon herb": 1, coal: 1 },
+  "trailbreaker bow": { steel: 3, "clockwork spring": 2, leather: 2 },
+  bellguard: { steel: 3, "black salt": 2, "clockwork spring": 1 },
+  "nullweave coat": { "enchanted silk": 3, "soul shard": 2, "void crystal": 2 },
+  "archivist's ring": { "ancient crystal": 3, "soul shard": 2, gold: 2 },
+  "margin seal": { "void crystal": 2, "ancient crystal": 2, "black salt": 3 },
+  "last line tonic": { "ancient heart": 1, "moon herb": 4, "soul shard": 2 },
+});
+Object.assign(SHOP_BUY, {
+  "moon herb": 18, "black salt": 28, "clockwork spring": 32,
+  "moonlit poultice": 55, "salt ward": 48, "clockwork charge": 60,
+});
+Object.assign(SHOP_SELL, {
+  "moon herb": 8, "black salt": 12, "clockwork spring": 14,
+  "moonlit poultice": 24, "salt ward": 20, "clockwork charge": 26,
+  "sunfire bomb": 34, "margin seal": 58, "last line tonic": 75,
 });

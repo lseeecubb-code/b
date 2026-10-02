@@ -130,6 +130,41 @@ const SPELLS = {
     cooldown: 2,
     cure: true,
   },
+  "sun lance": {
+    desc: "A focused fire ray that can leave its target burning.",
+    cost: 3,
+    cooldown: 1,
+    element: "fire",
+    damage: [17, 25],
+    effect: { type: "burn", chance: 55, damage: 4, turns: 2 },
+  },
+  "rime barrier": {
+    desc: "Wrap yourself in frost-hard protection for several turns.",
+    cost: 3,
+    cooldown: 2,
+    self: { type: "fortified", turns: 3 },
+  },
+  "verdant pulse": {
+    desc: "Restore health and clear poison from your body.",
+    cost: 4,
+    cooldown: 2,
+    heal: [34, 46],
+    cure: true,
+  },
+  "static bind": {
+    desc: "A crackling bolt that may weaken and slow the enemy.",
+    cost: 4,
+    cooldown: 2,
+    element: "lightning",
+    damage: [20, 29],
+    effect: { type: "weakened", chance: 50, damage: 0, turns: 2 },
+  },
+  "last stand": {
+    desc: "Brace for danger and sharpen your next attacks.",
+    cost: 3,
+    cooldown: 3,
+    self: { type: "empowered", turns: 2 },
+  },
 };
 
 const COMPANION_DEFS = {
@@ -229,6 +264,33 @@ const SIDE_QUESTS = {
     chapterMin: 2,
   },
 };
+Object.assign(SIDE_QUESTS, {
+  jackal_pelts: {
+    name: "Tracks in the Dust", giver: "Innkeeper",
+    desc: "Thin the dust jackals prowling the Quiet Road.", type: "kills", target: "dust jackal", need: 3,
+    reward: { xp: 55, coin: 45, "moon herb": 2 }, chapterMin: 0,
+  },
+  quiet_arrows: {
+    name: "No Safe Pass", giver: "Frontier scout",
+    desc: "Drive the frontier marksmen from the broken road.", type: "kills", target: "frontier marksman", need: 2,
+    reward: { xp: 105, coin: 85, "clockwork spring": 2 }, chapterMin: 1,
+  },
+  bell_silence: {
+    name: "Silence the Second Bell", giver: "Bellkeeper",
+    desc: "Defeat three bellbound acolytes before their rites spread.", type: "kills", target: "bellbound acolyte", need: 3,
+    reward: { xp: 180, coin: 120, "black salt": 3 }, chapterMin: 2,
+  },
+  missing_energy: {
+    name: "A Hunger in the Null", giver: "Nyx",
+    desc: "Hunt the null leeches feeding on the Expanse's energy.", type: "kills", target: "null leech", need: 2,
+    reward: { xp: 260, coin: 160, "void crystal": 2 }, chapterMin: 3,
+  },
+  overdue_books: {
+    name: "Overdue by Several Lifetimes", giver: "Archivist",
+    desc: "Recover one soul shard from a footnote mimic in the Archive.", type: "collect", target: "soul shard", need: 1,
+    reward: { xp: 420, coin: 240, "ancient crystal": 2 }, chapterMin: 6,
+  },
+});
 
 const TOWNS = {
   wayrest: {
@@ -272,6 +334,9 @@ const ACHIEVEMENTS = {
   dedicated: { name: "Specialist", desc: "Unlock a full perk tree." },
   wealthy: { name: "Heavy Purse", desc: "Hold 1000 coin at once." },
   ng: { name: "Again", desc: "Start New Game+." },
+  field_notes: { name: "Field Notes", desc: "Defeat all five newly discovered regional creatures." },
+  supply_scout: { name: "Supply Scout", desc: "Find moon herb, black salt, and a clockwork spring." },
+  maker: { name: "Made by Hand", desc: "Craft every new formula added in this content update." },
 };
 
 const DOT_TYPES = new Set(["poison", "burn", "bleed"]);
@@ -283,6 +348,10 @@ const SPELL_UNLOCKS = [
   [4, ["restore"]],
   [5, ["ward"]],
   [7, ["storm lash"]],
+  [2, ["sun lance"]],
+  [6, ["rime barrier"]],
+  [9, ["verdant pulse"]],
+  [11, ["static bind", "last stand"]],
 ];
 
 function defaultSettings() {
@@ -431,7 +500,7 @@ function clog(f, msg) {
 }
 
 function showCombatLog(f) {
-  print("\n📜 COMBAT LOG — RECENT EVENTS");
+  print("\n📜");
   const lines = (f.log || []).slice(-16);
   if (!lines.length) print("No combat events have been recorded yet.");
   else lines.forEach((l) => print("  " + l));
@@ -571,6 +640,9 @@ function checkAchievements() {
   if (Object.values(trees).some((n) => n >= 4)) unlockAchievement("dedicated");
   if ((inventory.coin || 0) >= 1000) unlockAchievement("wealthy");
   if ((PLAYER.ngPlus || 0) > 0) unlockAchievement("ng");
+  if (["dust jackal", "frontier marksman", "bellbound acolyte", "null leech", "footnote mimic"].every((n) => killCount(n) > 0)) unlockAchievement("field_notes");
+  if (["moon herb", "black salt", "clockwork spring"].every((n) => (WORLD.recipeMaterialsSeen || []).includes(n))) unlockAchievement("supply_scout");
+  if (["moonlit poultice", "salt ward", "clockwork charge", "sunfire bomb", "trailbreaker bow", "bellguard", "nullweave coat", "archivist's ring", "margin seal", "last line tonic"].every((n) => (WORLD.recipesCrafted || []).includes(n))) unlockAchievement("maker");
 }
 
 function recruitCompanion(id, announce = true) {
@@ -687,7 +759,7 @@ function currentTownId() {
 }
 
 async function allocateStats() {
-  print("\n📊 ATTRIBUTE TRAINING");
+  print("\n📊");
   print("Each point is a permanent bonus. Every attribute caps at 25.");
   while ((PLAYER.statPoints || 0) > 0) {
     print(`\n✨ Points to spend: ${PLAYER.statPoints}`);
@@ -713,7 +785,7 @@ async function allocateStats() {
 
 function showAttributeSummary() {
   const s = getStats();
-  print("\n📈 YOUR ATTRIBUTES");
+  print("\n📈");
   print(`  Strength ${PLAYER.str}  →  +${Math.floor(Math.max(0, PLAYER.str - 5) / 2)} physical damage`);
   print(`  Agility  ${PLAYER.agi}  →  +${Math.floor(Math.max(0, PLAYER.agi - 5) / 2)}% dodge/parry`);
   print(`  Vitality ${PLAYER.vit}  →  +${Math.max(0, PLAYER.vit - 5) * 3} max HP`);
@@ -739,11 +811,11 @@ function perkReady(id) {
 }
 
 async function showPerks() {
-  print("\n🌿 PERK PATHS");
+  print("\n🌿");
   print(`✨ Perk points available: ${PLAYER.skillPoints || 0}`);
   const trees = ["Warrior", "Rogue", "Mage"];
   for (const t of trees) {
-    print(`\n${({ Warrior: "⚔️", Rogue: "🗡️", Mage: "🔮" })[t]} ${t.toUpperCase()}`);
+    print(`\n${({ Warrior: "⚔️", Rogue: "🗡️", Mage: "🔮" })[t]}`);
     Object.entries(PERKS)
       .filter(([, p]) => p.tree === t)
       .forEach(([id, p]) => {
@@ -782,7 +854,7 @@ function knownSpells() {
 }
 
 function showMagic() {
-  print("\n🔮 SPELLBOOK — spells draw on Energy");
+  print("\n🔮");
   const ks = knownSpells();
   if (!ks.length) {
     print("Your spellbook is empty. Visit a town trainer to learn a spell.");
@@ -801,7 +873,7 @@ async function chooseSpell(f) {
     print("You know no spells. A trainer in town can teach you.");
     return null;
   }
-  print("\n✨ CHOOSE A SPELL");
+  print("\n✨");
   ks.forEach((n, i) => {
     const s = SPELLS[n];
     const cd = f.cooldowns["spell:" + n] || 0;
@@ -911,7 +983,7 @@ async function companionTurns(f) {
       print(`\n⚪ ${d.name} is down and cannot act.`);
       continue;
     }
-    print(`\n🔵 ${d.name.toUpperCase()}'S TURN`);
+    print("\n🔵");
     const tgt = livingEnemies(f)[0];
     if (!tgt) return;
     f.target = f.enemies.indexOf(tgt);
@@ -952,7 +1024,7 @@ function hurtCompanions(f, amount) {
 }
 
 async function showParty() {
-  print("\n🤝 YOUR COMPANIONS");
+  print("\n🤝");
   const rec = WORLD.companions.recruited || [];
   if (!rec.length) {
     print("You travel alone for now. Story companions will join when the time is right.");
@@ -983,11 +1055,11 @@ async function showParty() {
 }
 
 function showQuestLog() {
-  print("\n📜 QUEST JOURNAL");
+  print("\n📜");
   print("Main campaign objective: type 'story'.");
   const active = Object.entries(WORLD.quests || {}).filter(([, s]) => s.status === "active");
   const done = Object.entries(WORLD.quests || {}).filter(([, s]) => s.status === "done");
-  print("\n🟡 ACTIVE QUESTS");
+  print("\n🟡");
   if (!active.length) print("  No side quests active. Visit a town quest board to find work.");
   active.forEach(([id, s]) => {
     const q = SIDE_QUESTS[id];
@@ -997,13 +1069,13 @@ function showQuestLog() {
       print(`    Progress: ${Math.min(s.progress || 0, q.need)}/${q.need}`);
     print(`    Reward: ${Object.entries(q.reward).map(([k, a]) => `${a} ${k}`).join(", ")}`);
   });
-  print("\n✅ COMPLETED QUESTS");
+  print("\n✅");
   if (!done.length) print("  No completed side quests yet.");
   done.forEach(([id]) => print(`  ✓ ${SIDE_QUESTS[id].name}`));
 }
 
 function showAchievements() {
-  print("\n🏆 ACHIEVEMENTS");
+  print("\n🏆");
   loadMetaAchievements();
   Object.entries(ACHIEVEMENTS).forEach(([id, a]) => {
     const got = META.achievements[id];
@@ -1013,7 +1085,7 @@ function showAchievements() {
 
 async function showSettingsMenu() {
   loadSettings();
-  print("\n⚙️ GAME SETTINGS — saved on this device");
+  print("\n⚙️");
   print(`1. 🎚️ Difficulty: ${SETTINGS.difficulty}`);
   print(`2. 📜 Combat log: ${SETTINGS.combatLog ? "on" : "off"}`);
   print(`3. 🎨 Text colour: ${SETTINGS.textColor}`);
@@ -1090,7 +1162,7 @@ async function blacksmith() {
     print("Bring gear to upgrade.");
     return;
   }
-  print("\n--- Blacksmith ---");
+  print("\n🔨");
   print("Upgrades use iron/steel and coin. Max +5. Higher rarity also helps.");
   owned.forEach((n, i) => {
     const u = gearUpgrade(n);
@@ -1174,10 +1246,10 @@ async function trainerNpc() {
 async function maybeExploreEvent(areaName) {
   if (Math.random() > 0.28) return false;
   WORLD.eventsDone = (WORLD.eventsDone || 0) + 1;
-  const table = ["chest", "trap", "merchant", "camp", "npc", "riddle", "cache", "scrap"];
+  const table = ["chest", "trap", "merchant", "camp", "npc", "riddle", "cache", "scrap", "forage", "shrine", "echo"];
   if (STORY.chapter >= 1) table.push("townhint");
   const kind = table[randint(0, table.length - 1)];
-  print(`\n--- Along the way (${areaName}) ---`);
+  print("\n👣");
   if (kind === "chest") {
     print("A half-buried chest. The lock is already tired.");
     const loot = wchoice(["coin", "iron", "potion", "crystal"], [40, 30, 20, 10]);
@@ -1242,11 +1314,45 @@ async function maybeExploreEvent(areaName) {
     print(`Smoke on the horizon. ${TOWNS[currentTownId()].name} is not far. Type 'town' when you want it.`);
     return true;
   }
+  if (kind === "forage") {
+    const found = wchoice(["moon herb", "black salt", "clockwork spring"], [STORY.chapter < 2 ? 55 : 35, STORY.chapter >= 2 ? 40 : 20, STORY.chapter >= 1 ? 35 : 10]);
+    const count = found === "clockwork spring" ? 1 : randint(1, 3);
+    print(`You search the roadside and find ${count} ${found}.`);
+    addItem(found, count);
+    return true;
+  }
+  if (kind === "shrine") {
+    const key = `roadside_shrine_${areaName.toLowerCase()}`;
+    if (WORLD.flags[key]) {
+      print("The old roadside shrine is quiet now. A few offerings remain.");
+      addItem(wchoice(["moon herb", "black salt", "coin"], [45, 30, 25]), 1);
+    } else {
+      WORLD.flags[key] = true;
+      WORLD.rested = 1;
+      print("A small shrine glows beneath the dust. You leave an offering and feel steadier.");
+      print("Your next battle begins rested: a little healing, extra energy, and a protective ward.");
+    }
+    return true;
+  }
+  if (kind === "echo") {
+    const key = `memory_echo_${areaName.toLowerCase()}`;
+    print("A voice from another attempt tells you one thing it wishes it had known.");
+    if (WORLD.flags[key]) {
+      print("You recognize this memory. It fades without repeating its reward.");
+    } else {
+      WORLD.flags[key] = true;
+      const xp = 35 + STORY.chapter * 12;
+      print(`The memory settles into your own. You gain ${xp} XP and 15 coin.`);
+      grantXp(xp);
+      addItem("coin", 15);
+    }
+    return true;
+  }
   return false;
 }
 
 async function saveSlotsMenu() {
-  print("\n💾 SAVE SLOTS");
+  print("\n💾");
   for (let i = 1; i <= SAVE_SLOTS; i++) {
     let info = "(empty)";
     try {
@@ -1339,7 +1445,7 @@ async function startNewGamePlus() {
     print("New Game+ unlocks after you make the final choice ('ending').");
     return;
   }
-  print("\n🔁 NEW GAME+");
+  print("\n🔁");
   print("Carry your level, attributes, perks, spells, gear, coin, and companions into a fresh run.");
   print("The campaign begins again, and enemies are more dangerous.");
   print("Your completed run remains saved separately.");

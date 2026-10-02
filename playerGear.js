@@ -82,7 +82,7 @@ const weaponSkills = () => {
 function showInventory(arg = "") {
   const held = {};
   for (const n in inventory) if (inventory[n] > 0) held[n] = inventory[n];
-  print("\n🎒 INVENTORY");
+  print("\n🎒");
   if (!Object.keys(held).length) {
     print("Your pack is empty. Explore, trade, or craft to gather supplies.");
     return;
@@ -117,7 +117,7 @@ function showInventory(arg = "") {
 }
 function showSkills() {
   const s = weaponSkills();
-  print("\n⚔️ WEAPON TECHNIQUES");
+  print("\n⚔️");
   if (!s.length) {
     print("No weapon techniques available. Equip a weapon to learn its moves.");
   } else
@@ -127,7 +127,7 @@ function showSkills() {
     });
   if (typeof showMagic === "function") showMagic();
   if (typeof PERKS !== "undefined") {
-    print("\n✨ PERMANENT PERKS — active with any weapon");
+    print("\n✨");
     const ps = PLAYER.perks || [];
     if (!ps.length) print("  (none yet — type 'perks')");
     else ps.forEach((id) => print(`  ✓ ${title(id)} — ${PERKS[id]?.desc || ""}`));
@@ -135,7 +135,7 @@ function showSkills() {
 }
 function showStats() {
   const s = getStats();
-  print("\n📊 HERO STATUS");
+  print("\n📊");
   print(
     PLAYER.level >= C.MAX_LEVEL
       ? `🏅 Level: ${PLAYER.level} (MAX)`
@@ -157,7 +157,7 @@ function showStats() {
   if (typeof showAttributeSummary === "function") {
     print("\nSTR → physical damage · AGI → dodge/parry · VIT → max HP · FOC → energy/spells");
   }
-  print("\n🧰 EQUIPPED GEAR");
+  print("\n🧰");
   for (const slot in equipment) {
     const n = equipment[slot];
     if (!n) {
@@ -170,7 +170,7 @@ function showStats() {
   }
   const sk = weaponSkills();
   if (sk.length) {
-    print("\n--- Weapon Skills ---");
+    print("\n⚔️");
     sk.forEach((k) => print(`- ${title(k.name)} (${k.cost} energy): ${k.desc}`));
   }
 }
@@ -183,7 +183,7 @@ async function equipItem(choice = "") {
       print("🎒 No usable gear in your pack yet. Find equipment through exploration, crafting, or trade.");
       return;
     }
-    print("\n🧰 GEAR IN YOUR PACK");
+    print("\n🧰");
     printNumbered(
       owned,
       (n) => `${n} (${describeBuffs(n)})` + (equipment[ITEMS[n].id] === n ? " (equipped)" : "")
@@ -219,7 +219,7 @@ async function unequipItem(choice = "") {
       print("🧥 You aren't wearing any equipment.");
       return;
     }
-    print("\n--- Items You Can Unequip ---");
+    print("\n🧥");
     printNumbered(worn, (n) => `${n} (${describeBuffs(n)})`);
     choice = resolveChoice(await input("\nWhat do you want to unequip? (number or name): "), worn);
     if (!choice) return;
@@ -291,7 +291,7 @@ async function showItemInfo(arg = "") {
       Object.keys(inventory).filter((n) => inventory[n] > 0 && n !== "coin")
     );
     if (owned.length) {
-      print("\n--- Your Items ---");
+      print("\n🎒");
       printNumbered(owned, (n) => `${n} x${inventory[n]}`);
     } else print("\n(Your inventory is empty.)");
     text = resolveChoice(
@@ -385,8 +385,9 @@ function showEnemyInfo(name) {
     ? Object.entries(STORY_AREAS).filter(([, a]) => a.encounters.includes(name)).map(([a]) => a)
     : [];
   print("\n" + "=".repeat(50));
-  print(`${m.icon || "👹"} ${title(name)} — ENEMY DOSSIER`);
+  print(`${m.icon || "👹"}`);
   print("=".repeat(50));
+  print(`Enemy: ${title(name)}`);
   print(`❤️ Health: ${m.hp} HP  |  ${m.chance > 0 ? "Field encounter" : "Set encounter / boss"}`);
   const defense = [`${m.block_chance || 0}% chance to guard`];
   if (m.parry_chance) defense.push(`${m.parry_chance}% chance to parry (${m.parry_rate}% strength)`);
@@ -394,7 +395,7 @@ function showEnemyInfo(name) {
   print(`🛡️ Defences: ${defense.join("; ")}`);
   const resists = Object.entries(m.resist || {}).filter(([, value]) => value > 0);
   print(resists.length ? `🧯 Resistances: ${resists.map(([e, v]) => `${title(e)} ${v}%`).join(", ")}` : "🧯 Resistances: none known");
-  print("\n⚔️ ATTACKS & ABILITIES");
+  print("\n⚔️");
   print(`  Basic attack: ${m.basic_attack?.damage ? `${m.basic_attack.damage[0]}–${m.basic_attack.damage[1]} damage` : "standard strike"}`);
   const abilities = Object.entries(m.abilities || {});
   if (!abilities.length) print("  No special abilities recorded.");
@@ -406,7 +407,7 @@ function showEnemyInfo(name) {
     if (a.special_effect) details.push(`may inflict ${a.special_effect.type}`);
     print(`  ${title(ability)} — ${details.join("; ") || "special move"} (about ${a.chance}% chance)`);
   });
-  print("\n🎁 POSSIBLE DROPS");
+  print("\n🎁");
   Object.entries(m.drops || {}).forEach(([item, d]) => print(`  ${title(item)} — ${d.min_drop}–${d.max_drop} (${d.chance}% chance)`));
   if (areas.length) print(`\nFound in: ${areas.join(", ")}`);
   print(`📖 Status: ${fightUnlocked(name) ? "discovered — you can challenge it with 'fight'" : `undiscovered — ${lockReason(name)}`}`);

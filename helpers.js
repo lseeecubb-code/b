@@ -65,6 +65,7 @@ function defaultWorld() {
     recipeUnlocks: [],
     recipeMaterialsSeen: [],
     trackedRecipes: [],
+    recipesCrafted: [],
     companions: { recruited: [], active: [], hp: {} },
     rested: 0,
     eventsDone: 0,
@@ -170,6 +171,9 @@ const RAW = new Set([
   "gold ore",
   "gold",
   "obsidian",
+  "moon herb",
+  "black salt",
+  "clockwork spring",
 ]);
 const CRYS = new Set([
   "crystal",
@@ -195,6 +199,11 @@ const CAT_ORDER = [
   "Crystals & Cores",
   "Monster Parts",
 ];
+const CAT_EMOJI = {
+  Weapons: "⚔️", Armor: "🛡️", "Shields / Offhand": "🛡️", Headgear: "🪖",
+  Footwear: "🥾", Trinkets: "💍", Consumables: "🧪", "Raw Materials": "🪵",
+  "Crystals & Cores": "💎", "Monster Parts": "🦴",
+};
 const GEAR = CAT_ORDER.slice(0, 6),
   MATS = CAT_ORDER.slice(7);
 const CAT_ALIAS = {};
@@ -240,7 +249,7 @@ function printNumbered(names, label) {
   names.forEach((n, i) => {
     const c = itemCategory(n);
     if (c !== last) {
-      print(`\n📦 ${c.toUpperCase()}`);
+      print(`\n${CAT_EMOJI[c] || "📦"}`);
       last = c;
     }
     print(`  ${rpad(i + 1, 2)}. ${label ? label(n) : n}`);
@@ -257,7 +266,7 @@ async function chooseCategory(ttl, counts) {
     print("\n(Nothing to show.)");
     return null;
   }
-    print(`\n🗂️ ${ttl.toUpperCase()}`);
+  print("\n🗂️");
   cats.forEach((c, i) => print(`${i + 1}. ${c} (${counts[c]} available)`));
   print(`${cats.length + 1}. 🌟 Everything`);
   print("0. ↩️ Back");
