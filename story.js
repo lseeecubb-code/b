@@ -4,6 +4,21 @@ const curChapter = () =>
 const scene = (id) => [...(STORY_SCENES[id] || [])];
 const killCount = (n) => STORY.kills[n] || 0;
 // Picks a random fourth-wall message that fits the current Fracture level.
+function showStrangeEvent() {
+  print("\n🌀 " + fourthWall());
+  if (STORY.chapter < 6 || STORY.flags.has("secret_echo_save_found")) return;
+  const signal = [1, 2, 3].find((n) => !STORY.flags.has("secret_echo_signal_" + n));
+  if (!signal) return;
+  STORY.flags.add("secret_echo_signal_" + signal);
+  if (signal < 3) {
+    print(`📡 A second message pulses beneath it: ${signal}/3 echoes answered.`);
+    return;
+  }
+  STORY.flags.add("secret_echo_save_found");
+  print("📡 Three save echoes align. Something has been copied into the bestiary's fight list.");
+  print("Type 'fight the echo of attempts' to face it when you are ready.");
+}
+
 function fourthWall() {
   const l = Math.max(0, Math.min(STORY.fracture, 10)),
     e = FOURTH_WALL_EVENTS[l];
@@ -127,6 +142,66 @@ function showStory() {
       `When you reach level ${p.level}, 'explore' lets you challenge ${title(b)} (choose 'boss').`
     );
 }
+// Gives a save-aware path through the campaign without changing story progress.
+function showProgressionGuide() {
+  const chapter = curChapter();
+  const p = STORY_PROGRESS[chapter.id];
+  const finished = STORY.flags.has("final_defeated");
+  print("\n🧭 CAMPAIGN GUIDE");
+  print("Explore advances the current chapter. Defeat its target after reaching the listed level.");
+  print(`\n📍 Chapter ${chapter.id}: ${chapter.title}`);
+  print(`Region: ${chapter.area} · Recommended level: ${p.level}`);
+  print(`Objective: ${p.objective}`);
+  if (finished) {
+    if (!STORY.ending) print("\n✅ The campaign's final boss is defeated. Type 'ending' to choose the world's fate.");
+    else print("\n✅ Ending complete. Type 'ngplus' when you want to start a tougher replay.");
+  } else if (PLAYER.level < p.level) {
+    print(`\n📈 You need ${p.level - PLAYER.level} more level${p.level - PLAYER.level === 1 ? "" : "s"} for this chapter's objective.`);
+    print(`Explore ${chapter.area}, finish available quests, and improve your gear in town for more XP and safer fights.`);
+  } else if (p.boss) {
+    if (killCount(p.boss) > 0) print("\n✅ The chapter boss is defeated. Type 'explore' to continue the story.");
+    else print(`\n👑 You are ready for ${title(p.boss)}. Type 'explore', then choose 'boss'.`);
+  } else {
+    const remaining = Object.entries(p.kills || {}).filter(([enemy, count]) => killCount(enemy) < count);
+    if (!remaining.length) print("\n✅ The objective is complete. Type 'explore' to continue the story.");
+    else {
+      print("\n🎯 Still needed:");
+      for (const [enemy, count] of remaining)
+        print(`• ${title(enemy)}: ${Math.max(0, count - killCount(enemy))} more`);
+      print("\nType 'explore' to hunt for the remaining target.");
+    }
+  }
+  print("\n🛠️ Between story fights: 'quests' for optional rewards · 'town' to rest and prepare · 'craft' and 'recipes' for gear · 'stats' and 'perks' to build your character.");
+  print("\n🗺️ CAMPAIGN ROUTE");
+  for (const ch of STORY_CHAPTERS) {
+    const objective = STORY_PROGRESS[ch.id];
+    const boss = STORY_BOSS_BY_CHAPTER[ch.id];
+    const state = ch.id < STORY.chapter ? "✅" : ch.id === STORY.chapter ? "➡️" : "🔒";
+    print(`${state} ${ch.id}. ${ch.title} · Lv ${objective.level}${boss ? " · " + title(boss) : ""}`);
+  }
+  print("\n🔎 Strange 'event' messages sometimes hide optional routes. Undiscovered secrets stay off this route list.");
+}
+function openHiddenPassage() {
+  if (STORY.chapter < 4) {
+    print("\n🪨 The word echoes against a wall that is not here yet.");
+    return;
+  }
+  if (PLAYER.level < 12) {
+    print("\n🪨 Something answers from behind the margin, but you are not ready to follow it. Reach level 12.");
+    return;
+  }
+  if (STORY.flags.has("secret_missing_page_found")) {
+    print("\n📄 The hidden route is open. Type 'fight the missing page' to challenge what waits there.");
+    return;
+  }
+  STORY.flags.add("secret_missing_page_found");
+  print("\n📄 XYZZY. A line of text tears open in the margin.");
+  print("A hidden challenger has been added to your fight list. Type 'fight the missing page' when ready.");
+}
+function showSudoEasterEgg() {
+  print("\n🔐 Permission denied: the roots belong to the story, not the hero.");
+}
+
 // The 'explore' command: travel the chapter's area and start a fight (or the boss).
 async function exploreStory() {
   const ch = STORY.chapter,
