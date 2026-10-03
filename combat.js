@@ -39,39 +39,6 @@ function monsterChoose(m, last) {
   return { kind: p[1], attack: p[2] };
 }
 const BOSS_PHASE_ROMAN = ["I", "II", "III"];
-function updateBossPhase(f) {
-  if (f.monster.chance > 0 || f.phase >= 2) return;
-  const hpRatio = f.monster_hp / Math.max(1, f.monster.hp);
-  const next = f.phase === 0 && hpRatio <= 0.66 ? 1 : f.phase === 1 && hpRatio <= 0.33 ? 2 : f.phase;
-  if (next === f.phase) return;
-  f.phase = next;
-  f.phaseAttackPending = true;
-  const details = f.monster.phases?.[next - 1] || {};
-  const phaseName = details.name || (next === 1 ? "Awakened Form" : "Final Form");
-  const note = next === 1
-    ? "Its attacks grow stronger. It is gathering power for a charged strike!"
-    : "Its final form surges with power. Its attacks are more dangerous now!";
-  print(`\n👑 ${title(f.name)} enters Phase ${BOSS_PHASE_ROMAN[next]}: ${phaseName}!`);
-  print(`   ${details.text || note}`);
-  if (typeof clog === "function") clog(f, `entered boss phase ${BOSS_PHASE_ROMAN[next]}`);
-}
-function bossPhaseAttack(f) {
-  const final = f.phase >= 2;
-  const base = f.monster.basic_attack;
-  const multiplier = final ? 1.6 : 1.35;
-  const details = f.monster.phases?.[f.phase - 1] || {};
-  return Object.assign(
-    makeAttack(details.attack_name || (final ? "final assault" : "awakened strike"), {
-      ...base,
-      damage: (base.damage || [1, 1]).map((value) => Math.max(1, int(value * multiplier))),
-      accuracy: Math.min(base.accuracy ?? 100, final ? 92 : 95),
-      hits: 1,
-      warning: true,
-      telegraph: details.telegraph || (final ? "gathers its remaining strength and unleashes" : "surges forward and unleashes"),
-    }),
-    { phase_attack: true }
-  );
-}
 // Chance (%) that the enemy's parry or dodge stance works against an attack of this type.
 function stanceRate(m, st, type) {
   const base = m[st + "_rate"] || 0;
@@ -113,6 +80,8 @@ const ACTION_ALIASES = {
   skills: "skill",
   s: "skill",
   9: "magic",
+  counter: "counter",
+  c: "counter",
   magic: "magic",
   spell: "magic",
   spells: "magic",
@@ -147,8 +116,8 @@ function showStatus(f) {
   }
   (f.enemies || [{ name: f.name, hp: f.monster_hp, monster: f.monster, effects: f.monster_effects }]).forEach((e, i) => {
     const mark = f.enemies && i === f.target ? " <" : "";
-    print(`${pad(cap(e.name), 13)} ${hpBar(e.hp, e.monster.hp)}${mark}`);
-    if (e.monster.chance <= 0 && e.phase > 0) print(`   👑 Boss phase ${BOSS_PHASE_ROMAN[e.phase] || e.phase + 1}`);
+    print(`${pad(cap(e.displayName || e.name), 18)} ${hpBar(e.hp, e.monster.hp)}${mark}`);
+    if (e.phases?.length) print(`   👑 Phase ${BOSS_PHASE_ROMAN[e.phase] || e.phase + 1}/${e.phases.length}`);
     (e.effects || []).forEach(effLine);
   });
   if (f.last_move) print(`   📝 Last move: ${f.last_move}`);
@@ -256,6 +225,8 @@ function showCombatMenu(f) {
   const mag = typeof knownSpells === "function" ? knownSpells().length : 0;
   print(`9. 🔮 Ability — cast a learned spell (${mag ? `${mag} available` : "learn spells in town"}).`);
   print(`0. 🏃 Run away — attempt to flee (${run}% chance).`);
+  if ((f.monster_effects || []).some((e) => e.type === "exposed"))
+    print("C. 🎯 Counter — exploit the opening for +35% damage; bypasses guard, dodge, and parry.");
   if (f.enemies && f.enemies.length > 1) print("Switch targets with 'target'; review recent events with 'log'.");
 }
 async function chooseItem() {
@@ -323,6 +294,10 @@ async function askAction(f) {
     }
     if (a === "heavy" && f.energy < C.HEAVY_COST) {
       print(`Not enough energy! Heavy Attack costs ${C.HEAVY_COST}.`);
+      continue;
+    }
+    if (a === "counter" && !(f.monster_effects || []).some((e) => e.type === "exposed")) {
+      print("There is no enemy opening to counter right now.");
       continue;
     }
     if (a === "item") {
@@ -678,6 +653,19 @@ async function playerTurn(f) {
         showIntent(f);
         continue;
       }
+    } else if (action === "counter") {
+      strike(f, {
+        hit_chance: 100,
+        mult: 1,
+        atk_type: "heavy",
+        ignore_guard: true,
+        ignore_parry: true,
+        ignore_dodge: true,
+        skill_name: "counter",
+      });
+      const opening = f.monster_effects.find((e) => e.type === "exposed");
+      if (opening) f.monster_effects.splice(f.monster_effects.indexOf(opening), 1);
+      if (typeof clog === "function") clog(f, "counterattack exploited opening");
     } else if (action === "skill") useSkill(f, SKILLS[extra]);
     else if (action === "magic") useSpell(f, extra);
     else if (action === "guard") {
@@ -839,16 +827,11 @@ function monsterDealDamage(f, a, inc) {
 }
 // Decides what the enemy will do on the coming turn.
 function rollIntent(f) {
-  updateBossPhase(f);
   let it;
   if (f.stun_turns > 0) {
     f.stun_turns--;
     it = { kind: "stunned", attack: null };
   } else if (f.staggered) it = { kind: "staggered", attack: null };
-  else if (f.phaseAttackPending && f.monster.chance <= 0) {
-    f.phaseAttackPending = false;
-    it = { kind: "attack", attack: bossPhaseAttack(f) };
-  }
   else {
     it = monsterChoose(f.monster, f.choice);
     if (it.kind === "idle") it.text = IDLE_LINES[randint(0, IDLE_LINES.length - 1)];
@@ -865,7 +848,7 @@ function monsterTurn(f) {
     k = it.kind;
   print("\n🔴 ENEMY TURN");
   f.staggered = false;
-  let attacked = false;
+  let attacked = false, missed = false;
   if (k === "stunned") {
     print(`😵 The ${name} is stunned and can't act!`);
     f.last_move = "was stunned and lost its turn";
@@ -898,6 +881,8 @@ function monsterTurn(f) {
   } else {
     const a = it.attack;
     print(`✨ The ${name} uses ${a.name.toUpperCase()}!`);
+    const journalEnemy = f.enemies?.[f.target];
+    if (journalEnemy && typeof noteBestiaryMove === "function") noteBestiaryMove(journalEnemy.name.replace(/^elite /, ""), a.name);
     f.last_move = a.name.toUpperCase();
     for (let n = 0; n < a.hits; n++) {
       // stun_turns can only become > 0 mid-attack via a perfect parry: stop the rest of the combo.
@@ -905,11 +890,11 @@ function monsterTurn(f) {
       if (a.hits > 1) print(`   Strike ${n + 1}/${a.hits}:`);
       if (!percent(a.accuracy)) {
         print(`💨 ${a.name.toUpperCase()} misses you completely!`);
+        missed = true;
         continue;
       }
       attacked = true;
-      const phaseBonus = f.monster.chance <= 0 && !a.phase_attack ? (f.phase >= 2 ? 1.18 : f.phase === 1 ? 1.08 : 1) : 1;
-      const dealt = monsterDealDamage(f, a, Math.max(1, int(randint(...a.damage) * phaseBonus)));
+      const dealt = monsterDealDamage(f, a, Math.max(1, int(randint(...a.damage))));
       if (dealt > 0 && "heal" in a && f.monster_hp > 0) {
         const h = randint(...a.heal),
           b = f.monster_hp;
@@ -927,6 +912,88 @@ function monsterTurn(f) {
   resolveMonsterEffects(f);
   if (f.monster_hp <= 0) return;
   resolveEffects(f);
+  if (missed && f.monster_hp > 0) {
+    print(`🎯 ${name} overextends after missing! Counter now to deal extra damage and bypass its defenses.`);
+    applyMonsterEffect(f, { type: "exposed", chance: 100, damage: 0, turns: 1 });
+    if (typeof clog === "function") clog(f, `${name} exposed after missing`);
+  }
+}
+
+function advanceBossForms(f) {
+  let changed = false;
+  for (let i = 0; i < (f.enemies || []).length; i++) {
+    const e = f.enemies[i];
+    if (e.hp > 0 || !e.phases || e.phase + 1 >= e.phases.length) continue;
+    const nextIndex = e.phase + 1;
+    const form = e.phases[nextIndex];
+    e.phase = nextIndex;
+    e.displayName = form.name || e.name;
+    e.monster = { ...e.monster, ...form, phases: undefined };
+    e.hp = e.monster.hp;
+    e.effects = [];
+    e.guarding = false;
+    e.stance = null;
+    e.stun_turns = 0;
+    e.staggered = false;
+    e.intent = null;
+    e.last_move = null;
+    f.target = i;
+    changed = true;
+    print(`\n👑 ${title(e.name)} transforms into ${e.displayName}!`);
+    print(`❤️ New form: ${e.hp}/${e.monster.hp} HP · ${Object.keys(e.monster.abilities || {}).map(title).join(", ") || "new combat style"}.`);
+    if (typeof noteBestiaryPhase === "function") noteBestiaryPhase(e.name, e.displayName);
+    if (typeof clog === "function") clog(f, `${e.displayName} entered phase ${nextIndex + 1}`);
+    if (typeof FX !== "undefined") FX.startBattleMusic([e.name, e.displayName], true, form.music);
+  }
+  return changed;
+}
+function noteBestiaryEncounter(name) {
+  if (!WORLD.bestiary || typeof WORLD.bestiary !== "object") WORLD.bestiary = {};
+  const entry = WORLD.bestiary[name] || (WORLD.bestiary[name] = { encounters: 0, defeats: 0, phases: [], moves: [] });
+  entry.encounters = (entry.encounters || 0) + 1;
+  if (!Array.isArray(entry.phases)) entry.phases = [];
+  if (!Array.isArray(entry.moves)) entry.moves = [];
+  const first = monsters[name]?.phases?.[0]?.name || title(name);
+  if (!entry.phases.includes(first)) entry.phases.push(first);
+}
+function noteBestiaryPhase(name, formName) {
+  const entry = WORLD.bestiary?.[name];
+  if (entry && !entry.phases.includes(formName)) entry.phases.push(formName);
+}
+function noteBestiaryMove(name, moveName) {
+  const entry = WORLD.bestiary?.[name];
+  if (entry && !entry.moves.includes(moveName)) entry.moves.push(moveName);
+}
+function showBestiaryJournal(arg = "") {
+  const query = arg.trim().toLowerCase();
+  const all = Object.keys(monsters);
+  const found = all.filter((name) => WORLD.bestiary?.[name]?.encounters > 0);
+  const matches = query ? all.filter((name) => name.includes(query)) : found;
+  print("\n📔 BESTIARY JOURNAL");
+  print(`Discovered ${found.length}/${all.length} enemy types.`);
+  if (!matches.length) {
+    print(query && all.some((name) => name.includes(query)) ? "No entries yet. Encounter this enemy to add it to your journal." : "No matching enemy has been recorded yet.");
+    return;
+  }
+  for (const name of matches) {
+    const entry = WORLD.bestiary?.[name];
+    if (!entry?.encounters) {
+      print(`\n❔ ${title(name)} — undiscovered`);
+      continue;
+    }
+    print(`\n${monsters[name].icon || "👹"} ${title(name)} · ${entry.encounters} encounter${entry.encounters === 1 ? "" : "s"} · ${entry.defeats || 0} defeat${entry.defeats === 1 ? "" : "s"}`);
+    print(`Forms seen: ${(entry.phases || []).join(", ") || "unknown"}`);
+    if (entry.moves?.length) print(`Moves witnessed: ${entry.moves.map(title).join(", ")}`);
+    if (entry.defeats > 0) {
+      const enemy = monsters[name];
+      print(`Known weakness: ${Object.entries(enemy.resist || {}).filter(([, value]) => value < 0).map(([element]) => title(element)).join(", ") || "No elemental weakness recorded"}`);
+      (enemy.phases || []).forEach((form, index) => {
+        const resists = Object.entries(form.resist || {}).filter(([, value]) => value > 0).map(([element, value]) => `${title(element)} ${value}%`);
+        print(`Phase ${index + 1}: ${form.name} · ${form.hp} HP${resists.length ? ` · resists ${resists.join(", ")}` : ""}`);
+      });
+      print(`Recorded drops: ${Object.keys(enemy.drops || {}).map(title).join(", ") || "none"}`);
+    } else print("Defeat this enemy to reveal its field notes and drops.");
+  }
 }
 
 // ---------- fights ----------
@@ -955,7 +1022,7 @@ function newFight(n, extras = []) {
   const s = getStats();
   const f = {
     enemies: names.map((nm) =>
-      typeof makeEnemyState === "function" ? makeEnemyState(nm) : { name: nm, monster: monsters[nm], hp: monsters[nm].hp, effects: [], guarding: false, stance: null, stun_turns: 0, stun_immune: 0, staggered: false, last_move: null, intent: null, phase: 0, phaseAttackPending: false }
+      typeof makeEnemyState === "function" ? makeEnemyState(nm) : { name: nm, displayName: nm, monster: monsters[nm], hp: monsters[nm].hp, effects: [], guarding: false, stance: null, stun_turns: 0, stun_immune: 0, staggered: false, last_move: null, intent: null, phase: 0, phases: [] }
     ),
     target: 0,
     stats: s,
@@ -986,7 +1053,6 @@ function newFight(n, extras = []) {
     f.staggered = false;
     f.intent = null;
     f.phase = 0;
-    f.phaseAttackPending = false;
   }
   return f;
 }
@@ -1028,12 +1094,12 @@ function rollLoot(m) {
 function winFight(f) {
   const fallen = (f.enemies || [{ name: f.name, monster: f.monster }]).filter((e) => e.hp <= 0);
   const names = fallen.length ? fallen : [{ name: f.name, monster: f.monster }];
-  print(`\n🏆 You defeated ${names.map((e) => "the " + e.name).join(" and ")}!`);
+  print(`\n🏆 You defeated ${names.map((e) => "the " + (e.displayName || e.name)).join(" and ")}!`);
   if (typeof clog === "function") names.forEach((e) => clog(f, `defeated ${e.name}`));
   let xp = 0;
   names.forEach((e) => {
     const m = e.monster || f.monster;
-    xp += Math.floor(m.hp / 2) + 5;
+    xp += Math.floor((e.totalBossHp || m.hp) / 2) + 5;
   });
   const xm = names[0]?.monster?._xpMult || 1;
   xp = Math.floor(xp * xm);
@@ -1042,6 +1108,7 @@ function winFight(f) {
   names.forEach((e) => rollLoot(e.monster || f.monster));
   names.forEach((e) => {
     const nm = (e.name || "").replace(/^elite /, "");
+    if (WORLD.bestiary?.[nm]) WORLD.bestiary[nm].defeats = (WORLD.bestiary[nm].defeats || 0) + 1;
     if (typeof discoverRecipeFromEnemy === "function") discoverRecipeFromEnemy(nm);
     const first = killCount(nm) === 0;
     recordVictory(nm);
@@ -1097,7 +1164,8 @@ async function fightMonster(arg = "", elite = false) {
   if (elite && f.enemies) f.enemies = f.enemies.map((e) => makeEnemyState(e.name, true));
   const battleEnemies = Array.isArray(name) ? name : [name];
   const bossEncounter = elite || battleEnemies.some((enemy) => monsters[enemy]?.chance <= 0);
-  if (typeof FX !== "undefined") FX.startBattleMusic(battleEnemies, bossEncounter);
+  (f.enemies || []).forEach((e) => noteBestiaryEncounter(e.name.replace(/^elite /, "")));
+  if (typeof FX !== "undefined") FX.startBattleMusic(battleEnemies, bossEncounter, f.enemies?.length === 1 ? f.enemies[0].phases?.[0]?.music : null);
   const stopMusic = () => {
     if (typeof FX !== "undefined") FX.stopBattleMusic();
   };
@@ -1108,7 +1176,10 @@ async function fightMonster(arg = "", elite = false) {
   if (typeof SETTINGS !== "undefined" && SETTINGS.difficulty !== "normal")
     print(`⚙️ Difficulty: ${SETTINGS.difficulty}${PLAYER.ngPlus ? ` · NG+${PLAYER.ngPlus}` : ""}`);
   let turn = 0;
-  const down = () => (typeof foesDown === "function" ? foesDown(f) : f.monster_hp <= 0);
+  const down = () => {
+    advanceBossForms(f);
+    return typeof foesDown === "function" ? foesDown(f) : f.monster_hp <= 0;
+  };
   while (true) {
     turn++;
     tickCooldowns(f);
@@ -1119,8 +1190,10 @@ async function fightMonster(arg = "", elite = false) {
         f.target = i;
         rollIntent(f);
       });
+      const open = f.enemies.findIndex((e) => e.hp > 0 && e.effects.some((x) => x.type === "exposed"));
       const live = f.enemies.findIndex((e) => e.hp > 0);
-      if (live >= 0) f.target = live;
+      if (open >= 0) f.target = open;
+      else if (live >= 0) f.target = live;
     } else rollIntent(f);
     showStatus(f);
     if (f.enemies && f.enemies.length > 1) {
@@ -1129,8 +1202,10 @@ async function fightMonster(arg = "", elite = false) {
         f.target = i;
         showIntent(f);
       });
+      const open = f.enemies.findIndex((e) => e.hp > 0 && e.effects.some((x) => x.type === "exposed"));
       const live = f.enemies.findIndex((e) => e.hp > 0);
-      if (live >= 0) f.target = live;
+      if (open >= 0) f.target = open;
+      else if (live >= 0) f.target = live;
     } else showIntent(f);
     if (typeof remindHeal === "function") remindHeal(f);
     await playerTurn(f);
