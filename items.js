@@ -534,6 +534,7 @@ const RECIPE_DISCOVERY = {
   "glacier flask": { "frost giant": 20, "the leftover": 100 },
   "wraith ward scroll": { wraith: 18, lich: 10, "the watcher": 100 },
   "archivist seal": { "archive stalker": 20, "the archivist": 100 },
+  "indexer's lens": { "index hound": 100 },
   "hero's gambit tonic": { berserker: 12, "the first hero": 100 },
   "margin seal": { "margin warden": 20, "the editor": 100 },
   "last line tonic": { "the author": 100, "the last save": 100 },
@@ -690,6 +691,7 @@ Object.assign(ITEMS, {
   bellguard: { id: "offhand", defense: 5, guard: 0.08, max_hp: 28, description: "A small shield that hums when danger is close." },
   "nullweave coat": { id: "armor", max_hp: 82, defense: 7, dodge: 4, parry: 3, description: "Cloth woven from a place the world tried to forget." },
   "archivist's ring": { id: "trinket", max_hp: 42, crit: 6, damage: 5, description: "A catalog mark that helps its wearer find the opening." },
+  "indexer's lens": { id: "trinket", max_hp: 28, crit: 9, damage: 7, description: "A brass lens that brings the weak points in a story into focus." },
 });
 Object.assign(recipes, {
   "moonlit poultice": { "moon herb": 2, meat: 1 },
@@ -702,6 +704,7 @@ Object.assign(recipes, {
   "archivist's ring": { "ancient crystal": 3, "soul shard": 2, gold: 2 },
   "margin seal": { "void crystal": 2, "ancient crystal": 2, "black salt": 3 },
   "last line tonic": { "ancient heart": 1, "moon herb": 4, "soul shard": 2 },
+  "indexer's lens": { "ink fragment": 4, "soul shard": 3, "ancient crystal": 3 },
 });
 Object.assign(SHOP_BUY, {
   "moon herb": 18, "black salt": 28, "clockwork spring": 32,
@@ -712,4 +715,5 @@ Object.assign(SHOP_SELL, {
   "moonlit poultice": 24, "salt ward": 20, "clockwork charge": 26,
   "sunfire bomb": 34, "margin seal": 58, "last line tonic": 75,
 });
+
 
