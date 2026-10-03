@@ -1125,7 +1125,6 @@ const FX = (() => {
     // ----- fight flow -----
     { match: /^Earned \$[\d,]+/, cls: "fx-reward-feed", run: () => play("coin") },
     { match: /^Earned [\d,]+ Exp\./, cls: "fx-reward-feed", run: () => play("xp") },
-    { match: /^Spent \$[\d,]+/, cls: "fx-reward-feed", run: () => play("spend") },
     { match: /^Obtained <.+> \(\d+x\)$/, cls: "fx-reward-feed", run: () => play("pickup") },
     {
       match: /🏆 You defeated/,
@@ -1269,12 +1268,6 @@ const FX = (() => {
     if (coinReward) {
       const wrapper = document.createElement("span");
       wrapper.append(span("Earned "), span(coinReward[1], "reward-coin"), span(coinReward[2]));
-      return wrapper;
-    }
-    const coinSpent = line.match(/^Spent (\$[\d,]+)(.*)$/);
-    if (coinSpent) {
-      const wrapper = document.createElement("span");
-      wrapper.append(span("Spent "), span(coinSpent[1], "reward-spent"), span(coinSpent[2]));
       return wrapper;
     }
     const xpReward = line.match(/^Earned ([\d,]+)( Exp\..*)$/);
