@@ -595,9 +595,8 @@ const FX = (() => {
     if (previousVolume === 0 && musicVolume > 0 && activeBattleMusic) resumeBattleMusic();
   }
 
-  // Compose a stable, original battle song from each enemy's name. The name seeds its key,
-  // tempo, lead instrument, harmony, bass line, melody, and rhythm, so every roster entry gets its
-  // own recognizable theme without shipping dozens of audio files.
+  // Original procedural battle themes. Enemy families share a musical palette, while a stable
+  // name-based seed changes the melody so repeated encounters aren't all identical.
   function battleTheme(enemyNames, boss, musicProfile = null) {
     const label = (Array.isArray(enemyNames) ? enemyNames : [enemyNames]).join(" ").toLowerCase();
     let theme;
@@ -607,34 +606,13 @@ const FX = (() => {
     else if (/stone|golem|earth|rock|orc/.test(label)) theme = { root: 98, scale: [0, 2, 4, 7, 9], wave: "triangle", tempo: 86 };
     else if (/shadow|wraith|undead|king|watcher|archivist|editor|author/.test(label)) theme = { root: 116.54, scale: [0, 3, 5, 8, 10], wave: "sine", tempo: 96 };
     else theme = { root: 130.81, scale: [0, 2, 4, 7, 9], wave: "triangle", tempo: 100 };
-
     let seed = 0;
-    const seedText = label + (typeof musicProfile === "string" ? " " + musicProfile.toLowerCase() : "");
-    for (let i = 0; i < seedText.length; i++) seed = (seed * 31 + seedText.charCodeAt(i)) >>> 0;
+    for (let i = 0; i < label.length; i++) seed = (seed * 31 + label.charCodeAt(i)) >>> 0;
     if (musicProfile && typeof musicProfile === "object") theme = { ...theme, ...musicProfile };
-
-    let state = seed || 0x6d2b79f5;
-    const next = () => {
-      state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
-      return state / 4294967296;
-    };
-    const pick = (items) => items[Math.floor(next() * items.length)];
-    if (!Number.isFinite(musicProfile?.root)) theme.root *= Math.pow(2, Math.floor(next() * 9 - 4) / 12);
-    if (!Number.isFinite(musicProfile?.tempo)) theme.tempo = Math.max(60, Math.min(150, theme.tempo + Math.floor(next() * 25 - 12)));
-    const scaleSize = theme.scale.length;
-    const melody = Array.from({ length: 16 }, () => Math.floor(next() * scaleSize));
-    const rhythm = Array.from({ length: 16 }, (_, i) => i % 4 === 0 || next() > 0.3);
-    const harmony = Array.from({ length: 4 }, () => pick([0, 1, 2, Math.max(0, scaleSize - 2), scaleSize - 1]));
-    const bass = Array.from({ length: 4 }, () => pick([0, 0, 1, 2, scaleSize - 1]));
-    return {
-      ...theme,
-      seed,
-      melody,
-      rhythm,
-      harmony,
-      bass,
-      leadWave: pick(["sine", "triangle", "sawtooth", "square"]),
-    };
+    else if (typeof musicProfile === "string") {
+      for (let i = 0; i < musicProfile.length; i++) seed = (seed * 31 + musicProfile.charCodeAt(i)) >>> 0;
+    }
+    return { ...theme, seed };
   }
 
   function musicNote(frequency, start, length, volume, wave) {
@@ -740,26 +718,21 @@ const FX = (() => {
         const now = audio.currentTime + 0.04;
         const bar = activeBattleMusic.bar++;
         const scale = theme.scale;
-        const chordRoot = theme.harmony[bar % theme.harmony.length];
+        const chordRoot = (bar % 4 === 2 ? 3 : bar % 4 === 3 ? 4 : 0);
         [0, 2, 4].forEach((interval, i) => {
           const semitone = scale[(chordRoot + interval) % scale.length] + (i === 0 ? -12 : 0);
           musicNote(theme.root * Math.pow(2, semitone / 12), now, barLength * 0.82, 0.025, "triangle");
         });
-        for (let beatIndex = 0; beatIndex < 4; beatIndex++) {
-          const bassStep = scale[theme.bass[(beatIndex + bar) % theme.bass.length] % scale.length] - 24;
-          musicNote(theme.root * Math.pow(2, bassStep / 12), now + beat * beatIndex, beat * 0.78, 0.04, "sine");
-        }
-        for (let i = 0; i < theme.melody.length; i++) {
-          if (!theme.rhythm[i]) continue;
-          const step = theme.melody[(i + bar * 3) % theme.melody.length];
-          const octave = i % 8 === 7 ? 2 : 1;
-          musicNote(
-            theme.root * Math.pow(2, (scale[step] + 12 * octave) / 12),
-            now + i * beat / 4,
-            beat * 0.22,
-            activeBattleMusic.boss ? 0.032 : 0.023,
-            theme.leadWave
-          );
+        [0, 2].forEach((beatIndex) => {
+          const bassStep = scale[(chordRoot + beatIndex * 2) % scale.length] - 24;
+          musicNote(theme.root * Math.pow(2, bassStep / 12), now + beat * beatIndex, beat * 1.3, 0.045, "sine");
+        });
+        for (let i = 0; i < 8; i++) {
+          const step = (melody[(i + (theme.seed % melody.length) + bar) % melody.length] + (bar % 2 ? 1 : 0)) % scale.length;
+          const octave = i === 3 || i === 7 ? 2 : 1;
+          if ((i + theme.seed) % 5 !== 0) {
+            musicNote(theme.root * Math.pow(2, (scale[step] + 12 * octave) / 12), now + i * beat / 2, beat * 0.34, activeBattleMusic.boss ? 0.035 : 0.025, theme.wave);
+          }
         }
       };
       playBar();
