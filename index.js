@@ -2,7 +2,7 @@
 const SAVE_KEY = "the-last-save.autosave.v1";
 const termScreen = document.getElementById("screen");
 const termInput = document.getElementById("command");
-const termStatus = document.getElementById("status");
+const termStatus = document.getElementById("settingsButton");
 let pendingInput = null,
   cmdHistory = [],
   cmdIndex = 0;
@@ -14,6 +14,9 @@ function showLoadingIndicator(message = "Still working…") {
 
 function clearLoadingIndicator() {
   termStatus.classList.remove("is-loading");
+  termStatus.disabled = false;
+  termStatus.textContent = "⚙️ Settings";
+  termStatus.setAttribute("aria-label", "Open game settings");
 }
 
 // Adds text to the screen. Text ending in "\n" becomes a finished line; anything else (like the
@@ -29,12 +32,14 @@ function print(...args) {
   for (const line of args.join(" ").split("\n")) Typewriter.print(line);
 }
 
-function autosave() {
+function autosave(manual = false) {
   try {
     localStorage.setItem(SAVE_KEY, saveCode());
-    termStatus.textContent = "Autosaved · progress is stored in this browser";
+    termStatus.title = "Your adventure is saved automatically.";
+    if (manual) print("💾 Game saved.");
   } catch (e) {
-    termStatus.textContent = "Autosave unavailable in this browser";
+    termStatus.title = "Saving is unavailable in this browser.";
+    if (manual) print("❌ Save failed: this browser could not store the save.");
   }
 }
 
@@ -93,6 +98,12 @@ termInput.addEventListener("keydown", (e) => {
 });
 
 termScreen.addEventListener("click", () => termInput.focus());
+termStatus.addEventListener("click", () => {
+  if (!pendingInput || termStatus.disabled || Typewriter.isBusy()) return;
+  termInput.value = "settings";
+  termInput.focus();
+  termInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+});
 document.getElementById("newGame").addEventListener("click", () => {
   if (confirm("Delete the automatic save and start a new game?")) {
     try {
