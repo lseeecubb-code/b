@@ -1007,7 +1007,9 @@ function noteBestiaryMove(name, moveName) {
 }
 function showBestiaryJournal(arg = "") {
   const query = arg.trim().toLowerCase();
-  const all = Object.keys(monsters);
+  const all = Object.keys(monsters).filter((name) =>
+    !monsters[name].secret_flag || STORY.flags.has(monsters[name].secret_flag)
+  );
   const found = all.filter((name) => WORLD.bestiary?.[name]?.encounters > 0);
   const matches = query ? all.filter((name) => name.includes(query)) : found;
   print("\n📔 BESTIARY JOURNAL");
@@ -1210,6 +1212,11 @@ function loseFight(f) {
 }
 // Blocks story bosses until the right chapter and level are reached.
 function checkGate(req) {
+  const secretFlag = monsters[req]?.secret_flag;
+  if (secretFlag && !STORY.flags.has(secretFlag)) {
+    print("\n🔒 A hidden route is required before this enemy can be challenged.");
+    return false;
+  }
   const ch = BOSS_CH[req];
   if (ch === undefined) return true;
   if (STORY.chapter < ch) {
@@ -1379,8 +1386,10 @@ async function fightMonster(arg = "", elite = false) {
   }
 }
 const fightUnlocked = (n) =>
+  (monsters[n]?.secret_flag && STORY.flags.has(monsters[n].secret_flag)) ||
   killCount(n) > 0 || (BOSS_UNLOCKS[n] && killCount(BOSS_UNLOCKS[n]) > 0);
 function lockReason(n) {
+  if (monsters[n]?.secret_flag && !STORY.flags.has(monsters[n].secret_flag)) return "find its hidden route first";
   if (BOSS_CH[n])
     return "it's a story boss: 'explore' once you reach its level and challenge it there";
   return BOSS_UNLOCKS[n]
@@ -1431,7 +1440,9 @@ async function fightCommand(arg = "") {
 // The 'bestiary' command: moves, drops and unlock status of enemies.
 function showBestiary(arg = "") {
   const term = arg.trim().toLowerCase(),
-    names = term ? Object.keys(monsters).filter((n) => n.includes(term)) : Object.keys(monsters);
+    names = Object.keys(monsters).filter((n) =>
+      (!monsters[n].secret_flag || STORY.flags.has(monsters[n].secret_flag)) && (!term || n.includes(term))
+    );
   if (!names.length) {
     print(`No enemy matches '${term}'.`);
     return;
