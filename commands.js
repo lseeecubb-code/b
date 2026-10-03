@@ -16,6 +16,7 @@ const COMMANDS = {
   ending: [showEnding, "ending", "Choose the fate of the world after the final boss"],
   fight: [fightCommand, "fight [enemy]", "Challenge a discovered foe or enter a random battle"],
   bestiary: [showBestiary, "bestiary [enemy]", "Study enemy moves, resistances, drops, and encounter odds"],
+  journal: [showBestiaryJournal, "journal [enemy]", "Review enemy encounters, forms, and moves you have discovered"],
   inventory: [showInventory, "inventory [category]", "Browse your carried gear, supplies, and materials"],
   stats: [showStats, "stats", "Review attributes, combat values, and equipped gear"],
   skills: [showSkills, "skills", "Review weapon techniques, perks, and known spells"],
@@ -64,7 +65,7 @@ const COMMANDS = {
 };
 const MENU = [
   ["📖", ["explore", "story", "ending"]],
-  ["⚔️", ["fight", "bestiary"]],
+  ["⚔️", ["fight", "bestiary", "journal"]],
   ["🧙", ["inventory", "stats", "skills", "allocate", "perks", "magic", "info", "equip", "unequip"]],
   ["🔨", ["craft", "recipes", "shop", "buy", "sell"]],
   ["🏕️", ["town", "quests", "party", "achievements", "settings", "saves", "completed", "ngplus", "event", "github", "copy", "load", "menu", "quit"]],
@@ -139,7 +140,7 @@ async function doFunction(line) {
   if (!m) return;
   const n = resolveCommand(m[1]);
   if (!n) {
-    print("Invalid command.");
+    print("🤔 I don't recognize that command. Type 'menu' to browse your options.");
     return;
   }
   await COMMANDS[n][0](m[2]);
@@ -163,7 +164,7 @@ async function runGame(savedCode) {
   showMainMenu();
   try {
     while (true) {
-      await doFunction((await input("\nnext ")).trim());
+      await doFunction((await input("\n✨ Your move?")).trim());
     }
   } catch (e) {
     if (e instanceof Quit) print("Thanks for playing! (Use New Game or reload to play again.)");
@@ -506,3 +507,4 @@ const ADMIN = (() => {
     run,
   };
 })();
+
