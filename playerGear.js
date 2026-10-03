@@ -50,6 +50,13 @@ const EQUIPMENT_SETS = {
       { pieces: 3, stats: { damage: 6, guard: 0.06 }, text: "+6 damage, +6% guard" },
     ],
   },
+  roadside: {
+    pieces: ["mosswrap boots", "roadward charm", "lantern charm", "mossback buckler"],
+    bonuses: [
+      { pieces: 2, stats: { max_hp: 12, dodge: 2 }, text: "+12 max HP, +2% dodge" },
+      { pieces: 3, stats: { damage: 3, guard: 0.04 }, text: "+3 damage, +4% guard" },
+    ],
+  },
 };
 
 function equipmentSetProgress() {
