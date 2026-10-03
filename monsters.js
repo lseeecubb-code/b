@@ -1834,14 +1834,14 @@ for (const name of ["index hound", "ashbound sentinel", "glasswing moth", "hollo
 }
 // Generated custom music assignments; unavailable files fall back to synthesized themes.
 const enemyMusicSlug = (name) => name.normalize("NFKD").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+// Every roster enemy uses its own looping WAV; boss phases keep a separate file when available.
+for (const [name, enemy] of Object.entries(monsters)) {
+  enemy.music_file ||= `audio/enemies/${enemyMusicSlug(name)}.wav`;
+}
 for (const [name, form] of Object.entries(BOSS_PHASE_TWO)) {
   if (!form.music || !monsters[name]) continue;
   const slug = enemyMusicSlug(name);
-  monsters[name].music_file ||= `audio/enemies/${slug}.wav`;
   form.music_file ||= `audio/enemies/${slug}-phase-two.wav`;
-}
-for (const [name, enemy] of Object.entries(monsters)) {
-  if (enemy.music && !BOSS_PHASE_TWO[name]) enemy.music_file ||= `audio/enemies/${enemyMusicSlug(name)}.wav`;
 }
 
 function bossPhaseForm(boss, override, phaseIndex) {
