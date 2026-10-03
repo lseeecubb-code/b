@@ -140,6 +140,53 @@ function getStats() {
   s.max_hp = Math.max(1, s.max_hp);
   return s;
 }
+function previewGearChange(item, upgradeLevel = null) {
+  const slot = ITEMS[item]?.id;
+  if (!slot) return;
+  const before = getStats();
+  const previousItem = equipment[slot];
+  const hadUpgrade = Object.prototype.hasOwnProperty.call(WORLD.upgrades, item);
+  const previousUpgrade = WORLD.upgrades[item];
+  let after;
+  try {
+    equipment[slot] = item;
+    if (upgradeLevel !== null) WORLD.upgrades[item] = upgradeLevel;
+    after = getStats();
+  } finally {
+    equipment[slot] = previousItem;
+    if (upgradeLevel !== null) {
+      if (hadUpgrade) WORLD.upgrades[item] = previousUpgrade;
+      else delete WORLD.upgrades[item];
+    }
+  }
+  const label = upgradeLevel === null
+    ? "📊 IF EQUIPPED: "
+    : previousItem === item
+      ? "📊 AFTER UPGRADE: "
+      : "📊 IF UPGRADED AND EQUIPPED: ";
+  print(label + item);
+  const stats = [
+    ["damage", "Damage"], ["max_hp", "Max HP"], ["max_energy", "Max energy"],
+    ["defense", "Defense"], ["guard", "Guard"], ["parry", "Parry chance"],
+    ["crit", "Critical chance"], ["dodge", "Dodge chance"],
+  ];
+  let changes = 0;
+  for (const [key, name] of stats) {
+    const delta = (after[key] || 0) - (before[key] || 0);
+    const amount = key === "guard" ? delta * 100 : delta;
+    if (Math.abs(amount) < 0.01) continue;
+    changes++;
+    const suffix = ["guard", "parry", "crit", "dodge"].includes(key) ? "%" : "";
+    const value = (n) => key === "guard"
+      ? Math.round(n * 100) + "%"
+      : ["parry", "crit", "dodge"].includes(key)
+        ? Math.round(n) + "%"
+        : String(Math.round(n * 10) / 10);
+    const signed = (n) => (n >= 0 ? "+" : "") + (Math.round(n * 10) / 10) + suffix;
+    print("  " + name + ": " + value(before[key] || 0) + " → " + value(after[key] || 0) + " (" + signed(amount) + ")");
+  }
+  if (!changes) print("  No combat-stat change.");
+}
 const xpNeeded = (l) => 40 + l * 20;
 function grantXp(a) {
   if (PLAYER.level >= C.MAX_LEVEL) return;
@@ -311,6 +358,12 @@ async function equipItem(choice = "") {
     cur = equipment[slot];
   if (cur === choice) {
     print(`Your ${choice} is already equipped.`);
+    return;
+  }
+  previewGearChange(choice);
+  const confirm = (await input("Equip " + choice + "? [y/n]: ")).trim().toLowerCase();
+  if (!["y", "yes"].includes(confirm)) {
+    print("You leave your equipment unchanged.");
     return;
   }
   if (cur) print(`Swapping your ${cur} for the ${choice}.`);
