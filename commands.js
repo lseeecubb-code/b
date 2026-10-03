@@ -13,6 +13,7 @@ function openGitHubRepository() {
 const COMMANDS = {
   explore: [exploreStory, "explore", "Travel the current region, find encounters, and advance the campaign"],
   story: [showStory, "story", "Review your chapter, objective, and progress"],
+  guide: [showProgressionGuide, "guide", "See your current objective, level targets, and campaign route"],
   ending: [showEnding, "ending", "Choose the fate of the world after the final boss"],
   fight: [fightCommand, "fight [enemy]", "Challenge a discovered foe or enter a random battle"],
   bestiary: [showBestiary, "bestiary [enemy]", "Study enemy moves, resistances, drops, and encounter odds"],
@@ -51,8 +52,10 @@ const COMMANDS = {
   shop: [shop, "shop [buy|sell|category]", "Browse the shop by category"],
   buy: [buyItem, "buy [item] [amount]", "Buy from the shop"],
   sell: [sellItem, "sell [item] [amount]", "Sell to the shop ('sell all <item>')"],
-  event: [() => print("\n🌀 " + fourthWall()), "event", "Invite a strange message from beyond the world"],
+  event: [showStrangeEvent, "event", "Listen for a strange message from beyond the world"],
   github: [openGitHubRepository, "github", "Open the game's GitHub repository"],
+  xyzzy: [openHiddenPassage, "xyzzy", "A word scratched into the margins"],
+  sudo: [showSudoEasterEgg, "sudo", "A strange command with no menu entry"],
   copy: [copyData, "copy", "Get your save code"],
   load: [loadWithAdmin, "load", "Load a save code"],
   menu: [() => showMainMenu(), "menu", "Show this list"],
@@ -65,7 +68,7 @@ const COMMANDS = {
   ],
 };
 const MENU = [
-  ["📖", ["explore", "story", "ending"]],
+  ["📖", ["explore", "story", "guide", "ending"]],
   ["⚔️", ["fight", "bestiary", "journal"]],
   ["🧙", ["inventory", "stats", "skills", "allocate", "perks", "magic", "info", "equip", "unequip"]],
   ["🔨", ["craft", "recipes", "shop", "buy", "sell"]],
@@ -75,6 +78,8 @@ const ORDER = MENU.flatMap((x) => x[1]),
   cnum = (n) => ORDER.indexOf(n) + 1;
 const ALIASES = {
   progress: "story",
+  progression: "guide",
+  walkthrough: "guide",
   inspect: "info",
   item: "info",
   stats: "stats",
@@ -120,6 +125,7 @@ function keyHint() {
     `   ${rpad(cnum("explore"), 2)}. explore  - travel and fight; this is how the story moves forward`
   );
   print(`   ${rpad(cnum("story"), 2)}. story    - review your objective and campaign progress`);
+  print(`   ${rpad(cnum("guide"), 2)}. guide    - get step-by-step help on what to do next`);
   if (fin && !STORY.ending)
     print(`   ${rpad(cnum("ending"), 2)}. ending   - make the final choice`);
   print(`   ${rpad(cnum("menu"), 2)}. menu     - every command (type a number or a name)`);
