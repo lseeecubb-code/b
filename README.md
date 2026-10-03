@@ -19,6 +19,7 @@ The game runs in the browser and saves progress automatically. The input line su
 - **Shape your character.** Allocate Strength, Agility, Vitality, and Focus; learn spells and perks; equip and upgrade weapons, armor, shields, headgear, and trinkets; and craft gear from materials.
 - **Follow the story.** Progress through 11 chapters, finish side quests, meet companions, uncover secrets, and choose an ending. Completed campaigns unlock New Game+.
 - **Take on optional challenges.** Run five-floor dungeons with a rest-or-push decision between floors, climb the endless tower, or discover a five-island raid. Raids have no timer; after an island, continue or leave. Clearing all five islands earns bonus rewards and raid tokens for permanent upgrades.
+- **Explore the Quiet Road in more depth.** Take four linked Wayrest jobs, meet mosslings, burrow rats, and lantern thieves, and choose how to handle an injured courier or fallen waystone. At level 3, finishing the jobs can reveal the optional Mossback Guardian. Those encounters teach early recipes for useful boots, charms, a buckler, and field stew.
 - **Find more stories off the main road.** The Broken Frontier has a scout mission and outrider materials. The Cathedral of Ash has a linked Bellkeeper quest and a hidden bell boss. Later regions hold the Archive's Index Hound, three regional surveys, and the optional Lost Cartographer hunt.
 - **Track rewards clearly.** Combat presents earned XP, coins, and item drops in short reward lines.
 
@@ -60,7 +61,7 @@ The main route moves through these regions:
 10. The Blank Page
 11. The Last Autosave
 
-Type **story** for your current objective or **guide** for level targets and the campaign route. Side quests and optional bosses are separate from the chapter objectives, so you can return to them when you are ready.
+Type **story** for your current objective or **guide** for level targets and the campaign route. Visit **town** and choose the Wayrest quest board to accept the new early jobs. Side quests and optional bosses are separate from the chapter objectives, so you can return to them when you are ready.
 
 ## Saves and offline play
 
