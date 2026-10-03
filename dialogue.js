@@ -156,7 +156,7 @@ const STORY_AREAS = {
   },
   "The Broken Frontier": {
     description: "A wilderness split by a thin black line that nobody remembers seeing yesterday.",
-    encounters: ["skeleton", "orc", "bandit", "witch", "werewolf", "ogre", "wraith", "wyvern", "mire witch", "frontier marksman"],
+    encounters: ["skeleton", "orc", "bandit", "witch", "werewolf", "ogre", "wraith", "wyvern", "mire witch", "frontier marksman", "frontier outrider"],
   },
   "The Cathedral of Ash": {
     description: "A dead cathedral whose stained glass shows places that do not exist. Ashbound sentinels still patrol the broken nave.",
@@ -170,6 +170,7 @@ const STORY_AREAS = {
       "demon",
       "bellbound acolyte",
       "ashbound sentinel",
+      "bellbound cantor",
     ],
   },
   "The Null Expanse": {
