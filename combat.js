@@ -1052,6 +1052,12 @@ async function fightMonster(arg = "", elite = false) {
   }
   const f = newFight(name);
   if (elite && f.enemies) f.enemies = f.enemies.map((e) => makeEnemyState(e.name, true));
+  const battleEnemies = Array.isArray(name) ? name : [name];
+  const bossEncounter = elite || battleEnemies.some((enemy) => monsters[enemy]?.chance <= 0);
+  if (typeof FX !== "undefined") FX.startBattleMusic(battleEnemies, bossEncounter);
+  const stopMusic = () => {
+    if (typeof FX !== "undefined") FX.stopBattleMusic();
+  };
   print(`\n⚔️ A wild ${Array.isArray(name) ? name.map((n) => n.toUpperCase()).join(" & ") : name.toUpperCase()} appeared!`);
   const eq = Object.values(equipment).filter(Boolean);
   if (eq.length) print("🧰 Equipped: " + eq.join(", "));
@@ -1086,20 +1092,24 @@ async function fightMonster(arg = "", elite = false) {
     if (typeof remindHeal === "function") remindHeal(f);
     await playerTurn(f);
     if (f.fled) {
+      stopMusic();
       print("(No XP or loot from a fight you ran from.)");
       return;
     }
     if (down()) {
+      stopMusic();
       winFight(f);
       if (typeof maybePromptLevelUp === "function") await maybePromptLevelUp();
       return;
     }
     if (playerDown(f)) {
+      stopMusic();
       loseFight(f);
       return;
     }
     if (typeof companionTurns === "function") await companionTurns(f);
     if (down()) {
+      stopMusic();
       winFight(f);
       if (typeof maybePromptLevelUp === "function") await maybePromptLevelUp();
       return;
@@ -1110,11 +1120,13 @@ async function fightMonster(arg = "", elite = false) {
         f.target = i;
         monsterTurn(f);
         if (down()) {
+          stopMusic();
           winFight(f);
           if (typeof maybePromptLevelUp === "function") await maybePromptLevelUp();
           return;
         }
         if (playerDown(f)) {
+          stopMusic();
           loseFight(f);
           return;
         }
@@ -1122,11 +1134,13 @@ async function fightMonster(arg = "", elite = false) {
     } else {
       monsterTurn(f);
       if (down()) {
+        stopMusic();
         winFight(f);
         if (typeof maybePromptLevelUp === "function") await maybePromptLevelUp();
         return;
       }
       if (playerDown(f)) {
+        stopMusic();
         loseFight(f);
         return;
       }
