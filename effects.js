@@ -1022,9 +1022,9 @@ const FX = (() => {
     { match: /You gain .* status for|The .* is .* for \d+ turns/, cls: "fx-status", run: () => play("status") },
 
     // ----- fight flow -----
-    { match: /^Earned \$[\d,]+/, cls: "fx-reward-feed", run: () => (play("coin"), showRewardNotification(line)) },
-    { match: /^Earned [\d,]+ Exp\./, cls: "fx-reward-feed", run: () => (play("xp"), showRewardNotification(line)) },
-    { match: /^Obtained <.+> \(\d+x\)$/, cls: "fx-reward-feed", run: () => (play("pickup"), showRewardNotification(line)) },
+    { match: /^Earned \$[\d,]+.*$/, cls: "fx-reward-feed", run: (m) => (play("coin"), showRewardNotification(m[0])) },
+    { match: /^Earned [\d,]+ Exp\..*$/, cls: "fx-reward-feed", run: (m) => (play("xp"), showRewardNotification(m[0])) },
+    { match: /^Obtained <.+> \(\d+x\)$/, cls: "fx-reward-feed", run: (m) => (play("pickup"), showRewardNotification(m[0])) },
     {
       match: /🏆 You defeated/,
       cls: "fx-win",
