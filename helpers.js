@@ -119,7 +119,14 @@ const energyBar = (c, m) => {
   c = Math.max(0, Math.min(c, m));
   return "●".repeat(c) + "○".repeat(m - c) + ` ${c}/${m}`;
 };
-const makeAttack = (name, data) => Object.assign({}, DEFAULT_ATTACK, data, { name });
+const makeAttack = (name, data = {}) => {
+  const attack = Object.assign({}, DEFAULT_ATTACK, data, { name });
+  const rawAccuracy = data.accuracy == null ? DEFAULT_ATTACK.accuracy : Number(data.accuracy);
+  attack.accuracy = Number.isFinite(rawAccuracy)
+    ? Math.max(0, Math.min(100, Math.floor(rawAccuracy)))
+    : DEFAULT_ATTACK.accuracy;
+  return attack;
+};
 // Splits text like 'iron sword 2' into ['iron sword', 2] (amount defaults to 1).
 function parseItemAmount(t) {
   const p = t.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -141,7 +148,10 @@ function addItem(n, a, q = false) {
   if (typeof ensureRarity === "function") ensureRarity(n);
   if (typeof noteQuestCollect === "function") noteQuestCollect();
   if (typeof checkAchievements === "function") checkAchievements();
-  if (!q) print(`🎒 Added ${a} × ${n} to your inventory.`);
+  if (!q) {
+    if (n === "coin") print(`Earned $${a}`);
+    else print(`Obtained <${title(n)}> (${a}x)`);
+  }
 }
 // Removes items from the inventory; returns false if there aren't enough.
 function removeItem(n, a, q = false) {
@@ -152,7 +162,7 @@ function removeItem(n, a, q = false) {
   }
   inventory[n] = c - a;
   if (inventory[n] === 0) delete inventory[n];
-  if (!q) print(`📦 Removed ${a} × ${n} from your inventory.`);
+  if (!q) print(n === "coin" ? `Spent $${a}` : `📦 Removed ${a} × ${n} from your inventory.`);
   return true;
 }
 
@@ -348,4 +358,5 @@ function describeSkill(s) {
   if (s.cooldown) p.push(`${s.cooldown}-turn cooldown`);
   return p.join(", ");
 }
+
 
