@@ -1558,6 +1558,63 @@ Object.assign(monsters, {
   },
 });
 
+Object.assign(monsters, {
+  "frontier outrider": {
+    name: "Frontier Outrider", hp: 92, icon: "🏹⚙️",
+    block_chance: 5, block_reduction: 0.3,
+    basic_attack: { damage: [13, 19], accuracy: 91, type: "fast" },
+    abilities: {
+      "spring-loaded shot": { chance: 26, damage: [18, 26], accuracy: 78, type: "fast", telegraph: "takes aim and fires a" },
+      "signal flare": { chance: 16, damage: [8, 13], accuracy: 88, special_effect: { type: "exposed", chance: 45, damage: 0, turns: 1 } },
+    },
+    chance: 28, loot_chance: 78,
+    drops: {
+      coin: { chance: 100, min_drop: 12, max_drop: 24 },
+      "signal wire": { chance: 62, min_drop: 1, max_drop: 2 },
+      "clockwork spring": { chance: 30, min_drop: 1, max_drop: 1 },
+      leather: { chance: 42, min_drop: 1, max_drop: 2 },
+    },
+    parry_chance: 8, dodge_chance: 26, parry_rate: 44, dodge_rate: 66,
+    resist: { fire: 10 }, music: { root: 146.83, scale: [0, 2, 5, 7, 9], wave: "triangle", tempo: 132 },
+  },
+  "bellbound cantor": {
+    name: "Bellbound Cantor", hp: 268, icon: "🎼🔔",
+    block_chance: 10, block_reduction: 0.35,
+    basic_attack: { damage: [32, 44], accuracy: 90, element: "frost" },
+    abilities: {
+      "discordant note": { chance: 28, damage: [37, 51], accuracy: 84, element: "frost", special_effect: { type: "weakened", chance: 48, damage: 0, turns: 2 } },
+      "funeral refrain": { chance: 18, heal: [36, 54], special_effect: { type: "shield", chance: 100, absorb: 20, turns: 1 } },
+    },
+    chance: 24, loot_chance: 82,
+    drops: {
+      "resonant bell": { chance: 72, min_drop: 1, max_drop: 1 },
+      "black salt": { chance: 48, min_drop: 1, max_drop: 2 },
+      silk: { chance: 38, min_drop: 1, max_drop: 2 },
+      coin: { chance: 100, min_drop: 32, max_drop: 58 },
+    },
+    parry_chance: 12, dodge_chance: 12, parry_rate: 48, dodge_rate: 48,
+    resist: { fire: 18, frost: 20 }, music: { root: 110, scale: [0, 2, 3, 7, 10], wave: "sine", tempo: 88 },
+  },
+  "the bell without a tongue": {
+    name: "The Bell Without a Tongue", hp: 635, icon: "🔔🕳️",
+    block_chance: 18, block_reduction: 0.42,
+    basic_attack: { damage: [49, 66], accuracy: 90, element: "fire", type: "heavy" },
+    abilities: {
+      "tongueless toll": { chance: 25, damage: [64, 86], accuracy: 82, type: "heavy", warning: true, telegraph: "rings through the nave with", special_effect: { type: "slow", chance: 45, damage: 0, turns: 2 } },
+      "echo chamber": { chance: 22, damage: [24, 35], hits: 2, accuracy: 88, element: "frost", type: "fast" },
+      "hollow resonance": { chance: 16, heal: [55, 82], special_effect: { type: "shield", chance: 100, absorb: 34, turns: 2 } },
+    },
+    chance: 0, secret_flag: "secret_bell_without_tongue_found", loot_chance: 100,
+    drops: {
+      "resonant bell": { chance: 100, min_drop: 2, max_drop: 3 },
+      "ashen sigil": { chance: 100, min_drop: 2, max_drop: 3 },
+      "black salt": { chance: 70, min_drop: 2, max_drop: 4 },
+    },
+    parry_chance: 22, dodge_chance: 18, parry_rate: 58, dodge_rate: 54,
+    resist: { fire: 25, frost: 25 }, music: { root: 77.78, scale: [0, 1, 4, 6, 9], wave: "sawtooth", tempo: 102 },
+  },
+});
+
 // Optional custom battle music: add music_file: "audio/enemies/name.mp3" to any
 // enemy below, or to a BOSS_PHASE_TWO form for phase-specific tracks. If the file
 // is missing or cannot play, the game automatically uses its synthesized theme.
@@ -1745,6 +1802,9 @@ const ENEMY_DIALOGUE = {
   "glasswing moth": { attack: ["The star belongs to the dark.", "Your shadow is heavier than you know."] },
   "hollow sentinel": { attack: ["The patrol does not end.", "The throne is empty. Our post is not."] },
   "the lost cartographer": { attack: ["You are walking off the edge of the world.", "I have mapped every ending. This one is mine."] },
+  "frontier outrider": { attack: ["The camp won't hear you over the wind.", "One clean shot and the road belongs to us."] },
+  "bellbound cantor": { attack: ["The nave has room for one more voice.", "Listen closely. The last note is yours."] },
+  "the bell without a tongue": { attack: ["No tongue. No rope. Still, you heard it.", "Every silence has a sound beneath it."], phase: ["The bell cracks. The echo keeps ringing."] },
   "margin warden": { attack: ["That choice needs correcting.", "You have crossed the margin for the last time."] },
 };
 for (const [name, dialogue] of Object.entries(ENEMY_DIALOGUE)) {
@@ -1991,6 +2051,7 @@ const ENEMY_LEVELS = {
   "ancient golem": 11, demon: 7, "ash demon": 12, "archive stalker": 13,
   "footnote mimic": 13, "index hound": 14, "glasswing moth": 10, "ashbound sentinel": 6,
   "hollow sentinel": 16, "the lost cartographer": 17, "the leftover": 8, "the watcher": 10,
+  "frontier outrider": 3, "bellbound cantor": 7, "the bell without a tongue": 8,
   "the witness": 12, "the archivist": 14, "the first hero": 16,
   "the editor": 18, "margin warden": 18, "the author": 20, "the last save": 22, "the missing page": 12, "the echo of attempts": 16,
 };
@@ -2013,6 +2074,9 @@ const ELEMENT_WEAKNESSES = {
   "ashbound sentinel": { frost: 35 },
   "hollow sentinel": { fire: 25 },
   "the lost cartographer": { lightning: 20 },
+  "frontier outrider": { frost: 20 },
+  "bellbound cantor": { lightning: 30 },
+  "the bell without a tongue": { lightning: 35 },
 };
 for (const [name, weak] of Object.entries(ELEMENT_WEAKNESSES)) monsters[name].weak = weak;
 
