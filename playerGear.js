@@ -43,6 +43,13 @@ const EQUIPMENT_SETS = {
       { pieces: 3, stats: { damage: 5, dodge: 4 }, text: "+5 damage, +4% dodge" },
     ],
   },
+  cathedral: {
+    pieces: ["bellshard maul", "choir veil", "reliquary guard"],
+    bonuses: [
+      { pieces: 2, stats: { max_hp: 30, defense: 2 }, text: "+30 max HP, +2 defense" },
+      { pieces: 3, stats: { damage: 6, guard: 0.06 }, text: "+6 damage, +6% guard" },
+    ],
+  },
 };
 
 function equipmentSetProgress() {
