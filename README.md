@@ -16,6 +16,7 @@ The game runs in the browser and saves progress automatically. Use the **music v
 
 - **Explore and choose your approach.** Follow enemy tracks, investigate a discovery, or leave both leads. Random encounters can include groups. Before an ordinary encounter, choose whether to fight or spare the enemy; sparing grants no XP, loot, or kill progress.
 - **Fight tactically.** Enemy moves show their accuracy and intent. Attacks can miss, and an opening gives you a chance to respond. In a group battle, enemies take their turns one at a time. Learn elemental weaknesses, build break and stagger, and use parries, guards, spells, items, and companions.
+- **Hear a distinct battle song for every enemy.** Each enemy name deterministically generates its own melody, harmony, rhythm, tempo, key, and lead sound in your browser. Music works offline and needs no downloaded audio files.
 - **Shape your character.** Allocate Strength, Agility, Vitality, and Focus; learn spells and perks; preview stat changes before equipping or upgrading weapons, armor, shields, headgear, and trinkets; and craft gear from materials.
 - **Keep a campaign chronicle.** Your major discoveries, choices, companions, and ending are saved in the **chronicle**. Use **replay** or **replay [chapter]** to revisit completed chapters with companion memories and see a what-if ending, without changing campaign progress.
 - **Follow the story.** Progress through 11 chapters, finish side quests, meet companions, uncover secrets, and choose an ending. Completed campaigns unlock New Game+.
