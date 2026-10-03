@@ -538,6 +538,9 @@ const RECIPE_DISCOVERY = {
   "starfall aegis": { "glasswing moth": 100 },
   ashglass: { "ashbound sentinel": 100 },
   "oathkeeper mail": { "hollow sentinel": 100 },
+  "outrider's bow": { "frontier outrider": 100 },
+  "choir veil": { "bellbound cantor": 100 },
+  "reliquary guard": { "the bell without a tongue": 100 },
   "hero's gambit tonic": { berserker: 12, "the first hero": 100 },
   "margin seal": { "margin warden": 20, "the editor": 100 },
   "last line tonic": { "the author": 100, "the last save": 100 },
@@ -699,6 +702,10 @@ Object.assign(ITEMS, {
   ashglass: { id: "weapon", damage: 21, crit: 10, skills: ["precision cut", "rending slash"], description: "A dark blade with a bright ember caught inside." },
   "oathkeeper mail": { id: "armor", max_hp: 115, defense: 9, parry: 3, description: "The last guard's oath, hammered into a coat of black iron." },
   "cartographer's compass": { id: "trinket", max_hp: 58, damage: 10, crit: 8, dodge: 5, description: "It points toward the next choice, never the easiest one." },
+  "outrider's bow": { id: "weapon", damage: 12, crit: 7, dodge: 3, skills: ["aimed shot", "volley"], description: "A compact bow built for a long patrol and a quick retreat." },
+  "choir veil": { id: "head", max_hp: 36, max_energy: 1, defense: 3, parry: 3, description: "A strip of ash-silk that dulls the Cathedral's dissonant chorus." },
+  "reliquary guard": { id: "offhand", max_hp: 48, defense: 7, guard: 0.1, description: "A shield forged from the tongue-less bell's fractured rim." },
+  "bellshard maul": { id: "weapon", damage: 24, crit: 5, skills: ["executioner swing", "shatter"], description: "A two-handed weight of resonant metal. Each swing remembers the bell that made it." },
 });
 Object.assign(recipes, {
   "moonlit poultice": { "moon herb": 2, meat: 1 },
@@ -715,6 +722,9 @@ Object.assign(recipes, {
   "starfall aegis": { "star glass": 5, "glimmer wing": 2, "ancient crystal": 3 },
   ashglass: { "ashen sigil": 4, "ember core": 2, iron: 8 },
   "oathkeeper mail": { "oath fragment": 5, "ancient crystal": 4, "black salt": 3 },
+  "outrider's bow": { "signal wire": 3, "clockwork spring": 2, leather: 3 },
+  "choir veil": { "resonant bell": 2, silk: 3, "black salt": 2 },
+  "reliquary guard": { "resonant bell": 3, "ashen sigil": 2, iron: 5 },
 });
 Object.assign(SHOP_BUY, {
   "moon herb": 18, "black salt": 28, "clockwork spring": 32,
