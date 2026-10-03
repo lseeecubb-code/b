@@ -30,6 +30,10 @@ Your progress is automatically saved in your browser.
 
 You can also use the built-in save codes to copy your progress and load it somewhere else.
 
+## 🎵 Custom Enemy Music
+
+You can give enemies their own audio tracks. See the [Enemy Music Guide](ENEMY_MUSIC_GUIDE.md) for setup steps, boss phase tracks, and troubleshooting.
+
 ## 📴 Play Offline
 
 You can play the game completely offline.
