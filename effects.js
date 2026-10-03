@@ -522,17 +522,82 @@ const FX = (() => {
 
   // Plays a named sound. Sounds triggered in the same instant are lined up one after another
   // (a burst of lines becomes a short sequence instead of one smeared noise).
-  function play(name) {
-    if (!soundOn || !audio || audio.state !== "running" || !SOUNDS[name]) return;
+  // Drop a file named audio/sfx/<effect-key>.wav to replace any registered sound.
+  // SOUND_FILE_OVERRIDES can point an individual key to another relative path or URL.
+  const SOUND_FILE_OVERRIDES = {};
+  const soundFilePlayers = new Map();
+
+  function playSynthSound(name) {
+    if (!audio || audio.state !== "running" || !SOUNDS[name]) return;
     const now = audio.currentTime;
     const start = Math.max(now, cursor);
-    if (start - now > 0.8 && !IMPORTANT.has(name)) return; // too far behind: drop the small stuff
+    if (start - now > 0.8 && !IMPORTANT.has(name)) return;
     base = start - now;
-    try {
-      SOUNDS[name]();
-    } catch (e) {}
+    try { SOUNDS[name](); } catch (e) {}
     base = 0;
     cursor = start + (DURATION[name] || 0.11);
+  }
+
+  function useSynthFallback(name, state) {
+    if (state.failed) return;
+    state.failed = true;
+    if (state.fallbackTimer !== null) clearTimeout(state.fallbackTimer);
+    state.fallbackTimer = null;
+    state.player.onerror = null;
+    playSynthSound(name);
+  }
+
+  function play(name) {
+    if (!soundOn || !SOUNDS[name]) return;
+    let state = soundFilePlayers.get(name);
+    if (state?.failed) {
+      playSynthSound(name);
+      return;
+    }
+    if (!state) {
+      if (typeof Audio === "undefined") {
+        playSynthSound(name);
+        return;
+      }
+      const path = SOUND_FILE_OVERRIDES[name] || `audio/sfx/${name}.wav`;
+      const player = new Audio(path);
+      player.preload = "auto";
+      player.volume = 0.72;
+      state = { player, failed: false, ready: false, fallbackTimer: null };
+      soundFilePlayers.set(name, state);
+      player.onerror = () => useSynthFallback(name, state);
+      player.onplaying = () => {
+        state.ready = true;
+        if (state.fallbackTimer !== null) clearTimeout(state.fallbackTimer);
+        state.fallbackTimer = null;
+      };
+      state.fallbackTimer = setTimeout(() => useSynthFallback(name, state), 4000);
+      let attempt;
+      try { attempt = player.play(); } catch (e) {
+        useSynthFallback(name, state);
+        return;
+      }
+      if (attempt && typeof attempt.then === "function")
+        attempt.then(() => {
+          if (state.fallbackTimer !== null) clearTimeout(state.fallbackTimer);
+          state.fallbackTimer = null;
+          state.ready = true;
+        }).catch(() => useSynthFallback(name, state));
+      return;
+    }
+    if (!state.ready) {
+      playSynthSound(name);
+      return;
+    }
+    state.player.volume = 0.72;
+    try {
+      state.player.currentTime = 0;
+      const attempt = state.player.play();
+      if (attempt && typeof attempt.catch === "function")
+        attempt.catch(() => useSynthFallback(name, state));
+    } catch (e) {
+      useSynthFallback(name, state);
+    }
   }
 
   // Typewriter "dialogue" blip: a tiny pitched click per letter, used for slow, spoken-style text.
@@ -561,6 +626,10 @@ const FX = (() => {
     if (musicBus && audio) {
       musicBus.gain.setTargetAtTime(on && activeBattleMusic && !activeBattleMusic.musicFile ? 0.55 : 0, audio.currentTime, 0.18);
     }
+    soundFilePlayers.forEach((state) => {
+      state.player.volume = on ? 0.72 : 0;
+      if (!on && state.ready) state.player.pause();
+    });
     if (on && activeBattleMusic) resumeBattleMusic();
     else if (!on) pauseBattleMusic();
   }
