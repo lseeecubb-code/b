@@ -721,7 +721,33 @@
         .last-save-cut .cut-void { opacity: 1; transform: translate(-50%, -50%) scale(1); }
         .last-save-cut .cut-glyph { opacity: .7; }
       }
-\n    </style>
+\n    
+      /* Original boss signature-attack cutscenes. */
+      .boss-attack-scene{position:absolute;inset:0;z-index:14;overflow:hidden;pointer-events:none;background:#020307ef;isolation:isolate}
+      .boss-attack-scene::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at center,#28334a55,#020307 72%);animation:attack-scene-flash 2.25s ease-out both}
+      .boss-attack-mark{position:absolute;display:grid;place-items:center;color:#f2f5ff;text-shadow:0 0 10px currentColor,0 0 26px currentColor;font-weight:900;line-height:1;user-select:none;will-change:transform,opacity}
+      .attack-logo-fall .boss-attack-mark{width:30%;min-height:17%;padding:8px;border:1px solid #e5e9ff9c;background:linear-gradient(145deg,#121722f5,#050609f5);box-shadow:0 0 18px #c8d3ff66,inset 0 0 16px #fff2;color:#f4f5ff;font-size:clamp(10px,1.6vw,18px);letter-spacing:.08em;text-align:center;animation:boss-logo-fall 2250ms cubic-bezier(.5,0,.8,.5) var(--attack-delay,0ms) both}
+      .attack-crown-shards .boss-attack-mark{color:#ffd36a;font-size:clamp(22px,6vw,72px);animation:attack-shard-fall 1800ms ease-in var(--attack-delay,0ms) both}
+      .attack-moon-pounce .boss-attack-mark{color:#b7d8ff;font-size:clamp(34px,10vw,110px);animation:attack-swipe 1450ms cubic-bezier(.2,.7,.3,1) var(--attack-delay,0ms) both}
+      .attack-core-eruption .boss-attack-mark{color:#ff9a58;font-size:clamp(18px,4vw,48px);animation:attack-erupt 1900ms ease-out var(--attack-delay,0ms) both}
+      .attack-whiteout .boss-attack-mark{color:#dff6ff;font-size:clamp(20px,5vw,60px);animation:attack-snowfall 1900ms linear var(--attack-delay,0ms) both}
+      .attack-cinder-collapse .boss-attack-mark{color:#ff854d;font-size:clamp(16px,4vw,42px);animation:attack-ember 2100ms ease-in var(--attack-delay,0ms) both}
+      .attack-page-storm .boss-attack-mark{color:#ead9ae;font-size:clamp(22px,4vw,48px);animation:attack-page 1900ms ease-in-out var(--attack-delay,0ms) both}
+      .attack-redline-slice .boss-attack-mark{left:-10%;width:120%;height:3px;background:#ff3434;box-shadow:0 0 10px #ff3434,0 0 30px #ff2020;animation:attack-redline 1350ms steps(2,end) var(--attack-delay,0ms) both}
+      .attack-void-pulse .boss-attack-mark{color:#d8d9e5;font-size:clamp(16px,3vw,34px);animation:attack-void-glyph 1800ms steps(2,end) var(--attack-delay,0ms) both}
+      @keyframes attack-scene-flash{0%{opacity:0}8%,62%{opacity:1}100%{opacity:.12}}
+      @keyframes boss-logo-fall{0%,58%{opacity:1;transform:translateY(0) rotate(0) scale(1)}68%{opacity:.95;transform:translateY(8px) rotate(2deg) scale(1.03)}100%{opacity:0;transform:translateY(125vh) rotate(var(--attack-tilt,8deg)) scale(.82)}}
+      @keyframes attack-shard-fall{0%{opacity:0;transform:translate(0,-70vh) rotate(0) scale(.5)}22%,50%{opacity:1}100%{opacity:0;transform:translate(var(--attack-drift,30px),120vh) rotate(460deg) scale(1.2)}}
+      @keyframes attack-swipe{0%{opacity:0;transform:translate(-90vw,30vh) rotate(-32deg) scale(.55)}25%,55%{opacity:1}100%{opacity:0;transform:translate(100vw,-22vh) rotate(18deg) scale(1.35)}}
+      @keyframes attack-erupt{0%{opacity:0;transform:translateY(35vh) scale(.1)}25%,55%{opacity:1}100%{opacity:0;transform:translate(var(--attack-drift,20px),-90vh) scale(1.5) rotate(250deg)}}
+      @keyframes attack-snowfall{0%{opacity:0;transform:translate(var(--attack-drift,20px),-15vh) rotate(0)}20%,65%{opacity:.95}100%{opacity:0;transform:translate(calc(var(--attack-drift,20px)*-1),110vh) rotate(300deg)}}
+      @keyframes attack-ember{0%{opacity:0;transform:translateY(-70vh) scale(.4)}20%,55%{opacity:1}100%{opacity:0;transform:translate(var(--attack-drift,20px),115vh) scale(1.4) rotate(180deg)}}
+      @keyframes attack-page{0%{opacity:0;transform:translate(var(--attack-drift,20px),-80vh) rotate(-90deg)}18%,62%{opacity:.96}100%{opacity:0;transform:translate(calc(var(--attack-drift,20px)*-1),115vh) rotate(240deg)}}
+      @keyframes attack-redline{0%{opacity:0;transform:translateX(-20vw) scaleX(.1)}18%,62%{opacity:1;transform:translateX(0) scaleX(1)}100%{opacity:0;transform:translateX(20vw) scaleX(.2)}}
+      @keyframes attack-void-glyph{0%{opacity:0;transform:scale(.2) rotate(-30deg)}25%,65%{opacity:.9}100%{opacity:0;transform:translate(var(--attack-drift,20px),20vh) scale(1.6) rotate(90deg)}}
+      @media(prefers-reduced-motion:reduce){.boss-attack-scene::before,.boss-attack-mark{animation:none!important}.boss-attack-scene::before{opacity:.72}.boss-attack-mark{opacity:.8}}
+
+    </style>
   </head>
   <body>
     <div class="terminal">

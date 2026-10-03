@@ -32,6 +32,10 @@ const FX = (() => {
   let cursor = 0; // when the next queued sound may start (keeps bursts of lines from piling up)
   let battleMusicTimer = null;
   let activeBattleMusic = null;
+  let battleAudio = null;
+  let battleAudioUrl = null;
+  let battleAudioFallbackTimer = null;
+  let battleMusicGeneration = 0;
   let corruptionTimer = null;
 
   function buildGraph() {
@@ -207,8 +211,11 @@ const FX = (() => {
 
     // --- player attacks ---
     hit: () => {
-      slash(0.1);
-      thump(0.2, 160, 0.03);
+      // Crisp arcade-style click over a compact impact, synthesized at runtime.
+      tone(1850, 0.025, { type: "square", slideTo: 820, vol: 0.035, lp: 4200, wet: 0 });
+      noise(0.035, { vol: 0.035, f0: 2600, f1: 900, q: 1.2, wet: 0.02 });
+      slash(0.075);
+      thump(0.15, 175, 0.035);
     },
     heavy: () => {
       slash(0.14);
@@ -278,9 +285,10 @@ const FX = (() => {
 
     // --- damage taken ---
     hurt: () => {
-      thump(0.19, 130);
-      tone(170, 0.18, { type: "triangle", slideTo: 75, vol: 0.055, lp: 1400 });
-      crunch(0.065);
+      tone(980, 0.035, { type: "square", slideTo: 360, vol: 0.04, lp: 2200, wet: 0 });
+      thump(0.16, 118, 0.03);
+      tone(170, 0.15, { type: "triangle", slideTo: 75, vol: 0.05, lp: 1200 });
+      crunch(0.05);
     },
     hurtBig: () => {
       thump(0.4, 100);
@@ -551,7 +559,7 @@ const FX = (() => {
       if (audio) play("yes");
     }
     if (musicBus && audio) {
-      musicBus.gain.setTargetAtTime(on && activeBattleMusic ? 0.55 : 0, audio.currentTime, 0.18);
+      musicBus.gain.setTargetAtTime(on && activeBattleMusic && !activeBattleMusic.musicFile ? 0.55 : 0, audio.currentTime, 0.18);
     }
     if (on && activeBattleMusic) resumeBattleMusic();
     else if (!on) pauseBattleMusic();
@@ -594,10 +602,78 @@ const FX = (() => {
   function pauseBattleMusic() {
     if (battleMusicTimer !== null) clearInterval(battleMusicTimer);
     battleMusicTimer = null;
+    if (battleAudioFallbackTimer !== null) clearTimeout(battleAudioFallbackTimer);
+    battleAudioFallbackTimer = null;
+    if (battleAudio) battleAudio.pause();
+  }
+
+  function fallbackToSynthesizedMusic(generation, track) {
+    if (generation !== battleMusicGeneration || !activeBattleMusic || activeBattleMusic !== track) return;
+    if (battleAudioFallbackTimer !== null) clearTimeout(battleAudioFallbackTimer);
+    battleAudioFallbackTimer = null;
+    if (battleAudio) {
+      battleAudio.onerror = null;
+      battleAudio.pause();
+    }
+    battleAudio = null;
+    battleAudioUrl = null;
+    track.musicFile = null;
+    track.fileFailed = true;
+    resumeBattleMusic();
+  }
+
+  function playEnemyMusicFile(track) {
+    const generation = battleMusicGeneration;
+    if (!track?.musicFile || !soundOn || !activeBattleMusic) return;
+    if (typeof Audio === "undefined") {
+      fallbackToSynthesizedMusic(generation, track);
+      return;
+    }
+    const url = track.musicFile;
+    if (!battleAudio || battleAudioUrl !== url) {
+      if (battleAudio) {
+        battleAudio.onerror = null;
+        battleAudio.pause();
+      }
+      battleAudio = new Audio(url);
+      battleAudioUrl = url;
+      battleAudio.loop = true;
+      battleAudio.preload = "auto";
+      battleAudio.volume = 0.55;
+      battleAudio.onerror = () => fallbackToSynthesizedMusic(generation, track);
+    }
+    const player = battleAudio;
+    if (musicBus && audio) musicBus.gain.setTargetAtTime(0, audio.currentTime, 0.18);
+    const onTrackStarted = () => {
+      if (generation !== battleMusicGeneration || activeBattleMusic !== track) {
+        player.pause();
+        return;
+      }
+      if (battleAudioFallbackTimer !== null) clearTimeout(battleAudioFallbackTimer);
+      battleAudioFallbackTimer = null;
+      if (musicBus && audio) musicBus.gain.setTargetAtTime(0, audio.currentTime, 0.18);
+    };
+    player.onplaying = onTrackStarted;
+    if (battleAudioFallbackTimer !== null) clearTimeout(battleAudioFallbackTimer);
+    battleAudioFallbackTimer = setTimeout(() => fallbackToSynthesizedMusic(generation, track), 6000);
+    let attempt;
+    try {
+      attempt = player.play();
+    } catch (error) {
+      fallbackToSynthesizedMusic(generation, track);
+      return;
+    }
+    if (attempt && typeof attempt.then === "function") {
+      attempt.then(onTrackStarted).catch(() => fallbackToSynthesizedMusic(generation, track));
+    }
   }
 
   function resumeBattleMusic() {
     if (!activeBattleMusic || !soundOn) return;
+    if (activeBattleMusic.musicFile && !activeBattleMusic.fileFailed) {
+      playEnemyMusicFile(activeBattleMusic);
+      return;
+    }
     unlockAudio();
     if (!audio) return;
     const begin = () => {
@@ -636,14 +712,27 @@ const FX = (() => {
     else begin();
   }
 
-  function startBattleMusic(enemyNames, boss = false, musicProfile = null) {
+  function startBattleMusic(enemyNames, boss = false, musicProfile = null, musicFile = null) {
     pauseBattleMusic();
-    activeBattleMusic = { theme: battleTheme(enemyNames, boss, musicProfile), bar: 0 };
+    battleMusicGeneration++;
+    activeBattleMusic = {
+      theme: battleTheme(enemyNames, boss, musicProfile),
+      bar: 0,
+      musicFile: typeof musicFile === "string" ? musicFile.trim() : null,
+      fileFailed: false,
+    };
     resumeBattleMusic();
   }
 
   function stopBattleMusic() {
     pauseBattleMusic();
+    battleMusicGeneration++;
+    if (battleAudio) {
+      battleAudio.onerror = null;
+      battleAudio.pause();
+    }
+    battleAudio = null;
+    battleAudioUrl = null;
     activeBattleMusic = null;
     if (musicBus && audio) musicBus.gain.setTargetAtTime(0, audio.currentTime, 0.16);
   }
@@ -834,6 +923,42 @@ const FX = (() => {
     play("warning");
     const life = reduceMotion ? 900 : Math.max(1800, Math.min(4000, Number(duration) || 2600));
     setTimeout(() => overlay.remove(), life + 80);
+  }
+
+  function attackCutscene(kind) {
+    const styles = {
+      "logo-fall": { glyphs: ["THE LAST SAVE", "LAST SAVE", "LS"], count: 18, duration: 2250 },
+      "crown-shards": { glyphs: ["♛", "◆", "╱", "✦"], count: 26, duration: 1800 },
+      "moon-pounce": { glyphs: ["☾", "╱", "／", "✧"], count: 12, duration: 1450 },
+      "core-eruption": { glyphs: ["◆", "▲", "✦", "●"], count: 24, duration: 1900 },
+      "whiteout": { glyphs: ["❄", "✧", "░", "❅"], count: 30, duration: 1900 },
+      "cinder-collapse": { glyphs: ["✦", "•", "▲", "╱"], count: 28, duration: 2100 },
+      "page-storm": { glyphs: ["▤", "§", "¶", "▧"], count: 20, duration: 1900 },
+      "redline-slice": { glyphs: [""], count: 7, duration: 1350 },
+      "void-pulse": { glyphs: ["#", "0", "?", "∅"], count: 26, duration: 1800 },
+    };
+    const style = styles[kind];
+    if (!terminal || !style) return Promise.resolve();
+    const scene = document.createElement("div");
+    scene.className = "boss-attack-scene attack-" + kind;
+    scene.setAttribute("aria-hidden", "true");
+    for (let i = 0; i < style.count; i++) {
+      const mark = document.createElement("span");
+      mark.className = "boss-attack-mark";
+      mark.textContent = style.glyphs[Math.floor(Math.random() * style.glyphs.length)];
+      mark.style.left = (kind === "redline-slice" ? 0 : Math.random() * 88) + "%";
+      mark.style.top = (kind === "redline-slice" ? (i + 1) * 12 : Math.random() * 88) + "%";
+      mark.style.setProperty("--attack-delay", Math.floor(Math.random() * 240) + "ms");
+      mark.style.setProperty("--attack-drift", Math.floor(Math.random() * 150 - 75) + "px");
+      mark.style.setProperty("--attack-tilt", Math.floor(Math.random() * 36 - 18) + "deg");
+      scene.appendChild(mark);
+    }
+    terminal.appendChild(scene);
+    play("warning");
+    return new Promise((resolve) => setTimeout(() => {
+      scene.remove();
+      resolve();
+    }, reduceMotion ? 360 : style.duration));
   }
 
   // Damage number that drifts up from the player (left) or the enemy (right).
@@ -1197,6 +1322,6 @@ const FX = (() => {
   document.getElementById("soundToggle")?.addEventListener("click", () => setSound(!soundOn, true));
   setSound(soundOn);
 
-  return { renderLine, play, blip, startBattleMusic, stopBattleMusic, corrupt, realityCut };
+  return { renderLine, play, blip, startBattleMusic, stopBattleMusic, corrupt, realityCut, attackCutscene };
 })();
 
