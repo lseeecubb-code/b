@@ -544,6 +544,8 @@ function attachEnemyAccessors(f) {
   def("staggered", "staggered");
   def("last_move", "last_move");
   def("intent", "intent");
+  def("phase", "phase");
+  def("phaseAttackPending", "phaseAttackPending");
 }
 
 function makeEnemyState(name, elite = false) {
@@ -565,6 +567,8 @@ function makeEnemyState(name, elite = false) {
     staggered: false,
     last_move: null,
     intent: null,
+    phase: 0,
+    phaseAttackPending: false,
     elite: !!elite,
   };
 }
@@ -1502,3 +1506,4 @@ if (typeof document !== "undefined") {
   loadSettings();
   loadMetaAchievements();
 }
+
