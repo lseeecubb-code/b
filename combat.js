@@ -1641,4 +1641,3 @@ function showBestiary(arg = "") {
     );
   }
 }
-
