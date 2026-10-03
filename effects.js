@@ -559,7 +559,7 @@ const FX = (() => {
       if (audio) play("yes");
     }
     if (musicBus && audio) {
-      musicBus.gain.setTargetAtTime(on && activeBattleMusic ? 0.55 : 0, audio.currentTime, 0.18);
+      musicBus.gain.setTargetAtTime(on && activeBattleMusic && !activeBattleMusic.musicFile ? 0.55 : 0, audio.currentTime, 0.18);
     }
     if (on && activeBattleMusic) resumeBattleMusic();
     else if (!on) pauseBattleMusic();
