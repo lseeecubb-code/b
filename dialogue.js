@@ -159,7 +159,7 @@ const STORY_AREAS = {
     encounters: ["skeleton", "orc", "bandit", "witch", "werewolf", "ogre", "wraith", "wyvern", "mire witch", "frontier marksman"],
   },
   "The Cathedral of Ash": {
-    description: "A dead cathedral whose stained glass shows places that do not exist.",
+    description: "A dead cathedral whose stained glass shows places that do not exist. Ashbound sentinels still patrol the broken nave.",
     encounters: [
       "vampire",
       "lich",
@@ -169,11 +169,12 @@ const STORY_AREAS = {
       "fire elemental",
       "demon",
       "bellbound acolyte",
+      "ashbound sentinel",
     ],
   },
   "The Null Expanse": {
-    description: "A colorless horizon where distance, gravity, and memory no longer agree.",
-    encounters: ["lich", "demon", "frost giant", "dragon", "stone golem", "ancient dragon", "null leech"],
+    description: "A colorless horizon where distance, gravity, and memory no longer agree. Glasswing moths gather around fallen stars.",
+    encounters: ["lich", "demon", "frost giant", "dragon", "stone golem", "ancient dragon", "null leech", "glasswing moth"],
   },
   "The Unfinished Room": {
     description: "A grey room made from missing textures, unused doors, and pieces of the world.",
@@ -188,8 +189,8 @@ const STORY_AREAS = {
     encounters: ["wraith", "lich", "demon", "stone golem", "ancient dragon", "troll", "archive stalker", "footnote mimic", "index hound"],
   },
   "The Hollow Kingdom": {
-    description: "A kingdom of empty armor, still standing guard over heroes who gave up.",
-    encounters: ["berserker", "lich", "demon", "frost giant", "ogre", "vampire"],
+    description: "A kingdom of empty armor, still standing guard over heroes who gave up. Its hollow sentinels remember their final patrol.",
+    encounters: ["berserker", "lich", "demon", "frost giant", "ogre", "vampire", "hollow sentinel"],
   },
   "The Margin": {
     description: "A white strip at the edge of the world, covered in tiny corrections.",
