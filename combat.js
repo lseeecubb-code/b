@@ -166,6 +166,7 @@ function showIntent(f) {
     print(`   It will heal ${a.heal[0]}-${a.heal[1]} HP.`);
     return;
   }
+  if (a.cutscene) print("🎬 This signature attack triggers a brief visual scene.");
   if (a.warning) {
     print("🔥 WARNING!");
     print(`The ${name} ${a.telegraph} ${an}!`);
@@ -862,7 +863,7 @@ function rollIntent(f) {
   f.stance = { parry_stance: "parry", dodge_stance: "dodge" }[it.kind] || null;
 }
 // Plays out the enemy's turn.
-function monsterTurn(f) {
+async function monsterTurn(f) {
   f.owner = "monster";
   const name = f.name;
   const it = f.intent,
@@ -903,6 +904,8 @@ function monsterTurn(f) {
     const a = it.attack;
     speakEnemy(f, "attack", a);
     print(`✨ The ${name} uses ${a.name.toUpperCase()}!`);
+    if (a.cutscene && typeof FX !== "undefined" && typeof FX.attackCutscene === "function")
+      await FX.attackCutscene(a.cutscene);
     const journalEnemy = f.enemies?.[f.target];
     if (journalEnemy && typeof noteBestiaryMove === "function") noteBestiaryMove(journalEnemy.name.replace(/^elite /, ""), a.name);
     f.last_move = a.name.toUpperCase();
@@ -1346,7 +1349,7 @@ async function fightMonster(arg = "", elite = false) {
       for (let i = 0; i < f.enemies.length; i++) {
         if (f.enemies[i].hp <= 0) continue;
         f.target = i;
-        monsterTurn(f);
+        await monsterTurn(f);
         if (down()) {
           stopMusic();
           winFight(f);
@@ -1360,7 +1363,7 @@ async function fightMonster(arg = "", elite = false) {
         }
       }
     } else {
-      monsterTurn(f);
+      await monsterTurn(f);
       if (down()) {
         stopMusic();
         winFight(f);
