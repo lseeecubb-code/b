@@ -136,12 +136,14 @@ function applySave({ inv, eq, pl, st, world }) {
       ? {
           active: true,
           floor: Math.max(0, Math.min(5, parseInt(run.floor) || 0)),
+          pushNext: !!run.pushNext,
+          lootBonus: !!run.lootBonus,
           hp: Math.max(0, Number.isFinite(run.hp) ? run.hp : 1),
           energy: Math.max(0, Number.isFinite(run.energy) ? run.energy : 0),
           abandoned: !!run.abandoned,
-          pending: !!run.pending && typeof run.pendingFoe === "string" && !!monsters[run.pendingFoe],
+          pending: !!run.pending && typeof run.pendingFoe === "string" && run.pendingFoe.split(",").filter(Boolean).every((name) => !!monsters[name]),
           pendingFloor: Math.max(1, Math.min(5, parseInt(run.pendingFloor) || (parseInt(run.floor) || 0) + 1)),
-          pendingFoe: typeof run.pendingFoe === "string" && monsters[run.pendingFoe] ? run.pendingFoe : null,
+          pendingFoe: typeof run.pendingFoe === "string" && run.pendingFoe.split(",").filter(Boolean).every((name) => !!monsters[name]) ? run.pendingFoe : null,
           pendingElite: !!run.pendingElite,
         }
       : null;
@@ -161,6 +163,14 @@ function applySave({ inv, eq, pl, st, world }) {
         }
       : null;
   }
+  if (typeof WORLD !== "undefined") {
+    WORLD.flags.raidTokens = Math.max(0, parseInt(WORLD.flags.raidTokens) || 0);
+    WORLD.flags.raidUpgrades = {
+      vigor: Math.max(0, Math.min(5, parseInt(WORLD.flags.raidUpgrades?.vigor) || 0)),
+      edge: Math.max(0, Math.min(5, parseInt(WORLD.flags.raidUpgrades?.edge) || 0)),
+      core: Math.max(0, Math.min(2, parseInt(WORLD.flags.raidUpgrades?.core) || 0)),
+    };
+  }
   if (typeof WORLD !== "undefined" && WORLD.raidRun) {
     const run = WORLD.raidRun;
     WORLD.raidRun = run && typeof run === "object" && run.active
@@ -169,7 +179,6 @@ function applySave({ inv, eq, pl, st, world }) {
           island: Math.max(0, Math.min(5, parseInt(run.island) || 0)),
           hp: Math.max(0, Number.isFinite(run.hp) ? run.hp : 1),
           energy: Math.max(0, Number.isFinite(run.energy) ? run.energy : 0),
-          startedAt: Math.max(0, Number.isFinite(run.startedAt) ? run.startedAt : Date.now()),
           abandoned: !!run.abandoned,
         }
       : null;

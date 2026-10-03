@@ -19,6 +19,7 @@ const COMMANDS = {
   fight: [fightCommand, "fight [enemy]", "Challenge a discovered foe or enter a random battle"],
   dungeon: [runDungeon, "dungeon", "Enter a five-floor gauntlet with a rest-or-push choice between floors"],
   tower: [runTower, "tower", "Fight endless scaling waves, bank rewards, and set a browser leaderboard score"],
+  raids: [raidBoard, "raids", "Choose a regional raid and spend raid tokens on permanent upgrades"],
   bestiary: [showBestiary, "bestiary [enemy]", "Study enemy moves, resistances, drops, and encounter odds"],
   journal: [showBestiaryJournal, "journal [enemy]", "Review enemy encounters, forms, and moves you have discovered"],
   inventory: [showInventory, "inventory [category]", "Browse your carried gear, supplies, and materials"],
@@ -72,7 +73,7 @@ const COMMANDS = {
 };
 const MENU = [
   ["📖", ["explore", "map", "story", "guide", "ending"]],
-  ["⚔️", ["fight", "dungeon", "tower", "bestiary", "journal"]],
+  ["⚔️", ["fight", "dungeon", "tower", "raids", "bestiary", "journal"]],
   ["🧙", ["inventory", "stats", "skills", "allocate", "perks", "magic", "info", "equip", "unequip"]],
   ["🔨", ["craft", "recipes", "shop", "buy", "sell"]],
   ["🏕️", ["town", "quests", "party", "achievements", "settings", "save", "saves", "completed", "ngplus", "event", "github", "copy", "load", "menu", "quit"]],

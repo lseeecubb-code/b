@@ -278,11 +278,25 @@ async function exploreStory() {
     print(`⚠️ Two enemies move to surround you: ${title(enemy)} and ${title(pal)}.`);
   } else if (Math.random() < 0.1 && monsters[enemy]?.chance > 0) {
     print(`🌟 The air shifts. An elite ${title(enemy)} steps into your path!`);
-    await fightMonster(enemy, true);
-    return;
+    fightArg = enemy;
+    var encounterIsElite = true;
+  } else {
+    var encounterIsElite = false;
   }
-  print(`⚠️ ${title(enemy)} appears. Prepare for battle!`);
-  await fightMonster(fightArg);
+  const encounterNames = Array.isArray(fightArg) ? fightArg : String(fightArg).split(",");
+  print(`⚠️ ${encounterNames.map((name) => title(name)).join(" and ")} ${encounterNames.length === 1 ? "appears" : "appear"}.`);
+  while (true) {
+    const choice = (await input("What do you do? [fight/spare] ")).trim().toLowerCase();
+    if (["fight", "f", "1", "yes", "y", ""].includes(choice)) break;
+    if (["spare", "s", "mercy", "2", "leave"].includes(choice)) {
+      WORLD.flags.mercifulEncounters = (WORLD.flags.mercifulEncounters || 0) + 1;
+      print(`💛 You lower your weapon. ${encounterNames.map((name) => title(name)).join(" and ")} leave peacefully.`);
+      print("No XP, loot, or kill progress is earned from a spared encounter.");
+      return;
+    }
+    print("Choose 'fight' or 'spare'.");
+  }
+  await fightMonster(fightArg, encounterIsElite);
 }
 // The 'ending' command: the final three-way choice after The Last Save.
 async function showEnding() {

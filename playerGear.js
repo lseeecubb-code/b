@@ -112,6 +112,10 @@ function getStats() {
       }
     });
   }
+  const raidUpgrades = typeof WORLD !== "undefined" ? (WORLD.flags?.raidUpgrades || {}) : {};
+  s.max_hp += Math.max(0, raidUpgrades.vigor || 0) * 6;
+  s.damage += Math.max(0, raidUpgrades.edge || 0) * 2;
+  s.max_energy += Math.max(0, raidUpgrades.core || 0);
   s.max_hp = Math.max(1, s.max_hp);
   return s;
 }

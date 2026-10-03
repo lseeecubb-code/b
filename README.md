@@ -22,6 +22,9 @@ Your choices matter, and the further you go, the more the game starts to questio
 * Crafting and equipment
 * Story choices and quests
 * Different areas and enemies
+* Choose to fight or spare ordinary exploration encounters
+* Regional five-island raids with no timer and raid-token upgrades
+* Elemental reactions: frost cracks burning armor; lightning spreads poison in group fights
 * Multiple endings
 
 ## 💾 Saves
@@ -46,7 +49,7 @@ Once downloaded, you don't need a server, installation, or internet connection t
 
 The game is built entirely with HTML, CSS and JavaScript, split into separate files to keep the code organized.
 
-For development, the files in this folder are the canonical source. Make changes only here; the historical patch snapshots are kept in `patches/` and may not apply to this version. Run `node test.js` to simulate every enemy fight and AI turn, then verify the group attack limit, poise break, and Limit Break.
+For development, the files in this folder are the canonical source. Make changes only here; the historical patch snapshots are kept in `patches/` and may not apply to this version. Use `raids` to open the regional raid board. Between dungeon floors, rest restores 12% HP and 2 Energy; push skips recovery and creates a larger fight with extra loot and level-scaled coin.
 
 ---
 
