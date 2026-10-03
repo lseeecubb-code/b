@@ -185,7 +185,7 @@ const STORY_AREAS = {
   },
   "The Archive of Attempts": {
     description: "Endless shelves of journals, each one a life you do not remember living.",
-    encounters: ["wraith", "lich", "demon", "stone golem", "ancient dragon", "troll", "archive stalker", "footnote mimic"],
+    encounters: ["wraith", "lich", "demon", "stone golem", "ancient dragon", "troll", "archive stalker", "footnote mimic", "index hound"],
   },
   "The Hollow Kingdom": {
     description: "A kingdom of empty armor, still standing guard over heroes who gave up.",
@@ -612,3 +612,4 @@ const ENDGAME_PROMPT = [
   "RELEASE THE WORLD",
   "REWRITE THE WORLD",
 ];
+
