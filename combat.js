@@ -79,13 +79,13 @@ const ACTION_ALIASES = {
   skill: "skill",
   skills: "skill",
   s: "skill",
-  9: "magic",
+  9: "counter",
   counter: "counter",
   c: "counter",
-  magic: "magic",
-  spell: "magic",
-  spells: "magic",
-  cast: "magic",
+  magic: "skill",
+  spell: "skill",
+  spells: "skill",
+  cast: "skill",
   target: "target",
   t: "target",
   log: "log",
@@ -103,7 +103,7 @@ function effLine(e) {
 }
 // Prints both health bars and the player's energy bar.
 function showStatus(f) {
-  print(`❤️ You:        ${hpBar(f.player_hp, f.player_max_hp)}`);
+  print(`❤️ You · Lv ${PLAYER.level}: ${hpBar(f.player_hp, f.player_max_hp)}`);
   print(`⚡ Energy:     ${energyBar(f.energy, typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY)}`);
   f.effects.forEach(effLine);
   if (typeof WORLD !== "undefined") {
@@ -120,7 +120,6 @@ function showStatus(f) {
     if (e.phases?.length) print(`   👑 Phase ${BOSS_PHASE_ROMAN[e.phase] || e.phase + 1}/${e.phases.length}`);
     (e.effects || []).forEach(effLine);
   });
-  if (f.last_move) print(`   📝 Last move: ${f.last_move}`);
   if (f.guarding) print(`   🛡️ ${cap(f.name)} is guarding — your attacks deal ${int((f.monster.block_reduction || 0) * 100)}% less damage this turn.`);
   if (f.stance === "parry") print("   🤺 PARRY STANCE - it may turn your attack against you!");
   if (f.stance === "dodge") print("   💨 DODGE STANCE - it may slip your attack!");
@@ -209,24 +208,23 @@ function showCombatMenu(f) {
   let cn = `${C.HEAVY_COST} energy`;
   if (f.energy < C.HEAVY_COST) cn += ", not enough energy";
   const run = Math.min(C.RUN_MAX, C.RUN + f.stats.dodge),
-    sk = weaponSkills();
-  const sn = sk.length
-    ? `${sk.filter((s) => f.energy >= s.cost && !(f.cooldowns[s.name] || 0)).length}/${sk.length} ready`
-    : "equip a weapon with skills";
+    sk = weaponSkills(),
+    spells = typeof knownSpells === "function" ? knownSpells() : [],
+    available = sk.length + spells.length,
+    readySkills = sk.filter((s) => f.energy >= s.cost && !(f.cooldowns[s.name] || 0)).length,
+    readySpells = spells.filter((n) => f.energy >= spellCost(SPELLS[n]) && !(f.cooldowns[`spell:${n}`] || 0)).length;
+  const sn = available ? `${readySkills + readySpells}/${available} ready` : "none learned or equipped";
   print("\n📋 COMBAT ACTIONS");
   print("1. ⚔️ Attack — deal physical damage.");
   print(`2. 💥 Heavy attack — deal increased damage; costs ${cn}.`);
   print("3. 🛡️ Guard — reduce damage from the next attack.");
   print("4. 🤺 Parry — deflect a parryable attack and counter.");
   print("5. 💨 Dodge — avoid a dodgeable attack.");
-  print(`6. ⚡ Focus — restore ${C.RECOVER} energy.`);
+  print(`6. ⚡ Focus — restore ${typeof focusRecovery === "function" ? focusRecovery() : C.RECOVER} energy.`);
   print("7. 🧪 Item — use a potion, bomb, or combat aid.");
-  print(`8. ✨ Weapon skill — use a learned technique (${sn}).`);
-  const mag = typeof knownSpells === "function" ? knownSpells().length : 0;
-  print(`9. 🔮 Ability — cast a learned spell (${mag ? `${mag} available` : "learn spells in town"}).`);
+  print(`8. ✨ Skills & abilities — use an equipped technique or learned spell (${sn}).`);
+  print("9. 🎯 Counter — exploit an enemy's exposed opening.");
   print(`0. 🏃 Run away — attempt to flee (${run}% chance).`);
-  if ((f.monster_effects || []).some((e) => e.type === "exposed"))
-    print("C. 🎯 Counter — exploit the opening for +35% damage; bypasses guard, dodge, and parry.");
   if (f.enemies && f.enemies.length > 1) print("Switch targets with 'target'; review recent events with 'log'.");
 }
 async function chooseItem() {
@@ -247,30 +245,45 @@ async function chooseItem() {
   }
 }
 async function chooseSkill(f) {
-  const sk = weaponSkills();
-  if (!sk.length) {
-    print("Your weapon has no skills! (Equip a weapon - 'skills' shows what each teaches.)");
+  const weaponOptions = weaponSkills().map((s) => ({ kind: "weapon", name: s.name, cost: s.cost, cooldown: s.name, desc: s.desc, data: s }));
+  const spellOptions = (typeof knownSpells === "function" ? knownSpells() : []).map((name) => ({ kind: "spell", name, cost: spellCost(SPELLS[name]), cooldown: `spell:${name}`, desc: SPELLS[name].desc, data: SPELLS[name] }));
+  if (!weaponOptions.length && !spellOptions.length) {
+    print("No skills or abilities are available. Equip skill-bearing gear or learn a spell.");
     return null;
   }
+  let kind;
+  if (weaponOptions.length && spellOptions.length) {
+    print("\n✨ CHOOSE A CATEGORY");
+    print(`1. ⚔️ Equipment skills (${weaponOptions.length})`);
+    print(`2. 🔮 Abilities (${spellOptions.length})`);
+    print("0. Back");
+    while (!kind) {
+      const raw = (await input("Choose equipment skills or abilities: ")).trim().toLowerCase();
+      if (["0", "back", ""].includes(raw)) return null;
+      if (["1", "skill", "skills", "weapon", "equipment"].includes(raw)) kind = "weapon";
+      else if (["2", "ability", "abilities", "spell", "spells", "magic"].includes(raw)) kind = "spell";
+      else print("Choose 1 for equipment skills, 2 for abilities, or 0 to go back.");
+    }
+  } else kind = weaponOptions.length ? "weapon" : "spell";
+  const options = kind === "weapon" ? weaponOptions : spellOptions;
   const prob = (s) => {
     if (f.energy < s.cost) return `needs ${s.cost} energy`;
-    const w = f.cooldowns[s.name] || 0;
+    const w = f.cooldowns[s.cooldown] || 0;
     return w ? `cooldown: ${w} more turn(s)` : null;
   };
-  print("\n⚔️ WEAPON SKILLS");
-  sk.forEach((s, i) => {
+  print(kind === "weapon" ? "\n⚔️ EQUIPMENT SKILLS" : "\n🔮 ABILITIES");
+  options.forEach((s, i) => {
     const y = prob(s);
-    print(`${i + 1}. ${title(s.name)} (${s.cost} energy) - ${s.desc}`);
-    print(`     ${describeSkill(s)}` + (y ? `   [${y}]` : ""));
+    print(`${i + 1}. ${title(s.name)} (${s.cost} energy) — ${s.desc}` + (y ? ` [${y}]` : ""));
+    if (s.kind === "weapon") print(`     ${describeSkill(s.data)}`);
   });
   print("0. Back");
   while (true) {
-    const raw = (await input("Use which skill? ")).trim().toLowerCase();
+    const raw = (await input("Use which skill or ability? ")).trim().toLowerCase();
     if (["0", "back", ""].includes(raw)) return null;
-    const ch =
-      isDigit(raw) && +raw >= 1 && +raw <= sk.length
-        ? sk[+raw - 1]
-        : sk.find((s) => s.name === raw);
+    const ch = isDigit(raw) && +raw >= 1 && +raw <= options.length
+      ? options[+raw - 1]
+      : options.find((s) => s.name === raw || s.name.includes(raw));
     if (!ch) {
       print("Pick a skill number or name, or 0 to go back.");
       continue;
@@ -280,7 +293,7 @@ async function chooseSkill(f) {
       print(`You can't use ${ch.name} right now (${y}).`);
       continue;
     }
-    return ch;
+    return { kind: ch.kind, name: ch.name };
   }
 }
 // Asks the player for an action and returns it (numbers or names are accepted).
@@ -307,11 +320,6 @@ async function askAction(f) {
     }
     if (a === "skill") {
       const s = await chooseSkill(f);
-      if (!s) continue;
-      return [a, s.name];
-    }
-    if (a === "magic") {
-      const s = typeof chooseSpell === "function" ? await chooseSpell(f) : null;
       if (!s) continue;
       return [a, s];
     }
@@ -667,8 +675,10 @@ async function playerTurn(f) {
       const opening = f.monster_effects.find((e) => e.type === "exposed");
       if (opening) f.monster_effects.splice(f.monster_effects.indexOf(opening), 1);
       if (typeof clog === "function") clog(f, "counterattack exploited opening");
-    } else if (action === "skill") useSkill(f, SKILLS[extra]);
-    else if (action === "magic") useSpell(f, extra);
+    } else if (action === "skill") {
+      if (extra.kind === "spell") useSpell(f, extra.name);
+      else useSkill(f, SKILLS[extra.name]);
+    }
     else if (action === "guard") {
       print("🛡️ You raise your guard!");
       if (typeof clog === "function") clog(f, "you guard");
@@ -680,7 +690,8 @@ async function playerTurn(f) {
       if (typeof clog === "function") clog(f, "you prepare dodge");
     }
     else if (action === "recover") {
-      const g = Math.min(C.RECOVER, (typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY) - f.energy);
+      const amount = typeof focusRecovery === "function" ? focusRecovery() : C.RECOVER;
+      const g = Math.min(amount, (typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY) - f.energy);
       f.energy += g;
       print(`⚡ You recover ${g} energy.`);
     } else if (action === "run") {
@@ -691,7 +702,10 @@ async function playerTurn(f) {
         print(`💨 You escaped from the ${f.name}!`);
       } else print("❌ You couldn't get away!");
     } else if (action === "item") useItem(f, extra);
-    if (action !== "attack" && action !== "heavy") triggerEnemyEvent(f, action, extra);
+    if (action !== "attack" && action !== "heavy") {
+      const eventAction = action === "skill" && extra?.kind === "spell" ? "magic" : action;
+      triggerEnemyEvent(f, eventAction, extra?.kind === "spell" ? extra.name : extra);
+    }
     break;
   }
   f.choice = action;
@@ -1214,7 +1228,6 @@ async function fightMonster(arg = "", elite = false) {
   if (elite && f.enemies) f.enemies = f.enemies.map((e) => makeEnemyState(e.name, true));
   const battleEnemies = Array.isArray(name) ? name : [name];
   const bossEncounter = elite || battleEnemies.some((enemy) => monsters[enemy]?.chance <= 0);
-  if (typeof FX !== "undefined") FX.startBattleMusic(battleEnemies, bossEncounter);
   (f.enemies || []).forEach((e) => noteBestiaryEncounter(e.name.replace(/^elite /, "")));
   if (typeof FX !== "undefined") FX.startBattleMusic(battleEnemies, bossEncounter, f.enemies?.length === 1 ? f.enemies[0].phases?.[0]?.music : null);
   const stopMusic = () => {

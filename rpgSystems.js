@@ -419,9 +419,14 @@ function unlockSpellsForLevel(quiet = false) {
 }
 
 function maxEnergy() {
-  let m = C.MAX_ENERGY + Math.floor(Math.max(0, (PLAYER.foc || 5) - 5) / 4);
+  const gearBonus = typeof getStats === "function" ? (getStats().max_energy || 0) : 0;
+  let m = C.MAX_ENERGY + Math.floor(Math.max(0, (PLAYER.foc || 5) - 5) / 4) + gearBonus;
   if (hasPerk("arcane surge")) m += 1;
   return m;
+}
+
+function focusRecovery() {
+  return C.RECOVER + Math.floor(Math.max(0, (PLAYER.foc || 5) - 5) / 5);
 }
 
 function spellCost(sp) {
@@ -884,7 +889,7 @@ function showMagic() {
     const s = SPELLS[n];
     print(`- ${title(n)} (${spellCost(s)} energy${s.cooldown ? `, ${s.cooldown} cd` : ""}): ${s.desc}`);
   });
-  print("⚡ In battle, choose action 10 to cast a spell.");
+  print("⚡ In battle, choose action 8 (Skills & abilities) to use a spell or equipment skill.");
 }
 
 async function chooseSpell(f) {
