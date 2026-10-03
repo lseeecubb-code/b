@@ -473,6 +473,10 @@
         transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
       }
       .toolbar button:hover { background: #73dccb18; border-color: #73dccb66; transform: translateY(-1px); }
+      .music-volume { display: flex; align-items: center; gap: 5px; color: #c8d7dd; font-size: 11px; white-space: nowrap; }
+      #musicVolume { width: 82px; accent-color: #73dccb; cursor: pointer; }
+      #musicVolumeValue { width: 31px; text-align: right; color: #92a7b2; }
+      @media (max-width: 700px) { #musicVolume { width: 64px; } .music-volume { gap: 3px; } }
       #screen {
         min-height: 0;
         padding: clamp(14px, 2.4vw, 26px);
@@ -776,6 +780,11 @@
         <nav class="toolbar" aria-label="Game settings">
           <button id="speedToggle" type="button">⌨️ Text: Normal</button>
           <button id="soundToggle" type="button">🔊 Sound on</button>
+          <label class="music-volume" title="Music volume">
+            <span aria-hidden="true">♪</span>
+            <input id="musicVolume" type="range" min="0" max="100" step="1" value="55" aria-label="Music volume" />
+            <output id="musicVolumeValue" for="musicVolume">55%</output>
+          </label>
           <button id="newGame" type="button">↻ New Game</button>
         </nav>
       </header>
@@ -807,7 +816,7 @@
     <script src="rpgSystems.js?v=20261003-8"></script>
     <script src="commands.js?v=20261003-8"></script>
     <!-- terminal UI + start -->
-    <script src="effects.js?v=20261003-10"></script>
+    <script src="effects.js?v=20261003-11"></script>
     <script src="typewriter.js?v=20261003-8"></script>
     <script src="index.js?v=20261003-8"></script>
     <script src="admin.js?v=20261003-8"></script>
