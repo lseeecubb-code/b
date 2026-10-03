@@ -896,6 +896,7 @@ function monsterTurn(f) {
     f.last_move = a.name.toUpperCase();
   } else {
     const a = it.attack;
+    speakEnemy(f, "attack", a);
     print(`✨ The ${name} uses ${a.name.toUpperCase()}!`);
     const journalEnemy = f.enemies?.[f.target];
     if (journalEnemy && typeof noteBestiaryMove === "function") noteBestiaryMove(journalEnemy.name.replace(/^elite /, ""), a.name);
@@ -935,6 +936,21 @@ function monsterTurn(f) {
   }
 }
 
+// Optional dialogue belongs to an enemy or phase form; move-specific lines take priority.
+function speakEnemy(f, event, attack = null) {
+  const sources = [f.enemies?.[f.target]?.monster, f.monster].filter(Boolean);
+  for (const source of sources) {
+    const dialogue = source.dialogue || {};
+    const specific = attack && dialogue.attacks?.[attack.name.toLowerCase()];
+    const candidate = event === "phase" ? dialogue.phase : (specific || dialogue.attack);
+    if (!candidate) continue;
+    const lines = Array.isArray(candidate) ? candidate : [candidate];
+    const line = lines[randint(0, lines.length - 1)];
+    if (typeof line === "string" && line.trim())
+      print(`   💬 ${f.displayName || f.name}: “${line}”`);
+    return;
+  }
+}
 function advanceBossForms(f) {
   let changed = false;
   for (let i = 0; i < (f.enemies || []).length; i++) {
@@ -956,6 +972,7 @@ function advanceBossForms(f) {
     f.target = i;
     changed = true;
     print(`\n👑 ${title(e.name)} transforms into ${e.displayName}!`);
+    speakEnemy({ name: e.name, displayName: e.displayName, monster: e.monster }, "phase");
     print(`❤️ New form: ${e.hp}/${e.monster.hp} HP · ${Object.keys(e.monster.abilities || {}).map(title).join(", ") || "new combat style"}.`);
     if (typeof noteBestiaryPhase === "function") noteBestiaryPhase(e.name, e.displayName);
     if (typeof clog === "function") clog(f, `${e.displayName} entered phase ${nextIndex + 1}`);
