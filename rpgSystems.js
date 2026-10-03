@@ -295,6 +295,12 @@ Object.assign(SIDE_QUESTS, {
     desc: "Recover one soul shard from a footnote mimic in the Archive.", type: "collect", target: "soul shard", need: 1,
     reward: { xp: 420, coin: 240, "ancient crystal": 2 }, chapterMin: 6,
   },
+  frontier_signal: {
+    name: "A Signal for the Frontier", giver: "Frontier Scout",
+    desc: "Find the wounded scout's route map while exploring the Broken Frontier.",
+    type: "flag", flag: "frontier_scout_guided",
+    reward: { xp: 100, coin: 75, potion: 1, "clockwork spring": 2 }, chapterMin: 1,
+  },
 });
 
 const TOWNS = {
@@ -764,6 +770,7 @@ function noteCompanionQuestKill(name) {
     if (state.progress >= quest.need) {
       state.done = true;
       addItem("coin", quest.reward);
+      print("Earned 80 Exp.");
       grantXp(80);
       print(`🤝 ${COMPANION_DEFS[id].name} personal quest complete: ${quest.name}. Their combo attack is unlocked!`);
     }
@@ -787,11 +794,10 @@ function completeQuest(id) {
   print(`\n🎉 SIDE QUEST COMPLETE: ${q.name}`);
   for (const [k, a] of Object.entries(q.reward)) {
     if (k === "xp") {
-      print(`   +${a} XP`);
+      print(`Earned ${a} Exp.`);
       grantXp(a);
     } else {
-      print(`   +${a} ${k}`);
-      addItem(k, a, true);
+      addItem(k, a);
       if (ITEMS[k]) ensureRarity(k, 10);
     }
   }
@@ -822,27 +828,65 @@ function currentTownId() {
   return "wayrest";
 }
 
-async function allocateStats() {
+async function allocateStats(argument = "") {
+  const statAliases = {
+    "1": "str", str: "str", strength: "str",
+    "2": "agi", agi: "agi", agility: "agi",
+    "3": "vit", vit: "vit", vitality: "vit",
+    "4": "foc", foc: "foc", focus: "foc",
+  };
+  const allocate = (key, requested) => {
+    if (!STAT_INFO.some(([id]) => id === key)) return false;
+    if (PLAYER[key] >= 25) {
+      print("🏁 That attribute has reached its maximum.");
+      return true;
+    }
+    const points = Math.max(0, PLAYER.statPoints || 0);
+    if (!points) {
+      print("You have no stat points left to spend.");
+      return true;
+    }
+    const count = requested === undefined ? 1 : Number(requested);
+    if (!Number.isInteger(count) || count < 1) {
+      print("Enter a whole number of points (1 or more).");
+      return true;
+    }
+    const amount = Math.min(count, points, 25 - PLAYER[key]);
+    PLAYER[key] += amount;
+    PLAYER.statPoints -= amount;
+    const label = STAT_INFO.find(([id]) => id === key)[1];
+    print(`  ✅ ${label} increased by ${amount} to ${PLAYER[key]}.`);
+    if (amount < count) print(`  (Spent ${amount}; points available and the 25-point cap limit this allocation.)`);
+    return true;
+  };
+  const direct = String(argument || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (direct.length) {
+    const key = statAliases[direct[0]];
+    if (!key) {
+      print("Use 'allocate' for the numbered menu, or 'allocate <1-4|stat> [points]'.");
+      return;
+    }
+    allocate(key, direct[1]);
+    showAttributeSummary();
+    return;
+  }
   print("\n📊");
   print("Each point is a permanent bonus. Every attribute caps at 25.");
   while ((PLAYER.statPoints || 0) > 0) {
     print(`\n✨ Points to spend: ${PLAYER.statPoints}`);
-    for (const [k, n, d] of STAT_INFO) print(`  ${n} ${PLAYER[k]}/25 — ${d}`);
+    STAT_INFO.forEach(([key, name, desc], index) =>
+      print(`  ${index + 1}. ${name} (${key.toUpperCase()}) ${PLAYER[key]}/25 — ${desc}`)
+    );
     print("  0. Finish training");
-    const raw = (await input("Choose Strength, Agility, Vitality, Focus, or 0: ")).trim().toLowerCase();
+    const raw = (await input("Choose 1-4 or a stat name; add a count like '2 3' to spend three points: ")).trim().toLowerCase();
     if (["0", "done", "back", ""].includes(raw)) break;
-    const key = { strength: "str", agility: "agi", vitality: "vit", focus: "foc", s: "str", a: "agi", v: "vit", f: "foc" }[raw] || raw;
-    if (!["str", "agi", "vit", "foc"].includes(key)) {
-      print("Choose STR, AGI, VIT, FOC, or 0 to finish.");
+    const [choice, amount] = raw.split(/\s+/);
+    const key = statAliases[choice] || ({ s: "str", a: "agi", v: "vit", f: "foc" })[choice];
+    if (!key) {
+      print("Choose 1/STR, 2/AGI, 3/VIT, 4/FOC, or 0 to finish.");
       continue;
     }
-    if (PLAYER[key] >= 25) {
-      print("🏁 That attribute has reached its maximum.");
-      continue;
-    }
-    PLAYER[key]++;
-    PLAYER.statPoints--;
-    print(`  ✅ ${STAT_INFO.find(([id]) => id === key)[1]} increased to ${PLAYER[key]}.`);
+    allocate(key, amount);
   }
   showAttributeSummary();
 }
@@ -1579,10 +1623,49 @@ async function maybeExploreEvent(areaName, selectedKind = null, availableEncount
     } else {
       WORLD.flags[key] = true;
       const xp = 35 + STORY.chapter * 12;
-      print(`The memory settles into your own. You gain ${xp} XP and 15 coin.`);
+      print("The memory settles into your own.");
+      print(`Earned ${xp} Exp.`);
       grantXp(xp);
       addItem("coin", 15);
     }
+    return true;
+  }
+  if (kind === "lost_scout") {
+    if (WORLD.flags.frontier_scout_guided) {
+      print("The trail is quiet now. The scout made it back to camp.");
+      return true;
+    }
+    print("A flare burns low in a ravine. A wounded scout clutches a map with the last safe trail marked on it.");
+    print("1. Spend a potion to treat the scout, then guide them back to camp.");
+    print("2. Give them your route notes and let them travel while you search their pack.");
+    print("0. Leave the ravine for now.");
+    while (true) {
+      const choice = (await input("What do you do? [1/2/0]: ")).trim().toLowerCase();
+      if (["0", "leave", "back"].includes(choice)) {
+        print("You mark the ravine on your map and leave the scout's flare burning.");
+        return true;
+      }
+      if (["1", "treat", "potion"].includes(choice)) {
+        if ((inventory.potion || 0) < 1) {
+          print("You need a potion for that. Choose the route-notes option, or leave for now.");
+          continue;
+        }
+        removeItem("potion", 1);
+        WORLD.rested = 1;
+        print("The scout steadies. You escort them to camp, and they'll warn travelers about the broken road.");
+        print("Your next battle starts rested.");
+        break;
+      }
+      if (["2", "notes", "map", "search"].includes(choice)) {
+        addItem("clockwork spring", 1);
+        noteQuestCollect();
+        print("Your route notes get the scout moving. You salvage a clockwork spring from the damaged signal lantern.");
+        break;
+      }
+      print("Choose 1 to spend a potion, 2 to share your notes, or 0 to leave.");
+    }
+    WORLD.flags.frontier_scout_guided = true;
+    tryTurnInQuests();
     return true;
   }
   return false;
@@ -1592,6 +1675,8 @@ function rollExploreDiscovery(availableEncounters) {
   if (Math.random() > 0.38) return null;
   const table = ["chest", "trap", "merchant", "camp", "npc", "riddle", "cache", "scrap", "forage", "shrine", "echo"];
   if (STORY.chapter >= 1) table.push("townhint");
+  if (STORY.chapter >= 1 && questState("frontier_signal").status === "active" && !WORLD.flags.frontier_scout_guided)
+    table.push("lost_scout", "lost_scout");
   if (availableEncounters.length >= 2) table.push("raid");
   return table[randint(0, table.length - 1)];
 }
@@ -1603,6 +1688,7 @@ function exploreDiscoveryLabel(kind) {
     cache: "search the strange crate", scrap: "salvage the wreck", forage: "gather roadside supplies",
     shrine: "approach the roadside shrine", echo: "listen to the memory echo", townhint: "follow the smoke toward town",
     raid: "intercept the discovered raiding party",
+    lost_scout: "follow the scout's signal flare",
   })[kind] || "investigate the discovery";
 }
 
