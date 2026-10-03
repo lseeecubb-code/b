@@ -541,6 +541,9 @@ const RECIPE_DISCOVERY = {
   "outrider's bow": { "frontier outrider": 100 },
   "choir veil": { "bellbound cantor": 100 },
   "reliquary guard": { "the bell without a tongue": 100 },
+  "mosswrap boots": { mossling: 100 },
+  "lantern charm": { "lantern thief": 100 },
+  "mossback buckler": { "mossback guardian": 100 },
   "hero's gambit tonic": { berserker: 12, "the first hero": 100 },
   "margin seal": { "margin warden": 20, "the editor": 100 },
   "last line tonic": { "the author": 100, "the last save": 100 },
@@ -691,6 +694,7 @@ Object.assign(USABLE_ITEMS, {
   "sunfire bomb": { damage: 30, element: "fire", effect: { type: "burn", chance: 85, damage: 5, turns: 3 } },
   "margin seal": { self: { type: "shield", absorb: 50, turns: 3 } },
   "last line tonic": { heal: 65, energy: 3, buff_damage: 8 },
+  "field stew": { heal: 48 },
 });
 Object.assign(ITEMS, {
   "trailbreaker bow": { id: "weapon", damage: 15, crit: 8, dodge: 5, skills: ["aimed shot", "volley"], description: "A frontier scout's bow rebuilt around a spring-steel limb." },
@@ -706,6 +710,10 @@ Object.assign(ITEMS, {
   "choir veil": { id: "head", max_hp: 36, max_energy: 1, defense: 3, parry: 3, description: "A strip of ash-silk that dulls the Cathedral's dissonant chorus." },
   "reliquary guard": { id: "offhand", max_hp: 48, defense: 7, guard: 0.1, description: "A shield forged from the tongue-less bell's fractured rim." },
   "bellshard maul": { id: "weapon", damage: 24, crit: 5, skills: ["executioner swing", "shatter"], description: "A two-handed weight of resonant metal. Each swing remembers the bell that made it." },
+  "mosswrap boots": { id: "boots", max_hp: 12, dodge: 4, description: "Soft boots braided from tough roadside moss. They grip loose stone without slowing you down." },
+  "roadward charm": { id: "trinket", max_hp: 10, dodge: 2, description: "A brass pin recovered from an old waystone. It points toward the road home." },
+  "lantern charm": { id: "trinket", max_hp: 14, crit: 3, description: "A shard of lantern glass that catches a glint just before danger moves." },
+  "mossback buckler": { id: "offhand", max_hp: 20, defense: 3, guard: 0.05, description: "A sturdy shield faced with the bark of the old road's guardian." },
 });
 Object.assign(recipes, {
   "moonlit poultice": { "moon herb": 2, meat: 1 },
@@ -725,6 +733,11 @@ Object.assign(recipes, {
   "outrider's bow": { "signal wire": 3, "clockwork spring": 2, leather: 3 },
   "choir veil": { "resonant bell": 2, silk: 3, "black salt": 2 },
   "reliquary guard": { "resonant bell": 3, "ashen sigil": 2, iron: 5 },
+  "field stew": { meat: 2, "moon herb": 1 },
+  "mosswrap boots": { "moss fiber": 3, leather: 2, fiber: 2 },
+  "roadward charm": { "road pin": 1, leather: 2, "moon herb": 1 },
+  "lantern charm": { "lantern glass": 2, silk: 2, iron: 1 },
+  "mossback buckler": { "guardian bark": 3, iron: 3, leather: 2 },
 });
 Object.assign(SHOP_BUY, {
   "moon herb": 18, "black salt": 28, "clockwork spring": 32,
