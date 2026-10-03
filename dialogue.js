@@ -151,8 +151,8 @@ const STORY_PROGRESS = {
 
 const STORY_AREAS = {
   "The Quiet Road": {
-    description: "A familiar road beneath an ordinary sky.",
-    encounters: ["rat", "slime", "wolf", "goblin", "wild boar", "dire wolf", "clockwork hound", "dust jackal"],
+    description: "A familiar road beneath an ordinary sky. Waystones, overturned carts, and small creatures have begun appearing where the road used to be empty.",
+    encounters: ["rat", "slime", "wolf", "goblin", "wild boar", "dire wolf", "clockwork hound", "dust jackal", "mossling", "burrow rat", "lantern thief"],
   },
   "The Broken Frontier": {
     description: "A wilderness split by a thin black line that nobody remembers seeing yesterday.",
