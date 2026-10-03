@@ -1123,6 +1123,10 @@ const FX = (() => {
     { match: /You gain .* status for|The .* is .* for \d+ turns/, cls: "fx-status", run: () => play("status") },
 
     // ----- fight flow -----
+    { match: /^Earned \$[\d,]+/, cls: "fx-reward-feed", run: () => play("coin") },
+    { match: /^Earned [\d,]+ Exp\./, cls: "fx-reward-feed", run: () => play("xp") },
+    { match: /^Spent \$[\d,]+/, cls: "fx-reward-feed", run: () => play("spend") },
+    { match: /^Obtained <.+> \(\d+x\)$/, cls: "fx-reward-feed", run: () => play("pickup") },
     {
       match: /🏆 You defeated/,
       cls: "fx-win",
@@ -1261,6 +1265,30 @@ const FX = (() => {
 
   // Builds the content of one printed line, adding colored bars where they apply.
   function buildContent(line) {
+    const coinReward = line.match(/^Earned (\$[\d,]+)(.*)$/);
+    if (coinReward) {
+      const wrapper = document.createElement("span");
+      wrapper.append(span("Earned "), span(coinReward[1], "reward-coin"), span(coinReward[2]));
+      return wrapper;
+    }
+    const coinSpent = line.match(/^Spent (\$[\d,]+)(.*)$/);
+    if (coinSpent) {
+      const wrapper = document.createElement("span");
+      wrapper.append(span("Spent "), span(coinSpent[1], "reward-spent"), span(coinSpent[2]));
+      return wrapper;
+    }
+    const xpReward = line.match(/^Earned ([\d,]+)( Exp\..*)$/);
+    if (xpReward) {
+      const wrapper = document.createElement("span");
+      wrapper.append(span("Earned "), span(xpReward[1], "reward-xp"), span(xpReward[2]));
+      return wrapper;
+    }
+    const itemReward = line.match(/^Obtained <(.+)> \((\d+x)\)$/);
+    if (itemReward) {
+      const wrapper = document.createElement("span");
+      wrapper.append(span("Obtained "), span(`<${itemReward[1]}>`, "reward-item"), span(` (${itemReward[2]})`));
+      return wrapper;
+    }
     const hp = line.match(HP_BAR);
     if (hp) {
       const ratio = +hp[5] > 0 ? +hp[4] / +hp[5] : 0;
@@ -1324,4 +1352,5 @@ const FX = (() => {
 
   return { renderLine, play, blip, startBattleMusic, stopBattleMusic, corrupt, realityCut, attackCutscene };
 })();
+
 
