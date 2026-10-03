@@ -103,7 +103,7 @@ function effLine(e) {
 }
 // Prints both health bars and the player's energy bar.
 function showStatus(f) {
-  print(`❤️ You:        ${hpBar(f.player_hp, f.player_max_hp)}`);
+  print(`❤️ You · Lv ${PLAYER.level}: ${hpBar(f.player_hp, f.player_max_hp)}`);
   print(`⚡ Energy:     ${energyBar(f.energy, typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY)}`);
   f.effects.forEach(effLine);
   if (typeof WORLD !== "undefined") {
