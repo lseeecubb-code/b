@@ -611,7 +611,117 @@
         .terminal.terminal-corrupted, .corrupt-glitch .terminal-corruption::before,
         .corrupt-tear .terminal-corruption::before, .corrupt-tear #screen { animation: none; }
       }
-    </style>
+    
+      /* The Last Save opens a brief, original terminal split and void effect. */
+      .last-save-cut {
+        position: absolute;
+        inset: 0;
+        z-index: 12;
+        overflow: hidden;
+        pointer-events: none;
+        background: #000;
+        animation: last-save-cut-fade 2600ms ease-in forwards;
+      }
+      .last-save-cut .cut-half {
+        position: absolute;
+        top: 0;
+        width: 50.5%;
+        height: 100%;
+        background: linear-gradient(90deg, #050505, #111 94%, #050505);
+        box-shadow: 0 0 24px #b8c8ff55;
+        will-change: transform;
+      }
+      .last-save-cut .cut-half-left {
+        left: 0;
+        border-right: 1px solid #c9d5ff;
+        animation: last-save-left-open 2600ms cubic-bezier(.7, 0, .2, 1) forwards;
+      }
+      .last-save-cut .cut-half-right {
+        right: 0;
+        border-left: 1px solid #c9d5ff;
+        animation: last-save-right-open 2600ms cubic-bezier(.7, 0, .2, 1) forwards;
+      }
+      .last-save-cut .cut-seam {
+        position: absolute;
+        z-index: 2;
+        left: 50%;
+        top: 0;
+        width: 2px;
+        height: 100%;
+        background: #f4f6ff;
+        box-shadow: 0 0 8px 2px #c2d2ff, 0 0 28px 6px #8ca6ff;
+        transform: scaleY(0);
+        transform-origin: center;
+        animation: last-save-seam 700ms steps(2, end) forwards;
+      }
+      .last-save-cut .cut-void {
+        position: absolute;
+        z-index: 3;
+        left: 50%;
+        top: 50%;
+        width: clamp(110px, 24vw, 300px);
+        height: clamp(90px, 34vh, 260px);
+        background: #000;
+        border: 1px solid #68708a;
+        box-shadow: 0 0 0 2px #000, 0 0 24px #8a9ed844;
+        transform: translate(-50%, -50%) scale(.08);
+        opacity: 0;
+        animation: last-save-void 2600ms cubic-bezier(.16, .8, .28, 1) forwards;
+      }
+      .last-save-cut .cut-hash-field {
+        position: absolute;
+        z-index: 4;
+        inset: 0;
+        color: #e7e9f2;
+        text-shadow: 0 0 7px #c3d2ff;
+        font: 700 clamp(13px, 2vw, 24px)/1 Consolas, "Courier New", monospace;
+      }
+      .last-save-cut .cut-glyph {
+        position: absolute;
+        opacity: 0;
+        animation: last-save-glyph 900ms steps(2, end) var(--glyph-delay, 0ms) 2;
+      }
+      @keyframes last-save-cut-fade {
+        0%, 72% { opacity: 1; }
+        100% { opacity: 0; visibility: hidden; }
+      }
+      @keyframes last-save-left-open {
+        0%, 24% { transform: translateX(0); }
+        44% { transform: translate(-3%, -1%); }
+        70%, 100% { transform: translate(-112%, -2%); }
+      }
+      @keyframes last-save-right-open {
+        0%, 24% { transform: translateX(0); }
+        44% { transform: translate(3%, 1%); }
+        70%, 100% { transform: translate(112%, 2%); }
+      }
+      @keyframes last-save-seam {
+        0% { transform: scaleY(0); opacity: 0; }
+        20% { transform: scaleY(1); opacity: 1; }
+        70%, 100% { transform: scaleY(1); opacity: 0; }
+      }
+      @keyframes last-save-void {
+        0%, 24% { opacity: 0; transform: translate(-50%, -50%) scale(.08); }
+        42% { opacity: 1; transform: translate(-50%, -50%) scale(1.04); }
+        58%, 78% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        100% { opacity: 0; transform: translate(-50%, -50%) scale(.96); }
+      }
+      @keyframes last-save-glyph {
+        0% { opacity: 0; transform: translate(0, -12px) skewX(-18deg); }
+        18%, 65% { opacity: .92; }
+        100% { opacity: 0; transform: translate(var(--glyph-drift, 8px), 34px) skewX(12deg); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .last-save-cut, .last-save-cut .cut-half-left, .last-save-cut .cut-half-right,
+        .last-save-cut .cut-seam, .last-save-cut .cut-void, .last-save-cut .cut-glyph {
+          animation: none !important;
+        }
+        .last-save-cut { opacity: 1; }
+        .last-save-cut .cut-seam { transform: scaleY(1); }
+        .last-save-cut .cut-void { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        .last-save-cut .cut-glyph { opacity: .7; }
+      }
+\n    </style>
   </head>
   <body>
     <div class="terminal">
