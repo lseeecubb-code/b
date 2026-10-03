@@ -19,6 +19,26 @@ function clearLoadingIndicator() {
   termStatus.setAttribute("aria-label", "Open game settings");
 }
 
+function reportStartupError(error) {
+  const message = error && error.stack ? error.stack : String(error || "Unknown startup error");
+  console.error("THE LAST SAVE startup error:", error);
+  try {
+    clearLoadingIndicator();
+    const output = document.createElement("pre");
+    output.style.whiteSpace = "pre-wrap";
+    output.style.color = "#ff7777";
+    output.textContent = "[startup error] " + message;
+    termScreen.replaceChildren(output);
+  } catch (displayError) {
+    termScreen.textContent = "[startup error] " + message;
+  }
+}
+
+window.addEventListener("error", (event) => {
+  if (!termScreen.textContent.trim() || termScreen.textContent.trim() === ">>>")
+    reportStartupError(event.error || event.message);
+});
+
 // Adds text to the screen. Text ending in "\n" becomes a finished line; anything else (like the
 // "what do you want to do?" prompt) stays on the same line as what the player types next.
 function write(text) {
@@ -134,8 +154,7 @@ showLoadingIndicator("Starting your game…");
 requestAnimationFrame(() =>
   setTimeout(
     () => runGame(savedCode).catch((e) => {
-      clearLoadingIndicator();
-      write("\n[error] " + ((e && e.stack) || e) + "\n");
+      reportStartupError(e);
     }),
     0
   )
