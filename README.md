@@ -1,66 +1,89 @@
 # THE LAST SAVE
 
-A small turn-based RPG about crafting, fighting, and a world that knows you're playing it.
+**A turn-based story RPG about exploring a fractured world, building a hero, and discovering what the game remembers.**
 
-## 🎮 Play Now
+▶️ **[Play THE LAST SAVE in your browser](https://lseeecubb-code.github.io/rpg-game/)**
 
-**[Play THE LAST SAVE](https://lseeecubb-code.github.io/rpg-game/)**
+## Start playing
 
-No download. No setup. Just open it and play.
+1. Open the game link above.
+2. Type **explore** and press **Enter** to travel and advance the story.
+3. Type **menu** to see every command. You can enter a command by name or select its number.
 
-## 📖 About
+The game runs in the browser and saves progress automatically. The input line supports command history with the up and down arrow keys.
 
-THE LAST SAVE is a story-driven RPG with a strange twist: the game itself becomes part of the story.
+## What you can do
 
-Explore different areas, fight enemies, collect gear, craft new items, and uncover what is really happening behind the world.
+- **Explore and choose your approach.** Follow enemy tracks, investigate a discovery, or leave both leads. Random encounters can include groups. Before an ordinary encounter, choose whether to fight or spare the enemy; sparing grants no XP, loot, or kill progress.
+- **Fight tactically.** Enemy moves show their accuracy and intent. Attacks can miss, and an opening gives you a chance to respond. In a group battle, enemies take their turns one at a time. Learn elemental weaknesses, build break and stagger, and use parries, guards, spells, items, and companions.
+- **Shape your character.** Allocate Strength, Agility, Vitality, and Focus; learn spells and perks; equip and upgrade weapons, armor, shields, headgear, and trinkets; and craft gear from materials.
+- **Follow the story.** Progress through 11 chapters, finish side quests, meet companions, uncover secrets, and choose an ending. Completed campaigns unlock New Game+.
+- **Take on optional challenges.** Run five-floor dungeons with a rest-or-push decision between floors, climb the endless tower, or discover a five-island raid. Raids have no timer; after an island, continue or leave. Clearing all five islands earns bonus rewards and raid tokens for permanent upgrades.
+- **Find more stories off the main road.** The Broken Frontier has a scout mission and outrider materials. The Cathedral of Ash has a linked Bellkeeper quest and a hidden bell boss. Later regions hold the Archive's Index Hound, three regional surveys, and the optional Lost Cartographer hunt.
+- **Track rewards clearly.** Combat presents earned XP, coins, and item drops in short reward lines.
 
-Your choices matter, and the further you go, the more the game starts to question what a "save" really means.
+## Useful commands
 
-## ⚔️ Gameplay
+| Command | What it does |
+| --- | --- |
+| **explore** | Travel, meet encounters, make choices, and advance the campaign |
+| **map** | Pick a safe road or a risky shortcut once in each chapter |
+| **story** / **guide** | Review the current objective or get progression guidance |
+| **quests** | View and turn in available side quests |
+| **fight (enemy name)** | Challenge a discovered enemy when it is unlocked |
+| **bestiary (enemy name)** | Review enemy attacks, accuracy, drops, and weaknesses |
+| **stats** / **allocate** | Review your stats or spend stat points |
+| **inventory** / **equip (item name)** | Manage supplies and gear |
+| **craft (item name) (amount)** / **recipes** | Craft items or browse and track recipes |
+| **party** | Review companions and choose your active ally |
+| **dungeon** / **tower** / **raids** | Enter an optional combat challenge |
+| **town** | Rest, trade, upgrade equipment, or train |
+| **save** / **saves** | Save now or manage local save slots |
+| **copy** / **load** | Copy a portable save code or load one |
+| **menu** | See the complete command list |
 
-* Turn-based battles
-* Enemy attacks use a visible per-move accuracy value; misses leave an opening to counter
-* Centered reward lines highlight earned money, XP, and obtained items
-* Crafting and equipment
-* Story choices and quests
-* Different areas and enemies
-* Choose to fight or spare ordinary exploration encounters
-* Optional exploration quest: find the wounded scout and choose how to get them home
-* Spend stat points by name or number (for example, `allocate 2 3` spends three points on Agility)
-* Regional five-island raids with no timer and raid-token upgrades
-* Elemental reactions: frost cracks burning armor; lightning spreads poison in group fights
-* A new Archive side quest with a rare Index Hound, a fight-or-spare discovery, and a craftable trinket made from its ink fragments
-* Three regional surveys across the Cathedral, Null Expanse, and Hollow Kingdom, leading to the optional Lost Cartographer boss and the Wayfinder equipment set
-* Multiple endings
+Stat points can be spent by number or name. For example, **allocate 2 3** spends three points on Agility; **allocate vitality 2** spends two on Vitality. Check **stats** to see your available points.
 
-## 💾 Saves
+## Progression
 
-Your progress is automatically saved in your browser.
+The main route moves through these regions:
 
-You can also use the built-in save codes to copy your progress and load it somewhere else.
+1. The Quiet Road
+2. The Broken Frontier
+3. The Cathedral of Ash
+4. The Null Expanse
+5. The Unfinished Room
+6. Outside the World
+7. The Archive of Attempts
+8. The Hollow Kingdom
+9. The Margin
+10. The Blank Page
+11. The Last Autosave
 
-## 🎵 Custom Enemy Music
+Type **story** for your current objective or **guide** for level targets and the campaign route. Side quests and optional bosses are separate from the chapter objectives, so you can return to them when you are ready.
 
-You can give enemies their own audio tracks. See the [Enemy Music Guide](ENEMY_MUSIC_GUIDE.md) for setup steps, boss phase tracks, and troubleshooting.
+## Saves and offline play
 
-## 📴 Play Offline
+Progress autosaves in the browser. Use **saves** to manage local slots, or **copy** and **load** to move a save with its code. The tower leaderboard is stored separately in the current browser.
 
-You can play the game completely offline.
+To play offline, download or clone this repository and keep the project files together. Open **index.html** in a modern browser. The live site is the easiest way to keep browser saves and the tower leaderboard available.
 
-To do this, download the project from GitHub and keep all the files together. Then open **`index.html`** in a modern browser.
+## Custom enemy music
 
-Once downloaded, you don't need a server, installation, or internet connection to play.
+See [ENEMY_MUSIC_GUIDE.md](ENEMY_MUSIC_GUIDE.md) for adding audio tracks, assigning boss phase music, and troubleshooting playback. Enemy audio files belong in **audio/enemies/**.
 
-## 📁 Project
+## Project files
 
-The game is built entirely with HTML, CSS and JavaScript, split into separate files to keep the code organized.
+- **index.html** — page layout, styles, and script loading
+- **index.js**, **commands.js**, **helpers.js** — startup, command input, and shared helpers
+- **story.js**, **dialogue.js**, **rpgSystems.js** — campaign, exploration, quests, raids, dungeons, and tower
+- **combat.js**, **monsters.js**, **effects.js** — battles, enemy data, and combat effects
+- **items.js**, **playerGear.js**, **crafting.js** — items, stats, equipment, and crafting
+- **saves.js**, **admin.js**, **typewriter.js** — save handling, developer utilities, and text display
+- **audio/** — optional enemy music
+- **patches/** — historical patch files kept for reference; the JavaScript files above are the current game source
 
-For development, the files in this folder are the canonical source. Make changes only here; the historical patch snapshots are kept in `patches/` and may not apply to this version. Use `raids` to open the regional raid board. Between dungeon floors, rest restores 12% HP and 2 Energy; push skips recovery and creates a larger fight with extra loot and level-scaled coin.
+## Contributing
 
----
-
-### Ready to play?
-
-**[Start THE LAST SAVE →](https://lseeecubb-code.github.io/rpg-game/)**
-
+For a code change, edit the current source files, keep item, enemy, and recipe names consistent across their data files, and update the script version query in **index.html** when a browser cache refresh is needed.
 
