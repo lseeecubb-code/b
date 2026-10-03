@@ -204,6 +204,11 @@ const COMPANION_DEFS = {
     ai: "dps",
   },
 };
+const COMPANION_PERSONAL_QUESTS = {
+  mira: { name: "Pages That Stayed", target: "archive stalker", need: 3, reward: 120 },
+  kael: { name: "Bells in the Dark", target: "zombie", need: 3, reward: 120 },
+  nyx: { name: "A Name for the Shadow", target: "wraith", need: 3, reward: 150 },
+};
 
 const SIDE_QUESTS = {
   vermin: {
@@ -564,6 +569,20 @@ function attachEnemyAccessors(f) {
 function makeEnemyState(name, elite = false) {
   const canonicalName = String(name).replace(/^elite /, "");
   const m = scaledMonster(canonicalName);
+  const towerWave = WORLD.towerRun?.active ? Math.max(1, (WORLD.towerRun.wave || 0) + 1) : 0;
+  if (towerWave) {
+    const scale = 1 + towerWave * 0.06;
+    const tune = (form) => {
+      form.hp = Math.max(1, int(form.hp * scale));
+      if (form.basic_attack?.damage) form.basic_attack.damage = scaleRange(form.basic_attack.damage, scale);
+      for (const move of Object.values(form.abilities || {})) {
+        if (move.damage) move.damage = scaleRange(move.damage, scale);
+        if (move.heal) move.heal = scaleRange(move.heal, scale);
+      }
+    };
+    tune(m);
+    (m.phases || []).forEach(tune);
+  }
   if (elite) {
     m.hp = int(m.hp * 1.35);
     m.icon = m.icon || "👹";
@@ -590,6 +609,8 @@ function makeEnemyState(name, elite = false) {
     phase: 0,
     eventFlags: {},
     elite: !!elite,
+    poise: 0,
+    role: enemyRole(activeForm),
   };
 }
 
@@ -727,6 +748,24 @@ function noteQuestKill(name) {
       st.progress = (st.progress || 0) + 1;
       WORLD.quests[id] = st;
       print(`   Quest progress (${q.name}): ${Math.min(st.progress, q.need)}/${q.need}`);
+    }
+  }
+  noteCompanionQuestKill(name);
+}
+
+function noteCompanionQuestKill(name) {
+  for (const id of WORLD.companions.active || []) {
+    const quest = COMPANION_PERSONAL_QUESTS[id];
+    if (!quest || (WORLD.companions.affinity[id] || 0) < 10) continue;
+    const state = WORLD.companions.personal[id] || (WORLD.companions.personal[id] = { progress: 0, done: false });
+    if (state.done || (name !== quest.target && name !== `elite ${quest.target}`)) continue;
+    state.progress = Math.min(quest.need, (state.progress || 0) + 1);
+    print(`   ${COMPANION_DEFS[id].name}'s personal quest: ${state.progress}/${quest.need} ${title(quest.target)} defeated.`);
+    if (state.progress >= quest.need) {
+      state.done = true;
+      addItem("coin", quest.reward);
+      grantXp(80);
+      print(`🤝 ${COMPANION_DEFS[id].name} personal quest complete: ${quest.name}. Their combo attack is unlocked!`);
     }
   }
 }
@@ -978,20 +1017,43 @@ function useSpell(f, name) {
   }
   if (s.damage) {
     let dmg = int(randint(...s.damage) * spellPower());
-    const res = (f.monster.resist || {})[s.element] || 0;
+    const elementResistance = (f.monster.resist || {})[s.element] || 0;
+    const res = Math.max(0, elementResistance);
     if (res) {
       dmg = Math.max(1, int(dmg * (1 - res / 100)));
       print(`   The ${f.name} resists ${s.element} (${res}%).`);
     }
-    const weak = (f.monster.weak || {})[s.element] || 0;
+    const weak = Math.max((f.monster.weak || {})[s.element] || 0, -elementResistance);
     if (weak) {
       dmg = int(dmg * (1 + weak / 100));
       print(`   The ${f.name} is weak to ${s.element}!`);
     }
     dmg = Math.max(1, dmg);
     f.monster_hp -= dmg;
+    chargeLimit(f, Math.max(1, int(dmg / 4)));
+    addBreak(f, 18 + (weak > 0 ? 42 : 0), weak > 0 ? `to ${title(s.element)}` : "");
     print(`   💥 ${title(name)} deals ${dmg} ${s.element || ""} damage.`);
     clog(f, `${name} hits ${f.name} for ${dmg}`);
+    if (s.element === "frost" && f.monster_effects.some((effect) => effect.type === "burn")) {
+      print("   ❄️🔥 Frost locks the burning armor into a brittle crack!");
+      applyMonsterEffect(f, { type: "exposed", chance: 100, damage: 0, turns: 2 });
+      addBreak(f, 35, "from the burn-and-frost reaction");
+    }
+    if (s.element === "lightning") {
+      const poison = f.monster_effects.find((effect) => effect.type === "poison");
+      if (poison && f.enemies?.length > 1) {
+        const current = f.target;
+        let spread = 0;
+        f.enemies.forEach((enemy, index) => {
+          if (index === current || enemy.hp <= 0) return;
+          f.target = index;
+          applyMonsterEffect(f, { type: "poison", chance: 100, damage: Math.max(1, Math.floor(poison.damage / 2)), turns: poison.turns });
+          spread++;
+        });
+        f.target = current;
+        if (spread) print(`   ⚡☠️ Lightning carries poison to ${spread} nearby foe${spread === 1 ? "" : "s"}!`);
+      }
+    }
     if (s.effect && f.monster_hp > 0) {
       f.monster_effects = applyStatus(f.monster_effects, s.effect, `The ${f.name}`);
     }
@@ -1008,6 +1070,9 @@ async function companionTurns(f) {
       print(`\n⚪ ${d.name} is down and cannot act.`);
       continue;
     }
+    WORLD.companions.affinity[id] = Math.min(100, (WORLD.companions.affinity[id] || 0) + 1);
+    if (WORLD.companions.affinity[id] === 10)
+      print(`💬 ${d.name} trusts you enough to share a personal request. Check 'party' for details.`);
     print("\n🔵");
     const tgt = livingEnemies(f)[0];
     if (!tgt) return;
@@ -1026,11 +1091,21 @@ async function companionTurns(f) {
       let dmg = randint(...companionDamage(id));
       if (tgt.staggered) dmg = int(dmg * (1 + C.STAGGER_BONUS));
       tgt.hp -= dmg;
+      chargeLimit(f, Math.max(1, int(dmg / 6)));
       print(`${d.name} strikes the ${tgt.name} for ${dmg} damage.`);
       clog(f, `${d.name} hits ${tgt.name} for ${dmg}`);
       if (d.ai === "dps" && percent(35) && tgt.hp > 0) {
         tgt.effects = applyStatus(tgt.effects, { type: "bleed", chance: 100, damage: 2, turns: 2 }, `The ${tgt.name}`) || tgt.effects;
       }
+    }
+    const bondQuest = WORLD.companions.personal[id];
+    if (bondQuest?.done && !f.companionComboUsed?.[id] && tgt.hp > 0) {
+      if (!f.companionComboUsed) f.companionComboUsed = {};
+      f.companionComboUsed[id] = true;
+      const combo = Math.max(1, int((randint(...companionDamage(id)) + PLAYER.level) * 1.5));
+      tgt.hp -= combo;
+      print(`✨ ${d.name} joins your attack in a bonded combo for ${combo} damage!`);
+      if (tgt.hp > 0) tgt.effects = applyStatus(tgt.effects, { type: "exposed", chance: 100, damage: 0, turns: 1 }, `The ${tgt.name}`) || tgt.effects;
     }
     WORLD.companions.hp[id] = hp;
   }
@@ -1061,6 +1136,13 @@ async function showParty() {
     const hp = WORLD.companions.hp[id] ?? companionMaxHp(id);
     print(`- ${d.name}${on} (${d.role})  HP ${Math.max(0, hp)}/${companionMaxHp(id)}`);
     print(`    ${d.personality}`);
+    const affinity = WORLD.companions.affinity[id] || 0;
+    const quest = COMPANION_PERSONAL_QUESTS[id];
+    const progress = WORLD.companions.personal[id] || { progress: 0, done: false };
+    print(`    Bond: ${affinity}/100`);
+    if (affinity < 10) print("    Personal request: build trust through battles together.");
+    else if (!progress.done) print(`    Personal quest: ${quest.name} · ${progress.progress || 0}/${quest.need} ${title(quest.target)} defeated.`);
+    else print("    Bonded combo attack: unlocked (once per fight).");
   });
   print("\nUp to 1 companion fights beside you (keeps turns readable).");
   const raw = (await input("Set active companion (name, 'none', or blank): ")).trim().toLowerCase();
@@ -1268,13 +1350,93 @@ async function trainerNpc() {
   print(`You learn ${title(n)}.`);
 }
 
-async function maybeExploreEvent(areaName) {
-  if (Math.random() > 0.28) return false;
+async function maybeExploreEvent(areaName, selectedKind = null, availableEncounters = []) {
+  if (!selectedKind && Math.random() > 0.28) return false;
   WORLD.eventsDone = (WORLD.eventsDone || 0) + 1;
   const table = ["chest", "trap", "merchant", "camp", "npc", "riddle", "cache", "scrap", "forage", "shrine", "echo"];
   if (STORY.chapter >= 1) table.push("townhint");
-  const kind = table[randint(0, table.length - 1)];
+  if (availableEncounters.length >= 2) table.push("raid");
+  const kind = selectedKind || table[randint(0, table.length - 1)];
   print("\n👣");
+  if (kind === "raid") {
+    const pool = availableEncounters.filter((name) => monsters[name]?.chance > 0);
+    if (!pool.length) {
+      print("You find signs of a raid, but no safe trail to follow yet.");
+      return true;
+    }
+    if (WORLD.dungeonRun?.active || WORLD.towerRun?.active) {
+      print("Finish your current challenge before starting a raid.");
+      return true;
+    }
+    const stats = getStats();
+    WORLD.raidRun = {
+      active: true,
+      island: 0,
+      hp: stats.max_hp,
+      energy: Math.min(C.START_ENERGY, maxEnergy()),
+      startedAt: Date.now(),
+      abandoned: false,
+    };
+    const run = WORLD.raidRun;
+    const endRaid = (cleared) => {
+      const elapsed = Math.floor((Date.now() - run.startedAt) / 1000);
+      WORLD.raidRun = null;
+      if (!cleared) {
+        print(`Raid ended on Island ${run.island || 1}. You receive no clear cache.`);
+        return;
+      }
+      const reward = 100 + STORY.chapter * 40;
+      addItem("coin", reward);
+      addItem(wchoice(["crystal", "ancient crystal", "potion", "void crystal"], [40, 20, 30, 10]), 1);
+      WORLD.flags.raidsWon = (WORLD.flags.raidsWon || 0) + 1;
+      WORLD.flags.raidFastestSeconds = Math.min(WORLD.flags.raidFastestSeconds || Infinity, elapsed);
+      print(`🏆 RAID CLEARED! You earn ${reward} bonus coin and a raid cache.`);
+    };
+    print("🚩 RAID DISCOVERED — a five-island assault is underway!");
+    print("Clear every enemy on each island to open the passage. Island 5 holds the raid boss.");
+    print("HP and energy carry between battles. Take the time you need.");
+    for (let island = 1; island <= 5; island++) {
+      if (run.hp <= 0 || run.abandoned) {
+        endRaid(false);
+        return true;
+      }
+      run.island = island;
+      print(`\n━━ RAID ISLAND ${island}/5 ━━`);
+      let foes, elite = false;
+      if (island === 5) {
+        const boss = pool.reduce((best, name) => monsters[name].hp > monsters[best].hp ? name : best, pool[0]);
+        foes = [boss];
+        elite = true;
+        print(`👑 RAID BOSS: Elite ${title(boss)} blocks the final passage!`);
+      } else {
+        const count = [0, 2, 3, 3, 4][island];
+        foes = Array.from({ length: count }, () => wchoice(pool, pool.map((name) => Math.max(1, monsters[name].chance))));
+        elite = island === 4;
+        print(`Clear all ${foes.length} enemies to open the portal to Island ${island + 1}.`);
+      }
+      const killsBeforeIsland = WORLD.totalKills || 0;
+      await fightMonster(foes, elite);
+      if ((WORLD.totalKills || 0) < killsBeforeIsland + foes.length) {
+        endRaid(false);
+        return true;
+      }
+      if (island < 5) {
+        print(`🌌 Island ${island} cleared. A portal opens. HP: ${run.hp}/${stats.max_hp} · Energy: ${run.energy}.`);
+        while (true) {
+          const choice = (await input("Continue to the next island or leave the raid? [continue/leave] ")).trim().toLowerCase();
+          if (["continue", "c", "yes", "y", ""].includes(choice)) break;
+          if (["leave", "l", "retire", "quit", "q", "no", "n"].includes(choice)) {
+            run.abandoned = true;
+            endRaid(false);
+            return true;
+          }
+          print("Choose 'continue' or 'leave'.");
+        }
+      }
+    }
+    endRaid(run.hp > 0 && !run.abandoned);
+    return true;
+  }
   if (kind === "chest") {
     print("A half-buried chest. The lock is already tired.");
     const loot = wchoice(["coin", "iron", "potion", "crystal"], [40, 30, 20, 10]);
@@ -1374,6 +1536,24 @@ async function maybeExploreEvent(areaName) {
     return true;
   }
   return false;
+}
+
+function rollExploreDiscovery(availableEncounters) {
+  if (Math.random() > 0.38) return null;
+  const table = ["chest", "trap", "merchant", "camp", "npc", "riddle", "cache", "scrap", "forage", "shrine", "echo"];
+  if (STORY.chapter >= 1) table.push("townhint");
+  if (availableEncounters.length >= 2) table.push("raid");
+  return table[randint(0, table.length - 1)];
+}
+
+function exploreDiscoveryLabel(kind) {
+  return ({
+    chest: "open the half-buried chest", trap: "cross the unstable ground", merchant: "visit the travelling merchant",
+    camp: "rest at the abandoned camp", npc: "talk to the traveller", riddle: "solve the roadside riddle",
+    cache: "search the strange crate", scrap: "salvage the wreck", forage: "gather roadside supplies",
+    shrine: "approach the roadside shrine", echo: "listen to the memory echo", townhint: "follow the smoke toward town",
+    raid: "intercept the discovered raiding party",
+  })[kind] || "investigate the discovery";
 }
 
 async function saveSlotsMenu() {
@@ -1480,6 +1660,7 @@ async function startNewGamePlus() {
     localStorage.setItem(COMPLETED_KEY, saveCode());
   } catch (e) {}
   PLAYER.ngPlus = (PLAYER.ngPlus || 0) + 1;
+  PLAYER.ngPlusEnding = STORY.ending;
   PLAYER.xp = 0;
   const keep = { ...PLAYER };
   const inv = { ...inventory };
@@ -1497,10 +1678,252 @@ async function startNewGamePlus() {
   WORLD.rarity = worldKeep.rarity;
   WORLD.companions = worldKeep.companions;
   WORLD.usedCombatItem = false;
+  if (PLAYER.ngPlusEnding === "remember") {
+    PLAYER.vit = Math.min(25, PLAYER.vit + 2);
+    print("🌿 Ending bonus: Remember — +2 Vitality for this New Game+ run.");
+  } else if (PLAYER.ngPlusEnding === "release") {
+    addItem("coin", 150);
+    print("🕊️ Ending bonus: Release — you begin with 150 extra coin.");
+  } else if (PLAYER.ngPlusEnding === "rewrite") {
+    if (SPELLS["static bind"] && !PLAYER.spells.includes("static bind")) PLAYER.spells.push("static bind");
+    print("✒️ Ending bonus: Rewrite — Static Bind is available from the beginning.");
+  }
   print(`\n🔁 New Game+ ${PLAYER.ngPlus} begins. This is not your completed file.`);
   print("🗺️ Type 'explore' to begin again. The Quiet Road remembers you.");
   unlockAchievement("ng");
   storyIntro();
+}
+
+async function runDungeon() {
+  if (WORLD.towerRun?.active) {
+    print("Finish or retire from your current tower run before entering the dungeon.");
+    return;
+  }
+  if (WORLD.dungeonRun?.active) {
+    print("A dungeon run is already in progress. Type 'dungeon' to continue it.");
+  }
+  const pool = Object.keys(monsters).filter((name) =>
+    monsters[name].chance > 0 && PLAYER.level >= enemyRequiredLevel(name) &&
+    (!monsters[name].secret_flag || STORY.flags.has(monsters[name].secret_flag))
+  );
+  if (!pool.length) {
+    print("No dungeon foes are available at your current level.");
+    return;
+  }
+  if (!WORLD.dungeonRun?.active) {
+    const stats = getStats();
+    WORLD.dungeonRun = {
+      active: true,
+      floor: 0,
+      hp: stats.max_hp,
+      energy: Math.min(C.START_ENERGY, maxEnergy()),
+    };
+    print("\n🏰 THE SUNDERED DEPTHS");
+    print("Five floors. Your HP and energy carry forward; supplies remain usable.");
+  }
+  const run = WORLD.dungeonRun;
+  while (run.floor < 5) {
+    if (run.hp <= 0 || run.abandoned) {
+      WORLD.dungeonRun = null;
+      print("The dungeon run ends here. Recover in town and try again when you're ready.");
+      return;
+    }
+    run.floor = Math.max(0, Math.min(5, parseInt(run.floor) || 0));
+    const floor = run.pending ? (run.pendingFloor || run.floor + 1) : run.floor + 1;
+    const bosses = !run.pending && floor === 5
+      ? Object.keys(monsters).filter((name) => monsters[name].chance <= 0 && !BOSS_CH[name] && PLAYER.level >= enemyRequiredLevel(name) && (!monsters[name].secret_flag || STORY.flags.has(monsters[name].secret_flag)))
+      : [];
+    const foe = run.pending
+      ? run.pendingFoe
+      : bosses.length
+        ? wchoice(bosses, bosses.map(() => 1))
+        : wchoice(pool, pool.map((name) => monsters[name].chance));
+    const elite = run.pending ? !!run.pendingElite : floor === 3 || (floor === 5 && !bosses.length);
+    if (!run.pending) {
+      run.pending = true;
+      run.pendingFloor = floor;
+      run.pendingFoe = foe;
+      run.pendingElite = elite;
+    }
+    print(`\n━━ FLOOR ${floor}/5 ━━`);
+    if (floor === 3) print("⚠️ A tougher elite guards the middle floor!");
+    if (floor === 5) print(elite ? "👑 The final floor is an elite challenge!" : "👑 A dungeon boss waits below!");
+    await fightMonster(foe, elite);
+    if (run.hp <= 0 || run.abandoned) {
+      WORLD.dungeonRun = null;
+      print(`The run ended on floor ${floor}.`);
+      return;
+    }
+    run.floor = floor;
+    run.pending = false;
+    delete run.pendingFloor;
+    delete run.pendingFoe;
+    delete run.pendingElite;
+    if (floor < 5) {
+      while (true) {
+        const answer = (await input("Between floors: rest (recover 12% HP and 2 energy), push onward, or retire? [rest/push/retire] ")).trim().toLowerCase();
+        if (["rest", "r"].includes(answer)) {
+          const stats = getStats();
+          const heal = Math.max(1, Math.floor(stats.max_hp * 0.12));
+          run.hp = Math.min(stats.max_hp, run.hp + heal);
+          run.energy = Math.min(maxEnergy(), run.energy + 2);
+          print(`🛏️ You recover ${heal} HP and 2 energy. (${run.hp}/${stats.max_hp} HP)`);
+          break;
+        }
+        if (["push", "p", "continue", ""].includes(answer)) {
+          print("You press deeper into the dungeon.");
+          break;
+        }
+        if (["retire", "quit", "q"].includes(answer)) {
+          WORLD.dungeonRun = null;
+          print(`You retire after floor ${floor}. The run ends without the clear reward.`);
+          return;
+        }
+        print("Choose 'rest', 'push', or 'retire'.");
+      }
+    }
+  }
+  WORLD.dungeonRun = null;
+  const reward = 100 + PLAYER.level * 15;
+  addItem("coin", reward);
+  print(`🏆 Dungeon cleared! Bonus reward: ${reward} coin.`);
+  WORLD.flags.dungeonCleared = (WORLD.flags.dungeonCleared || 0) + 1;
+  if (typeof checkAchievements === "function") checkAchievements();
+}
+
+async function runTower() {
+  if (WORLD.dungeonRun?.active) {
+    print("Finish the current dungeon run before entering the tower.");
+    return;
+  }
+  const pool = Object.keys(monsters).filter((name) =>
+    monsters[name].chance > 0 && PLAYER.level >= enemyRequiredLevel(name) &&
+    (!monsters[name].secret_flag || STORY.flags.has(monsters[name].secret_flag))
+  );
+  if (!pool.length) {
+    print("No arena foes are available at your current level.");
+    return;
+  }
+  if (!WORLD.towerRun?.active) {
+    const stats = getStats();
+    WORLD.towerRun = { active: true, wave: 0, hp: stats.max_hp, energy: Math.min(C.START_ENERGY, maxEnergy()) };
+    print("\n🏟️ THE ENDLESS TOWER");
+    print("Waves grow stronger. HP and energy carry between fights. Retire to bank your score.");
+  } else print(`Resuming at wave ${WORLD.towerRun.wave + 1}.`);
+
+  const run = WORLD.towerRun;
+  const record = (score) => {
+    try {
+      const key = "the-last-save.tower-leaderboard.v1";
+      const board = JSON.parse(localStorage.getItem(key) || "[]");
+      const entry = { wave: score, level: PLAYER.level, ending: STORY.ending || "none", date: new Date().toISOString() };
+      board.push(entry);
+      board.sort((a, b) => b.wave - a.wave);
+      const top = board.slice(0, 10);
+      localStorage.setItem(key, JSON.stringify(top));
+      WORLD.flags.towerBest = Math.max(WORLD.flags.towerBest || 0, score);
+      print("\n📜 TOWER LEADERBOARD (this browser)");
+      top.forEach((row, i) => print(`${i + 1}. Wave ${row.wave} · Lv ${row.level} · ${row.ending}`));
+    } catch (e) {
+      WORLD.flags.towerBest = Math.max(WORLD.flags.towerBest || 0, score);
+      print(`Personal best: wave ${WORLD.flags.towerBest}. Browser storage is unavailable for the leaderboard.`);
+    }
+  };
+  while (true) {
+    if (run.hp <= 0 || run.abandoned) {
+      const score = Math.max(0, run.wave - (run.abandoned ? 1 : 0));
+      WORLD.towerRun = null;
+      print(`The tower run ends at wave ${score}.`);
+      record(score);
+      return;
+    }
+    const wave = run.wave + 1;
+    const foe = run.pending ? run.pendingFoe : wchoice(pool, pool.map((name) => monsters[name].chance));
+    if (!run.pending) {
+      run.pending = true;
+      run.pendingFoe = foe;
+      run.pendingElite = wave % 5 === 0;
+    }
+    print(`\n━━ WAVE ${wave} ━━`);
+    if (wave % 5 === 0) print("👑 Elite wave!");
+    await fightMonster(foe, !!run.pendingElite);
+    if (run.hp <= 0 || run.abandoned) continue;
+    run.wave = wave;
+    run.pending = false;
+    delete run.pendingFoe;
+    delete run.pendingElite;
+    if (wave % 5 === 0) {
+      const reward = wave * 20;
+      const relics = [];
+      addItem("coin", reward);
+      if (wave >= 5 && !inventory["glass edge"]) {
+        addItem("glass edge", 1);
+        relics.push("Glass Edge");
+      }
+      if (wave >= 10 && !inventory["stormglass charm"]) {
+        addItem("stormglass charm", 1);
+        relics.push("Stormglass Charm");
+      }
+      print(`🏅 Milestone reward: ${reward} coin${relics.length ? ` and ${relics.join(" + ")}` : ""}.`);
+    }
+    while (true) {
+      const answer = (await input(`Wave ${wave} cleared. Continue or retire? [continue/retire] `)).trim().toLowerCase();
+      if (["continue", "c", "yes", "y", ""].includes(answer)) break;
+      if (["retire", "r", "stop", "no"].includes(answer)) {
+        const reward = wave * 10;
+        addItem("coin", reward);
+        WORLD.towerRun = null;
+        print(`You retire from the tower and bank ${reward} coin.`);
+        record(wave);
+        return;
+      }
+      print("Choose 'continue' or 'retire'.");
+    }
+  }
+}
+
+async function chooseRoute() {
+  const area = STORY_CHAPTERS[STORY.chapter]?.area || "the Quiet Road";
+  if (WORLD.flags.routeVisitedChapter === STORY.chapter) {
+    print(`You have already chosen a route through ${area}. The map will open when the next region does.`);
+    return;
+  }
+  print(`\n🗺️ ${area.toUpperCase()}`);
+  print("Wayrest ──┬── Safe road ── supplies and a slower passage");
+  print("          └── Risky shortcut ── an elite encounter and a faster route");
+  while (true) {
+    const choice = (await input("Choose safe road or risky shortcut [safe/risky]: ")).trim().toLowerCase();
+    if (["safe", "road", "s"].includes(choice)) {
+      const heal = Math.max(1, Math.floor(getStats().max_hp * 0.08));
+      WORLD.flags.routeChoices = WORLD.flags.routeChoices || [];
+      WORLD.flags.routeChoices.push("safe");
+      WORLD.flags.routeVisitedChapter = STORY.chapter;
+      if (WORLD.dungeonRun?.active || WORLD.towerRun?.active) {
+        const run = WORLD.dungeonRun?.active ? WORLD.dungeonRun : WORLD.towerRun;
+        run.hp = Math.min(getStats().max_hp, run.hp + heal);
+        print(`You take the safe road and recover ${heal} HP (${run.hp}/${getStats().max_hp}).`);
+      } else {
+        addItem("potion", 1);
+        print("You take the safe road and find a potion for the next encounter.");
+      }
+      return;
+    }
+    if (["risky", "shortcut", "r"].includes(choice)) {
+      const pool = Object.keys(monsters).filter((name) => monsters[name].chance > 0 && PLAYER.level >= enemyRequiredLevel(name) && (!monsters[name].secret_flag || STORY.flags.has(monsters[name].secret_flag)));
+      if (!pool.length) {
+        print("No shortcut encounters are available yet.");
+        return;
+      }
+      const foe = wchoice(pool, pool.map((name) => monsters[name].chance));
+      WORLD.flags.routeChoices = WORLD.flags.routeChoices || [];
+      WORLD.flags.routeChoices.push("risky");
+      WORLD.flags.routeVisitedChapter = STORY.chapter;
+      print(`You cut through the dangerous shortcut. An elite ${title(foe)} blocks the way!`);
+      await fightMonster(foe, true);
+      return;
+    }
+    print("Choose 'safe' or 'risky'.");
+  }
 }
 
 function applyRested(f) {

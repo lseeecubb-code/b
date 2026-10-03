@@ -38,6 +38,12 @@ function monsterChoose(m, last) {
     );
   return { kind: p[1], attack: p[2] };
 }
+function enemyRole(m) {
+  if (Object.values(m.abilities || {}).some((move) => ["empowered", "fortified", "hasted"].includes(move.special_effect?.type) || move.buff)) return "buffer";
+  if (Object.values(m.abilities || {}).some((move) => move.heal)) return "healer";
+  if ((m.block_chance || 0) >= 25) return "guardian";
+  return (m.basic_attack?.damage?.[1] || 0) >= 18 ? "brute" : "striker";
+}
 const BOSS_PHASE_ROMAN = ["I", "II", "III"];
 // Chance (%) that the enemy's parry or dodge stance works against an attack of this type.
 function stanceRate(m, st, type) {
@@ -82,6 +88,9 @@ const ACTION_ALIASES = {
   9: "counter",
   counter: "counter",
   c: "counter",
+  limit: "limit",
+  "limit break": "limit",
+  l: "limit",
   magic: "skill",
   spell: "skill",
   spells: "skill",
@@ -116,11 +125,19 @@ function showStatus(f) {
   }
   (f.enemies || [{ name: f.name, hp: f.monster_hp, monster: f.monster, effects: f.monster_effects }]).forEach((e, i) => {
     const mark = f.enemies && i === f.target ? " <" : "";
-    print(`${pad(cap(e.displayName || e.name), 18)} Lv ${e.monster.level || enemyRequiredLevel(e.name)} ${hpBar(e.hp, e.monster.hp)}${mark}`);
+    print(`${pad(cap(e.displayName || e.name), 18)} Lv ${e.monster.level || enemyRequiredLevel(e.name)} · ${title(e.role || enemyRole(e.monster))} ${hpBar(e.hp, e.monster.hp)}${mark}`);
     if (e.phases?.length) print(`   👑 Phase ${BOSS_PHASE_ROMAN[e.phase] || e.phase + 1}/${e.phases.length}`);
     (e.effects || []).forEach(effLine);
+    const weaknessValues = { ...(e.monster.weak || {}) };
+    for (const [element, value] of Object.entries(e.monster.resist || {}))
+      if (value < 0) weaknessValues[element] = Math.max(weaknessValues[element] || 0, -value);
+    const weaknesses = Object.entries(weaknessValues).filter(([, value]) => value > 0);
+    const resistances = Object.entries(e.monster.resist || {}).filter(([, value]) => value > 0);
+    if (weaknesses.length) print(`   ⚡ Weak to ${weaknesses.map(([element, value]) => `${title(element)} (+${value}%)`).join(", ")}`);
+    if (resistances.length) print(`   🛡️ Resists ${resistances.map(([element, value]) => `${title(element)} (${value}%)`).join(", ")}`);
   });
   if (f.guarding) print(`   🛡️ ${cap(f.name)} is guarding — your attacks deal ${int((f.monster.block_reduction || 0) * 100)}% less damage this turn.`);
+  if (f.stats.no_guard) print("   ⚠️ Glass Edge: you cannot Guard while this relic is equipped.");
   if (f.stance === "parry") print("   🤺 PARRY STANCE - it may turn your attack against you!");
   if (f.stance === "dodge") print("   💨 DODGE STANCE - it may slip your attack!");
   if (f.staggered) print(`   💫 STAGGERED - takes +${int(C.STAGGER_BONUS * 100)}% damage!`);
@@ -226,6 +243,7 @@ function showCombatMenu(f) {
   print(`8. ✨ Skills & abilities — use an equipped technique or learned spell (${sn}).`);
   print("9. 🎯 Counter — exploit an enemy's exposed opening.");
   print(`0. 🏃 Run away — attempt to flee (${run}% chance).`);
+  print(`L. 🌟 Limit Break — ${f.limitUsed ? "spent this fight" : `${Math.min(100, f.limitGauge || 0)}% charged`}.`);
   if (f.enemies && f.enemies.length > 1) print("Switch targets with 'target'; review recent events with 'log'.");
 }
 async function chooseItem() {
@@ -319,6 +337,14 @@ async function askAction(f) {
       print("There is no enemy opening to counter right now.");
       continue;
     }
+    if (a === "limit" && ((f.limitGauge || 0) < 100 || f.limitUsed)) {
+      print(f.limitUsed ? "Your Limit Break has already been used this fight." : "Your Limit Break is not charged yet.");
+      continue;
+    }
+    if (a === "guard" && f.stats.no_guard) {
+      print("The Glass Edge makes guarding impossible while equipped.");
+      continue;
+    }
     if (a === "item") {
       const n = await chooseItem();
       if (n === null) continue;
@@ -336,7 +362,7 @@ async function askAction(f) {
       }
       print("Living enemies:");
       f.enemies.forEach((e, i) => {
-        if (e.hp > 0) print(`  ${i + 1}. ${e.name} (${e.hp} HP)${i === f.target ? " <" : ""}`);
+        if (e.hp > 0) print(`  ${i + 1}. ${e.name} · ${title(e.role || enemyRole(e.monster))} (${e.hp} HP)${i === f.target ? " <" : ""}`);
       });
       const rawT = (await input("Target which? ")).trim();
       const idx = parseInt(rawT, 10) - 1;
@@ -521,6 +547,40 @@ function enemyRiposte(f) {
   f.player_hp -= d;
   print(`⚔️ The ${f.name} ripostes! You take ${d} damage.`);
 }
+// Hidden poise meter: deliberate counters and elemental weaknesses can stagger an enemy.
+function addBreak(f, amount, reason = "") {
+  const enemy = f.enemies?.[f.target];
+  if (!enemy || enemy.hp <= 0 || f.staggered) return;
+  enemy.poise = (enemy.poise || 0) + amount;
+  if (enemy.poise < 100) return;
+  enemy.poise = 0;
+  f.staggered = true;
+  f.intent = { kind: "staggered", attack: null };
+  print(`💫 ${f.name}'s poise breaks${reason ? ` ${reason}` : ""}! It loses its turn and takes bonus damage while staggered.`);
+  if (typeof clog === "function") clog(f, "poise broken; enemy staggered");
+}
+function chargeLimit(f, amount) {
+  if (f.limitUsed) return;
+  const before = f.limitGauge || 0;
+  f.limitGauge = Math.min(100, before + Math.max(0, amount));
+  if (before < 100 && f.limitGauge >= 100) print("🌟 LIMIT BREAK READY! Type 'limit' on your turn to unleash it.");
+}
+function useLimitBreak(f) {
+  f.limitUsed = true;
+  f.limitGauge = 0;
+  print("🌟 LIMIT BREAK: WORLD SPLITTER!");
+  const targets = f.enemies?.length
+    ? f.enemies.map((enemy, index) => ({ enemy, index })).filter(({ enemy }) => enemy.hp > 0)
+    : [{ enemy: null, index: f.target }];
+  for (const { enemy, index } of targets) {
+    f.target = index;
+    const damage = Math.max(1, int((randint(28, 42) + f.stats.damage * 2) * (enemy?.elite ? 1.25 : 1)));
+    f.monster_hp -= damage;
+    print(`   💥 ${f.name} takes ${damage} damage!`);
+    if (f.monster_hp > 0) applyMonsterEffect(f, { type: "exposed", chance: 100, damage: 0, turns: 1 });
+  }
+  if (typeof clog === "function") clog(f, "used Limit Break: World Splitter");
+}
 // Resolves one player strike: hit chance, crits, enemy guard/parry/dodge and the damage dealt.
 function strike(f, o) {
   const name = f.name;
@@ -560,6 +620,7 @@ function strike(f, o) {
   }
   let dmg = randint(...C.PLAYER_DAMAGE) + f.stats.damage + f.temporary_damage;
   dmg = int(dmg * mult);
+  dmg = int(dmg * (f.stats.damage_mult || 1));
   const pmod = typeof effectMods === "function" ? effectMods(f.effects) : { damage: 1 };
   dmg = int(dmg * pmod.damage);
   const emod = typeof effectMods === "function" ? effectMods(f.monster_effects) : { taken: 1 };
@@ -584,6 +645,11 @@ function strike(f, o) {
   print(`${label} ${ht}`);
   if (typeof clog === "function") clog(f, `${crit ? "CRIT " : ""}${dmg} to ${name}`);
   f.monster_hp -= dmg;
+  chargeLimit(f, Math.max(1, int(dmg / 4)));
+  const weakness = o.element
+    ? Math.max(f.monster.weak?.[o.element] || 0, -(f.monster.resist?.[o.element] || 0))
+    : 0;
+  addBreak(f, (o.heavy ? 24 : 12) + (weakness > 0 ? 36 : 0), weakness > 0 ? `to ${title(o.element)}` : "");
   return { result: crit ? "crit" : "hit", damage: dmg, landed: true };
 }
 // Handles the player's attack and heavy attack actions.
@@ -621,6 +687,7 @@ function useSkill(f, s) {
       ignore_parry: s.ignore_parry,
       ignore_dodge: s.ignore_dodge,
       skill_name: name,
+      element: s.element,
     });
     total += o.damage;
     landed = landed || o.landed;
@@ -684,6 +751,8 @@ async function playerTurn(f) {
     } else if (action === "skill") {
       if (extra.kind === "spell") useSpell(f, extra.name);
       else useSkill(f, SKILLS[extra.name]);
+    } else if (action === "limit") {
+      useLimitBreak(f);
     }
     else if (action === "guard") {
       print("🛡️ You raise your guard!");
@@ -737,6 +806,7 @@ function resolveDefense(f, a, inc) {
       print("⚡ PERFECT PARRY!");
       print("You perfectly time your defense!");
       stunEnemy(f, C.PERFECT_STUN_TURNS ?? STUN.PERFECT_TURNS, `The ${f.name} is stunned!`, false);
+      addBreak(f, 25, "from the perfect parry");
       f.energy = Math.min(typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY, f.energy + C.PERFECT_ENERGY);
       print(`⚡ You restore ${C.PERFECT_ENERGY} energy.`);
       const c = Math.max(
@@ -752,6 +822,7 @@ function resolveDefense(f, a, inc) {
       print("⚔️ PARRY!");
       print("You deflect the attack!");
       if (typeof clog === "function") clog(f, "parry");
+      addBreak(f, 20, "from the parry");
       if (typeof hasPerk === "function" && hasPerk("iron counter") && f.monster_hp > 0) {
         const cc = Math.max(1, int((randint(...C.PLAYER_DAMAGE) + s.damage) * 0.35));
         f.monster_hp -= cc;
@@ -844,6 +915,7 @@ function monsterDealDamage(f, a, inc) {
   print(`💔 You are hit for ${t} damage.`);
   if (typeof clog === "function") clog(f, `you take ${t}`);
   f.player_hp -= t;
+  chargeLimit(f, Math.max(1, int(t / 5)));
   applySpecialEffect(f, a);
   return t;
 }
@@ -861,6 +933,21 @@ function rollIntent(f) {
   f.intent = it;
   f.guarding = it.kind === "block";
   f.stance = { parry_stance: "parry", dodge_stance: "dodge" }[it.kind] || null;
+}
+// In group fights, only the first enemy that rolled an attack attacks this turn.
+// Other enemies keep any non-attack move they rolled, or wait if they also rolled an attack.
+function limitEnemyAttacks(f) {
+  let attackReserved = false;
+  for (const e of f.enemies || []) {
+    if (e.hp <= 0 || e.intent?.kind !== "attack") continue;
+    if (!attackReserved) {
+      attackReserved = true;
+      continue;
+    }
+    e.intent = { kind: "idle", attack: null, text: "waits for an opening" };
+    e.guarding = false;
+    e.stance = null;
+  }
 }
 // Plays out the enemy's turn.
 async function monsterTurn(f) {
@@ -899,11 +986,18 @@ async function monsterTurn(f) {
     );
     f.last_move = `${st} stance`;
   } else if (k === "heal") {
-    const a = it.attack,
-      h = randint(...a.heal);
-    f.monster_hp = Math.min(f.monster.hp, f.monster_hp + h);
+    const a = it.attack;
+    const allies = (f.enemies || []).filter((enemy) => enemy.hp > 0 && enemy.hp < enemy.monster.hp);
+    const recipient = allies.sort((x, y) => x.hp / x.monster.hp - y.hp / y.monster.hp)[0] || f.enemies?.[f.target];
+    const h = randint(...a.heal);
+    const before = recipient?.hp ?? f.monster_hp;
+    if (recipient) recipient.hp = Math.min(recipient.monster.hp, recipient.hp + h);
+    else f.monster_hp = Math.min(f.monster.hp, f.monster_hp + h);
+    const healed = (recipient?.hp ?? f.monster_hp) - before;
     print(`✨ The ${name} uses ${a.name.toUpperCase()}!`);
-    print(`💚 It heals ${h} HP.`);
+    print(`💚 ${recipient && recipient !== f.enemies?.[f.target] ? `It heals ${recipient.displayName || recipient.name}` : "It heals itself"} for ${healed} HP.`);
+    if (recipient && a.special_effect && typeof applyStatus === "function")
+      recipient.effects = applyStatus(recipient.effects, a.special_effect, `The ${recipient.displayName || recipient.name}`);
     f.last_move = a.name.toUpperCase();
   } else {
     const a = it.attack;
@@ -1034,7 +1128,10 @@ function showBestiaryJournal(arg = "") {
     if (entry.moves?.length) print(`Moves witnessed: ${entry.moves.map(title).join(", ")}`);
     if (entry.defeats > 0) {
       const enemy = monsters[name];
-      print(`Known weakness: ${Object.entries(enemy.resist || {}).filter(([, value]) => value < 0).map(([element]) => title(element)).join(", ") || "No elemental weakness recorded"}`);
+      const weaknessValues = { ...(enemy.weak || {}) };
+      for (const [element, value] of Object.entries(enemy.resist || {}))
+        if (value < 0) weaknessValues[element] = Math.max(weaknessValues[element] || 0, -value);
+      print(`Known weakness: ${Object.entries(weaknessValues).filter(([, value]) => value > 0).map(([element, value]) => `${title(element)} +${value}%`).join(", ") || "No elemental weakness recorded"}`);
       (enemy.phases || []).forEach((form, index) => {
         const resists = Object.entries(form.resist || {}).filter(([, value]) => value > 0).map(([element, value]) => `${title(element)} ${value}%`);
         print(`Phase ${index + 1}: ${form.name} · ${form.hp} HP${resists.length ? ` · resists ${resists.join(", ")}` : ""}`);
@@ -1107,20 +1204,27 @@ const BOSS_UNLOCKS = {
 function newFight(n, extras = []) {
   const names = Array.isArray(n) ? n : [n, ...extras];
   const s = getStats();
+  const expedition = WORLD.raidRun?.active ? WORLD.raidRun : WORLD.dungeonRun?.active ? WORLD.dungeonRun : WORLD.towerRun?.active ? WORLD.towerRun : null;
   const f = {
     enemies: names.map((nm) =>
       typeof makeEnemyState === "function" ? makeEnemyState(nm) : { name: nm, displayName: nm, monster: monsters[nm], hp: monsters[nm].hp, effects: [], guarding: false, stance: null, stun_turns: 0, stun_immune: 0, staggered: false, last_move: null, intent: null, phase: 0, phases: [] }
     ),
     target: 0,
     stats: s,
-    player_hp: s.max_hp,
+    player_hp: expedition
+      ? Math.min(s.max_hp, Number.isFinite(expedition.hp) ? expedition.hp : s.max_hp)
+      : s.max_hp,
     player_max_hp: s.max_hp,
-    energy: Math.min(C.START_ENERGY, typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY),
+    energy: expedition
+      ? Math.min(typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY, Number.isFinite(expedition.energy) ? expedition.energy : C.START_ENERGY)
+      : Math.min(C.START_ENERGY, typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY),
     effects: [],
     last_move: null,
     choice: null,
     owner: "player",
     cooldowns: {},
+    limitGauge: 0,
+    limitUsed: false,
     temporary_damage: 0,
     resist: { fire: 0, frost: 0 },
     phoenix_available: false,
@@ -1160,6 +1264,15 @@ function playerDown(f) {
     return false;
   }
   return true;
+}
+function saveDungeonVitals(f) {
+  if (WORLD.memories) WORLD.memories.inCombat = false;
+  const run = WORLD.raidRun?.active ? WORLD.raidRun : WORLD.dungeonRun?.active ? WORLD.dungeonRun : WORLD.towerRun?.active ? WORLD.towerRun : null;
+  if (run) {
+    run.hp = Math.max(0, f.player_hp);
+    run.energy = Math.max(0, f.energy);
+    if (f.fled) run.abandoned = true;
+  }
 }
 // Rolls the defeated enemy's drops and adds them to the inventory.
 function rollLoot(m) {
@@ -1285,6 +1398,7 @@ async function fightMonster(arg = "", elite = false) {
   const requested = Array.isArray(name) ? name : [name];
   if (!requested.every(checkEnemyLevel)) return;
   const f = newFight(name);
+  if (WORLD.memories) WORLD.memories.inCombat = true;
   if (elite && f.enemies) f.enemies = f.enemies.map((e) => makeEnemyState(e.name, true));
   const battleEnemies = Array.isArray(name) ? name : [name];
   const bossEncounter = elite || battleEnemies.some((enemy) => monsters[enemy]?.chance <= 0);
@@ -1315,6 +1429,7 @@ async function fightMonster(arg = "", elite = false) {
         f.target = i;
         rollIntent(f);
       });
+      limitEnemyAttacks(f);
       const open = f.enemies.findIndex((e) => e.hp > 0 && e.effects.some((x) => x.type === "exposed"));
       const live = f.enemies.findIndex((e) => e.hp > 0);
       if (open >= 0) f.target = open;
@@ -1335,23 +1450,27 @@ async function fightMonster(arg = "", elite = false) {
     if (typeof remindHeal === "function") remindHeal(f);
     await playerTurn(f);
     if (f.fled) {
+      saveDungeonVitals(f);
       stopMusic();
       print("(No XP or loot from a fight you ran from.)");
       return;
     }
     if (down()) {
+      saveDungeonVitals(f);
       stopMusic();
       winFight(f);
       if (typeof maybePromptLevelUp === "function") await maybePromptLevelUp();
       return;
     }
     if (playerDown(f)) {
+      saveDungeonVitals(f);
       stopMusic();
       loseFight(f);
       return;
     }
     if (typeof companionTurns === "function") await companionTurns(f);
     if (down()) {
+      saveDungeonVitals(f);
       stopMusic();
       winFight(f);
       if (typeof maybePromptLevelUp === "function") await maybePromptLevelUp();
@@ -1363,12 +1482,14 @@ async function fightMonster(arg = "", elite = false) {
         f.target = i;
         await monsterTurn(f);
         if (down()) {
+          saveDungeonVitals(f);
           stopMusic();
           winFight(f);
           if (typeof maybePromptLevelUp === "function") await maybePromptLevelUp();
           return;
         }
         if (playerDown(f)) {
+          saveDungeonVitals(f);
           stopMusic();
           loseFight(f);
           return;
@@ -1377,12 +1498,14 @@ async function fightMonster(arg = "", elite = false) {
     } else {
       await monsterTurn(f);
       if (down()) {
+        saveDungeonVitals(f);
         stopMusic();
         winFight(f);
         if (typeof maybePromptLevelUp === "function") await maybePromptLevelUp();
         return;
       }
       if (playerDown(f)) {
+        saveDungeonVitals(f);
         stopMusic();
         loseFight(f);
         return;

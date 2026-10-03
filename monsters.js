@@ -1900,3 +1900,18 @@ const ENEMY_LEVELS = {
   "the editor": 18, "margin warden": 18, "the author": 20, "the last save": 22, "the missing page": 12, "the echo of attempts": 16,
 };
 for (const [name, enemy] of Object.entries(monsters)) enemy.level = ENEMY_LEVELS[name] || Math.max(1, Math.ceil(enemy.hp / 150));
+// Explicit field-tested vulnerabilities used by spell damage, poise breaks, and combat readouts.
+const ELEMENT_WEAKNESSES = {
+  slime: { lightning: 25 },
+  zombie: { fire: 20 },
+  skeleton: { fire: 15 },
+  "fire elemental": { frost: 40 },
+  "ice golem": { fire: 35 },
+  "frost giant": { fire: 25 },
+  "frost giant king": { fire: 30 },
+  "stone golem": { lightning: 25 },
+  "ancient golem": { lightning: 30 },
+  wraith: { fire: 20 },
+  "ancient dragon": { frost: 20 },
+};
+for (const [name, weak] of Object.entries(ELEMENT_WEAKNESSES)) monsters[name].weak = weak;

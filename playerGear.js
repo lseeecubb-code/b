@@ -61,6 +61,8 @@ function getStats() {
   const s = {
     max_hp: C.BASE_MAX_HP,
     damage: 0,
+    damage_mult: 1,
+    no_guard: 0,
     guard: 0.0,
     max_energy: 0,
     parry: 0,

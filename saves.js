@@ -95,7 +95,12 @@ function applySave({ inv, eq, pl, st, world }) {
     WORLD = {
       ...base,
       ...world,
-      companions: { ...base.companions, ...(world.companions || {}) },
+      companions: {
+        ...base.companions,
+        ...(world.companions || {}),
+        affinity: { ...base.companions.affinity, ...(world.companions?.affinity || {}) },
+        personal: { ...base.companions.personal, ...(world.companions?.personal || {}) },
+      },
       flags: { ...base.flags, ...(world.flags || {}) },
       quests: world.quests && typeof world.quests === "object" ? world.quests : {},
       upgrades: world.upgrades && typeof world.upgrades === "object" ? world.upgrades : {},
@@ -124,6 +129,67 @@ function applySave({ inv, eq, pl, st, world }) {
         ? [...new Set(world.recipesCrafted.filter((n) => typeof n === "string" && recipes[n]))]
         : [],
     };
+  }
+  if (typeof WORLD !== "undefined" && WORLD.dungeonRun) {
+    const run = WORLD.dungeonRun;
+    WORLD.dungeonRun = run && typeof run === "object" && run.active
+      ? {
+          active: true,
+          floor: Math.max(0, Math.min(5, parseInt(run.floor) || 0)),
+          hp: Math.max(0, Number.isFinite(run.hp) ? run.hp : 1),
+          energy: Math.max(0, Number.isFinite(run.energy) ? run.energy : 0),
+          abandoned: !!run.abandoned,
+          pending: !!run.pending && typeof run.pendingFoe === "string" && !!monsters[run.pendingFoe],
+          pendingFloor: Math.max(1, Math.min(5, parseInt(run.pendingFloor) || (parseInt(run.floor) || 0) + 1)),
+          pendingFoe: typeof run.pendingFoe === "string" && monsters[run.pendingFoe] ? run.pendingFoe : null,
+          pendingElite: !!run.pendingElite,
+        }
+      : null;
+  }
+  if (typeof WORLD !== "undefined" && WORLD.towerRun) {
+    const run = WORLD.towerRun;
+    WORLD.towerRun = run && typeof run === "object" && run.active
+      ? {
+          active: true,
+          wave: Math.max(0, Number.isFinite(run.wave) ? parseInt(run.wave) || 0 : 0),
+          hp: Math.max(0, Number.isFinite(run.hp) ? run.hp : 1),
+          energy: Math.max(0, Number.isFinite(run.energy) ? run.energy : 0),
+          abandoned: !!run.abandoned,
+          pending: !!run.pending && typeof run.pendingFoe === "string" && !!monsters[run.pendingFoe],
+          pendingFoe: typeof run.pendingFoe === "string" && monsters[run.pendingFoe] ? run.pendingFoe : null,
+          pendingElite: !!run.pendingElite,
+        }
+      : null;
+  }
+  if (typeof WORLD !== "undefined" && WORLD.raidRun) {
+    const run = WORLD.raidRun;
+    WORLD.raidRun = run && typeof run === "object" && run.active
+      ? {
+          active: true,
+          island: Math.max(0, Math.min(5, parseInt(run.island) || 0)),
+          hp: Math.max(0, Number.isFinite(run.hp) ? run.hp : 1),
+          energy: Math.max(0, Number.isFinite(run.energy) ? run.energy : 0),
+          startedAt: Math.max(0, Number.isFinite(run.startedAt) ? run.startedAt : Date.now()),
+          abandoned: !!run.abandoned,
+        }
+      : null;
+  }
+  if (typeof WORLD !== "undefined") {
+    const memories = WORLD.memories && typeof WORLD.memories === "object" ? WORLD.memories : {};
+    WORLD.memories = {
+      reloads: Math.max(0, parseInt(memories.reloads) || 0),
+      quitsMidFight: Math.max(0, parseInt(memories.quitsMidFight) || 0),
+      lastSeenAt: Math.max(0, Number.isFinite(memories.lastSeenAt) ? memories.lastSeenAt : 0),
+      inCombat: !!memories.inCombat,
+    };
+    const affinity = WORLD.companions?.affinity || {};
+    WORLD.companions.affinity = Object.fromEntries(Object.entries(COMPANION_DEFS)
+      .map(([id]) => [id, Math.max(0, Math.min(100, parseInt(affinity[id]) || 0))]));
+    const personal = WORLD.companions?.personal || {};
+    WORLD.companions.personal = Object.fromEntries(Object.entries(COMPANION_PERSONAL_QUESTS).map(([id, quest]) => {
+      const state = personal[id] || {};
+      return [id, { progress: Math.max(0, Math.min(quest.need, parseInt(state.progress) || 0)), done: !!state.done }];
+    }));
   }
   if (typeof WORLD !== "undefined")
     WORLD.recipeUnlocks = Array.isArray(world?.recipeUnlocks)

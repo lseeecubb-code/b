@@ -46,8 +46,11 @@ Once downloaded, you don't need a server, installation, or internet connection t
 
 The game is built entirely with HTML, CSS and JavaScript, split into separate files to keep the code organized.
 
+For development, the files in this folder are the canonical source. Make changes only here; the historical patch snapshots are kept in `patches/` and may not apply to this version. Run `node test.js` to simulate every enemy fight and AI turn, then verify the group attack limit, poise break, and Limit Break.
+
 ---
 
 ### Ready to play?
 
 **[Start THE LAST SAVE →](https://lseeecubb-code.github.io/rpg-game/)**
+

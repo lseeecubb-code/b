@@ -12,10 +12,13 @@ function openGitHubRepository() {
 }
 const COMMANDS = {
   explore: [exploreStory, "explore", "Travel the current region, find encounters, and advance the campaign"],
+  map: [chooseRoute, "map", "Choose a safe road or a risky shortcut through the current region"],
   story: [showStory, "story", "Review your chapter, objective, and progress"],
   guide: [showProgressionGuide, "guide", "See your current objective, level targets, and campaign route"],
   ending: [showEnding, "ending", "Choose the fate of the world after the final boss"],
   fight: [fightCommand, "fight [enemy]", "Challenge a discovered foe or enter a random battle"],
+  dungeon: [runDungeon, "dungeon", "Enter a five-floor gauntlet with a rest-or-push choice between floors"],
+  tower: [runTower, "tower", "Fight endless scaling waves, bank rewards, and set a browser leaderboard score"],
   bestiary: [showBestiary, "bestiary [enemy]", "Study enemy moves, resistances, drops, and encounter odds"],
   journal: [showBestiaryJournal, "journal [enemy]", "Review enemy encounters, forms, and moves you have discovered"],
   inventory: [showInventory, "inventory [category]", "Browse your carried gear, supplies, and materials"],
@@ -68,8 +71,8 @@ const COMMANDS = {
   ],
 };
 const MENU = [
-  ["📖", ["explore", "story", "guide", "ending"]],
-  ["⚔️", ["fight", "bestiary", "journal"]],
+  ["📖", ["explore", "map", "story", "guide", "ending"]],
+  ["⚔️", ["fight", "dungeon", "tower", "bestiary", "journal"]],
   ["🧙", ["inventory", "stats", "skills", "allocate", "perks", "magic", "info", "equip", "unequip"]],
   ["🔨", ["craft", "recipes", "shop", "buy", "sell"]],
   ["🏕️", ["town", "quests", "party", "achievements", "settings", "save", "saves", "completed", "ngplus", "event", "github", "copy", "load", "menu", "quit"]],
@@ -163,6 +166,20 @@ async function runGame(savedCode) {
       print(`[autosave warning] ${e.message}`);
     }
   }
+  if (!WORLD.memories || typeof WORLD.memories !== "object") WORLD.memories = { reloads: 0, quitsMidFight: 0, lastSeenAt: 0 };
+  const now = Date.now();
+  if (WORLD.memories.inCombat) {
+    WORLD.memories.quitsMidFight = (WORLD.memories.quitsMidFight || 0) + 1;
+    print("📖 The world remembers that the last session ended during a fight.");
+  }
+  const awayMs = now - (WORLD.memories.lastSeenAt || now);
+  if (WORLD.memories.lastSeenAt) {
+    WORLD.memories.reloads = (WORLD.memories.reloads || 0) + 1;
+    if (awayMs >= 24 * 60 * 60 * 1000) print(`⌛ You were away for ${Math.floor(awayMs / (24 * 60 * 60 * 1000))} day(s). The world kept turning.`);
+    else print("💾 The world remembers your returning save.");
+  }
+  WORLD.memories.inCombat = false;
+  WORLD.memories.lastSeenAt = now;
   print("\n👋");
   print("⚔️ A turn-based story RPG. Explore a fractured world, grow stronger, and uncover what waits beyond the final save.");
   storyIntro();

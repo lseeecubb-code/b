@@ -34,6 +34,7 @@ function print(...args) {
 
 function autosave(manual = false) {
   try {
+    if (typeof WORLD !== "undefined" && WORLD.memories) WORLD.memories.lastSeenAt = Date.now();
     localStorage.setItem(SAVE_KEY, saveCode());
     termStatus.title = "Your adventure is saved automatically.";
     if (manual) print("💾 Game saved.");

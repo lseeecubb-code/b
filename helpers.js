@@ -55,6 +55,7 @@ function defaultPlayerExtra(p = {}) {
     perks: Array.isArray(p.perks) ? [...p.perks] : [],
     spells: Array.isArray(p.spells) ? [...p.spells] : ["ember spark", "mend"],
     ngPlus: p.ngPlus ?? 0,
+    ngPlusEnding: ["remember", "release", "rewrite"].includes(p.ngPlusEnding) ? p.ngPlusEnding : null,
   };
 }
 function defaultWorld() {
@@ -67,7 +68,11 @@ function defaultWorld() {
     trackedRecipes: [],
     recipesCrafted: [],
     bestiary: {},
-    companions: { recruited: [], active: [], hp: {} },
+    companions: { recruited: [], active: [], hp: {}, affinity: {}, personal: {} },
+    dungeonRun: null,
+    towerRun: null,
+    raidRun: null,
+    memories: { reloads: 0, quitsMidFight: 0, lastSeenAt: 0 },
     rested: 0,
     eventsDone: 0,
     usedCombatItem: false,

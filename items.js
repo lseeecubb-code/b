@@ -146,6 +146,14 @@ const ITEMS = {
     crit: 8,
     description: "It grows stronger whenever a god stops being a god.",
   },
+  "glass edge": {
+    id: "trinket", damage_mult: 0.25, max_hp: -25, no_guard: 1,
+    description: "+25% damage, but removes the ability to guard.",
+  },
+  "stormglass charm": {
+    id: "trinket", dodge: 18, max_hp: -20, max_energy: -1,
+    description: "+18% dodge, but -20 max HP and -1 max energy.",
+  },
   "fractured crown": {
     id: "head",
     max_hp: 80,

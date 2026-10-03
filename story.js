@@ -246,12 +246,6 @@ async function exploreStory() {
   const needed = Object.entries(p.kills)
     .filter(([e, n]) => killCount(e) < n && monsters[e] && PLAYER.level >= enemyRequiredLevel(e))
     .map((x) => x[0]);
-  if (typeof maybeExploreEvent === "function" && !(needed.length && (ch === 0 || Math.random() < 0.4))) {
-    if (await maybeExploreEvent(an)) {
-      if (typeof maybePromptLevelUp === "function") await maybePromptLevelUp();
-      return;
-    }
-  }
   let enemy;
   if (needed.length && (ch === 0 || Math.random() < 0.4)) enemy = needed[0];
   else
@@ -260,6 +254,23 @@ async function exploreStory() {
       availableEnc.map((n) => Math.max(1, monsters[n].chance))
     );
   print(`\n👣 You press farther into ${an}, watching for movement...`);
+  const discovery = typeof rollExploreDiscovery === "function" ? rollExploreDiscovery(availableEnc) : null;
+  if (discovery) {
+    print(`You spot ${title(enemy)} tracks, and also find something worth investigating.`);
+    print(`1. Hunt ${title(enemy)}`);
+    print(`2. ${exploreDiscoveryLabel(discovery)}`);
+    print("0. Return to the trail without pursuing either lead");
+    const choice = (await input("Which lead do you follow? [1/2/0]: ")).trim().toLowerCase();
+    if (["0", "back", "leave", "cancel"].includes(choice)) {
+      print("You leave both leads for another day.");
+      return;
+    }
+    if (["2", "event", "discovery"].includes(choice)) {
+      await maybeExploreEvent(an, discovery, availableEnc);
+      if (typeof maybePromptLevelUp === "function") await maybePromptLevelUp();
+      return;
+    }
+  }
   let fightArg = enemy;
   if (Math.random() < 0.18 && !needed.includes(enemy) && monsters[enemy]?.chance > 0) {
     const pal = availableEnc.find((n) => n !== enemy) || enemy;
