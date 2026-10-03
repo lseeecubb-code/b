@@ -30,6 +30,7 @@ Your choices matter, and the further you go, the more the game starts to questio
 * Regional five-island raids with no timer and raid-token upgrades
 * Elemental reactions: frost cracks burning armor; lightning spreads poison in group fights
 * A new Archive side quest with a rare Index Hound, a fight-or-spare discovery, and a craftable trinket made from its ink fragments
+* Three regional surveys across the Cathedral, Null Expanse, and Hollow Kingdom, leading to the optional Lost Cartographer boss and the Wayfinder equipment set
 * Multiple endings
 
 ## 💾 Saves
