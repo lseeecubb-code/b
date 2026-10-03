@@ -1,4 +1,62 @@
 // Player stats, inventory, equipment and item info.
+const EQUIPMENT_SETS = {
+  dragon: {
+    pieces: ["dragon armor", "dragonscale armor", "dragon shield", "dragon boots", "dragon slayer", "dragon spear", "dragon bow"],
+    bonuses: [
+      { pieces: 2, stats: { max_hp: 18, defense: 1 }, text: "+18 max HP, +1 defense" },
+      { pieces: 3, stats: { damage: 3, parry: 5 }, text: "+3 damage, +5 parry" },
+    ],
+  },
+  flame: {
+    pieces: ["flame armor", "ember blade", "flameblade", "fire sword", "infernal axe"],
+    bonuses: [
+      { pieces: 2, stats: { damage: 3, crit: 4 }, text: "+3 damage, +4% critical chance" },
+      { pieces: 3, stats: { guard: 0.04 }, text: "+4% guard" },
+    ],
+  },
+  frost: {
+    pieces: ["frost armor", "frost sword", "frostfang"],
+    bonuses: [
+      { pieces: 2, stats: { parry: 5, dodge: 4 }, text: "+5% parry, +4% dodge" },
+      { pieces: 3, stats: { max_hp: 20, defense: 2 }, text: "+20 max HP, +2 defense" },
+    ],
+  },
+  shadow: {
+    pieces: ["shadow armor", "shadow cloak", "shadow blade"],
+    bonuses: [{ pieces: 2, stats: { dodge: 5, crit: 5 }, text: "+5% dodge, +5% critical chance" }],
+  },
+  berserker: {
+    pieces: ["berserker armor", "berserker axe"],
+    bonuses: [{ pieces: 2, stats: { damage: 4, crit: 6 }, text: "+4 damage, +6% critical chance" }],
+  },
+  archive: {
+    pieces: ["archive blade", "hollow plate", "archivist's ring"],
+    bonuses: [
+      { pieces: 2, stats: { max_hp: 25, defense: 2 }, text: "+25 max HP, +2 defense" },
+      { pieces: 3, stats: { damage: 4, crit: 5 }, text: "+4 damage, +5% critical chance" },
+    ],
+  },
+};
+
+function equipmentSetProgress() {
+  const worn = Object.values(equipment).filter(Boolean);
+  return Object.entries(EQUIPMENT_SETS).map(([name, set]) => {
+    const actualCount = worn.filter((item) => set.pieces.includes(item)).length;
+    const target = Math.max(...set.bonuses.map((bonus) => bonus.pieces));
+    return {
+      name,
+      count: Math.min(actualCount, target),
+      target,
+      active: set.bonuses.filter((bonus) => actualCount >= bonus.pieces),
+      next: set.bonuses.find((bonus) => actualCount < bonus.pieces) || null,
+    };
+  });
+}
+
+function equipmentSetFor(item) {
+  return Object.entries(EQUIPMENT_SETS).find(([, set]) => set.pieces.includes(item)) || null;
+}
+
 function getStats() {
   const s = {
     max_hp: C.BASE_MAX_HP,
@@ -12,6 +70,11 @@ function getStats() {
   Object.values(equipment).forEach((n) => {
     if (n) for (const k in s) s[k] += ITEMS[n][k] || 0;
   });
+  for (const status of equipmentSetProgress()) {
+    const set = EQUIPMENT_SETS[status.name];
+    for (const bonus of status.active)
+      for (const [stat, amount] of Object.entries(bonus.stats)) s[stat] += amount;
+  }
   s.max_hp += (PLAYER.level - 1) * C.LVL_HP;
   s.damage += (PLAYER.level - 1) * C.LVL_DMG;
   const str = PLAYER.str ?? 5,
@@ -168,6 +231,15 @@ function showStats() {
     const u = WORLD?.upgrades?.[n] || 0;
     print(`[${slot}] ${n} [${r}${u ? ` +${u}` : ""}] (${describeBuffs(n)})`);
   }
+  const setProgress = equipmentSetProgress().filter((set) => set.count > 0);
+  if (setProgress.length) {
+    print("\n🧩 Equipment sets:");
+    setProgress.forEach((set) => {
+      const active = set.active.map((bonus) => bonus.text).join("; ");
+      const next = set.next ? `Next at ${set.next.pieces}: ${set.next.text}` : "All set bonuses active";
+      print(`- ${title(set.name)} ${set.count}/${set.target} · ${active || "No bonus active"} · ${next}`);
+    });
+  }
   const sk = weaponSkills();
   if (sk.length) {
     print("\n⚔️");
@@ -208,6 +280,13 @@ async function equipItem(choice = "") {
   if (cur) print(`Swapping your ${cur} for the ${choice}.`);
   equipment[slot] = choice;
   print(`🧰 Equipped ${choice}: ${describeBuffs(choice)}`);
+  const setEntry = equipmentSetFor(choice);
+  if (setEntry) {
+    const [setName, set] = setEntry;
+    const progress = equipmentSetProgress().find((entry) => entry.name === setName);
+    const active = progress.active.map((bonus) => bonus.text).join("; ");
+    print(`🧩 ${title(setName)} set: ${progress.count}/${progress.target} pieces${active ? ` · ${active}` : ` · ${progress.next?.text} at ${progress.next?.pieces} pieces`}.`);
+  }
   if (ITEMS[choice].description) print(`   "${ITEMS[choice].description}"`);
   if (ITEMS[choice].skills?.length) print("   Skills: " + ITEMS[choice].skills.join(", "));
 }
@@ -230,6 +309,13 @@ async function unequipItem(choice = "") {
   }
   equipment[ITEMS[choice].id] = null;
   print(`🎒 Unequipped ${choice}.`);
+  const setEntry = equipmentSetFor(choice);
+  if (setEntry) {
+    const [setName] = setEntry;
+    const progress = equipmentSetProgress().find((entry) => entry.name === setName);
+    const active = progress.active.map((bonus) => bonus.text).join("; ");
+    print(`🧩 ${title(setName)} set: ${progress.count}/${progress.target} pieces${active ? ` · ${active}` : " · no set bonus active"}.`);
+  }
 }
 
 const STAT_LABELS = [
@@ -322,6 +408,12 @@ async function showItemInfo(arg = "") {
     const it = ITEMS[name];
     print(`🧩 Slot: ${it.id}`);
     print(`📊 Bonuses: ${describeBuffs(name)}`);
+    const setEntry = equipmentSetFor(name);
+    if (setEntry) {
+      const [setName, set] = setEntry;
+      const next = set.bonuses[0];
+      print(`🧩 ${title(setName)} set piece · first bonus at ${next.pieces} pieces: ${next.text}.`);
+    }
     if (it.description) print(`        "${it.description}"`);
     const cur = equipment[it.id];
     if (cur === null) print(`Your ${it.id} slot is empty, so you'd gain all of the above.`);
@@ -413,3 +505,4 @@ function showEnemyInfo(name) {
   print(`📖 Status: ${fightUnlocked(name) ? "discovered — you can challenge it with 'fight'" : `undiscovered — ${lockReason(name)}`}`);
   print("Use 'bestiary <enemy>' to review its move pattern and encounter odds.");
 }
+
