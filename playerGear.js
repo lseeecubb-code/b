@@ -36,6 +36,13 @@ const EQUIPMENT_SETS = {
       { pieces: 3, stats: { damage: 4, crit: 5 }, text: "+4 damage, +5% critical chance" },
     ],
   },
+  wayfinder: {
+    pieces: ["starfall aegis", "ashglass", "oathkeeper mail", "cartographer's compass"],
+    bonuses: [
+      { pieces: 2, stats: { max_hp: 22, crit: 3 }, text: "+22 max HP, +3% critical chance" },
+      { pieces: 3, stats: { damage: 5, dodge: 4 }, text: "+5 damage, +4% dodge" },
+    ],
+  },
 };
 
 function equipmentSetProgress() {
