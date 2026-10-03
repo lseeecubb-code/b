@@ -701,7 +701,7 @@ const FX = (() => {
           const step = (melody[(i + (theme.seed % melody.length) + bar) % melody.length] + (bar % 2 ? 1 : 0)) % scale.length;
           const octave = i === 3 || i === 7 ? 2 : 1;
           if ((i + theme.seed) % 5 !== 0) {
-            musicNote(theme.root * Math.pow(2, (scale[step] + 12 * octave) / 12), now + i * beat / 2, beat * 0.34, boss ? 0.035 : 0.025, theme.wave);
+            musicNote(theme.root * Math.pow(2, (scale[step] + 12 * octave) / 12), now + i * beat / 2, beat * 0.34, activeBattleMusic.boss ? 0.035 : 0.025, theme.wave);
           }
         }
       };
@@ -717,6 +717,7 @@ const FX = (() => {
     battleMusicGeneration++;
     activeBattleMusic = {
       theme: battleTheme(enemyNames, boss, musicProfile),
+      boss: Boolean(boss),
       bar: 0,
       musicFile: typeof musicFile === "string" ? musicFile.trim() : null,
       fileFailed: false,
