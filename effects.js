@@ -2,7 +2,7 @@
 //
 // The game engine only ever calls print(). This file watches the lines being printed and
 // reacts to them: it colors them, shakes or flashes the screen, floats damage numbers and plays
-// small synthesized sounds (no audio files, so the game still works offline from file://).
+// local audio files with synthesized fallbacks, so the game still works offline from file://.
 //
 // To add a new effect, add one entry to RULES below. To mute everything, use the Sound button.
 
@@ -13,7 +13,7 @@ const FX = (() => {
   const reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // ---------- Sound ----------
-  // All sounds are synthesized with the Web Audio API (no audio files, so it works from file://).
+  // Local audio files are preferred; Web Audio synthesis remains the offline-safe fallback.
   // Building blocks: tone() = an oscillator with an envelope, noise() = filtered noise (swooshes,
   // crunches, booms), bell() = metallic ring (clangs, coins, chimes). Everything runs through a
   // compressor and a little reverb so it sounds fuller than raw beeps.
