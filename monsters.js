@@ -1741,6 +1741,7 @@ const BOSS_OPENINGS = {
   },
   "the last save": {
     "title": "THE FINAL OVERWRITE",
+    "terminal_cut": true,
     "lines": [
       "The terminal dims. The save icon flickers once.",
       "A final presence reaches through the screen.",
