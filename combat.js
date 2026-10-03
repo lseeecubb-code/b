@@ -120,7 +120,6 @@ function showStatus(f) {
     if (e.phases?.length) print(`   👑 Phase ${BOSS_PHASE_ROMAN[e.phase] || e.phase + 1}/${e.phases.length}`);
     (e.effects || []).forEach(effLine);
   });
-  if (f.last_move) print(`   📝 Last move: ${f.last_move}`);
   if (f.guarding) print(`   🛡️ ${cap(f.name)} is guarding — your attacks deal ${int((f.monster.block_reduction || 0) * 100)}% less damage this turn.`);
   if (f.stance === "parry") print("   🤺 PARRY STANCE - it may turn your attack against you!");
   if (f.stance === "dodge") print("   💨 DODGE STANCE - it may slip your attack!");
