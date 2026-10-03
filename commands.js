@@ -25,7 +25,7 @@ const COMMANDS = {
   inventory: [showInventory, "inventory [category]", "Browse your carried gear, supplies, and materials"],
   stats: [showStats, "stats", "Review attributes, combat values, and equipped gear"],
   skills: [showSkills, "skills", "Review weapon techniques, perks, and known spells"],
-  allocate: [allocateStats, "allocate", "Spend points on Strength, Agility, Vitality, or Focus"],
+  allocate: [allocateStats, "allocate [1-4|stat] [points]", "Allocate stat points by number or name; optionally spend several at once"],
   perks: [showPerks, "perks", "Browse the Warrior, Rogue, and Mage perk paths"],
   magic: [showMagic, "magic", "Review spells that spend Energy in combat"],
   party: [showParty, "party", "Review your companions and choose who fights beside you"],
@@ -532,4 +532,5 @@ const ADMIN = (() => {
     run,
   };
 })();
+
 
