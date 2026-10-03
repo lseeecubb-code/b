@@ -14,6 +14,8 @@ const COMMANDS = {
   explore: [exploreStory, "explore", "Travel the current region, find encounters, and advance the campaign"],
   map: [chooseRoute, "map", "Choose a safe road or a risky shortcut through the current region"],
   story: [showStory, "story", "Review your chapter, objective, and progress"],
+  chronicle: [showCampaignChronicle, "chronicle", "Read story memories and major choices from this run"],
+  replay: [replayChapter, "replay [chapter]", "Revisit an unlocked chapter memory without changing progress"],
   guide: [showProgressionGuide, "guide", "See your current objective, level targets, and campaign route"],
   ending: [showEnding, "ending", "Choose the fate of the world after the final boss"],
   fight: [fightCommand, "fight [enemy]", "Challenge a discovered foe or enter a random battle"],
@@ -72,7 +74,7 @@ const COMMANDS = {
   ],
 };
 const MENU = [
-  ["📖", ["explore", "map", "story", "guide", "ending"]],
+  ["📖", ["explore", "map", "story", "chronicle", "replay", "guide", "ending"]],
   ["⚔️", ["fight", "dungeon", "tower", "raids", "bestiary", "journal"]],
   ["🧙", ["inventory", "stats", "skills", "allocate", "perks", "magic", "info", "equip", "unequip"]],
   ["🔨", ["craft", "recipes", "shop", "buy", "sell"]],
