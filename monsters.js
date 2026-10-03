@@ -1652,4 +1652,21 @@ for (const [name, phases] of Object.entries(BOSS_EVENT_REACTIONS)) {
   });
 }
 
-
+// Minimum player level recommended before an enemy can appear or be challenged.
+const ENEMY_LEVELS = {
+  rat: 1, slime: 1, "dust jackal": 1,
+  goblin: 2, wolf: 2, "wild boar": 2, "giant spider": 2, harpy: 2,
+  skeleton: 2, zombie: 2, bandit: 2, "giant crab": 2, "armored goblin": 2,
+  "goblin king": 3, "clockwork hound": 3, witch: 4, "dire wolf": 4,
+  orc: 4, wyvern: 4, "alpha wolf": 4, "frontier marksman": 3,
+  "bandit captain": 3, werewolf: 2, "mire witch": 4, "fire elemental": 4,
+  vampire: 4, wraith: 4, troll: 5, "orc warlord": 6, "ice golem": 5,
+  berserker: 6, ogre: 2, "bellbound acolyte": 4, dragon: 7, lich: 6,
+  "stone golem": 6, "the unnamed king": 6, "null leech": 7,
+  "ancient dragon": 10, "frost giant": 7, "frost giant king": 10,
+  "ancient golem": 11, demon: 7, "ash demon": 12, "archive stalker": 13,
+  "footnote mimic": 13, "the leftover": 8, "the watcher": 10,
+  "the witness": 12, "the archivist": 14, "the first hero": 16,
+  "the editor": 18, "margin warden": 18, "the author": 20, "the last save": 22,
+};
+for (const [name, enemy] of Object.entries(monsters)) enemy.level = ENEMY_LEVELS[name] || Math.max(1, Math.ceil(enemy.hp / 150));
