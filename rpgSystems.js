@@ -295,6 +295,12 @@ Object.assign(SIDE_QUESTS, {
     desc: "Recover one soul shard from a footnote mimic in the Archive.", type: "collect", target: "soul shard", need: 1,
     reward: { xp: 420, coin: 240, "ancient crystal": 2 }, chapterMin: 6,
   },
+  unwritten_index: {
+    name: "The Unwritten Index", giver: "Archivist",
+    desc: "Find the Index Hound carrying the last catalogue strip. Hunt it in the Archive, or follow its trail and spare it.",
+    type: "kills", target: "index hound", need: 1,
+    reward: { xp: 520, coin: 300, "soul shard": 2, "ancient crystal": 2 }, chapterMin: 6,
+  },
   frontier_signal: {
     name: "A Signal for the Frontier", giver: "Frontier Scout",
     desc: "Find the wounded scout's route map while exploring the Broken Frontier.",
@@ -1451,6 +1457,7 @@ async function maybeExploreEvent(areaName, selectedKind = null, availableEncount
   WORLD.eventsDone = (WORLD.eventsDone || 0) + 1;
   const table = ["chest", "trap", "merchant", "camp", "npc", "riddle", "cache", "scrap", "forage", "shrine", "echo"];
   if (STORY.chapter >= 1) table.push("townhint");
+  if (availableEncounters.includes("index hound") && questState("unwritten_index").status === "active" && !WORLD.flags.archive_index_resolved) table.push("index_hound");
   if (availableEncounters.length >= 2) table.push("raid");
   const kind = selectedKind || table[randint(0, table.length - 1)];
   print("\n👣");
@@ -1630,6 +1637,41 @@ async function maybeExploreEvent(areaName, selectedKind = null, availableEncount
     }
     return true;
   }
+  if (kind === "index_hound") {
+    if (questState("unwritten_index").status !== "active" || WORLD.flags.archive_index_resolved) {
+      print("Only loose scraps remain where the hound's trail crossed the shelves.");
+      return true;
+    }
+    print("A lean hound made of ink and torn paper guards a strip from the last catalogue.");
+    print("1. Fight for the catalogue strip.");
+    print("2. Lower your weapon and follow the hound.");
+    print("0. Leave it alone for now.");
+    while (true) {
+      const choice = (await input("What do you do? [fight/follow/leave]: ")).trim().toLowerCase();
+      if (["0", "leave", "back", "cancel"].includes(choice)) {
+        print("The hound slips between the shelves, carrying the page with it.");
+        return true;
+      }
+      if (["1", "fight", "f", "attack", "yes", "y"].includes(choice)) {
+        const killsBefore = WORLD.totalKills || 0;
+        await fightMonster("index hound");
+        if ((WORLD.totalKills || 0) > killsBefore) WORLD.flags.archive_index_resolved = true;
+        return true;
+      }
+      if (["2", "follow", "spare", "s", "mercy"].includes(choice)) {
+        WORLD.flags.archive_index_resolved = true;
+        const quest = questState("unwritten_index");
+        quest.progress = 1;
+        WORLD.quests.unwritten_index = quest;
+        print("The hound pauses, then leads you to a reading nook hidden behind the shelves.");
+        print("You recover the catalogue strip and an intact brass indexer's lens from its collar.");
+        completeQuest("unwritten_index");
+        addItem("indexer's lens", 1);
+        return true;
+      }
+      print("Choose fight, follow, or leave.");
+    }
+  }
   if (kind === "lost_scout") {
     if (WORLD.flags.frontier_scout_guided) {
       print("The trail is quiet now. The scout made it back to camp.");
@@ -1677,6 +1719,8 @@ function rollExploreDiscovery(availableEncounters) {
   if (STORY.chapter >= 1) table.push("townhint");
   if (STORY.chapter >= 1 && questState("frontier_signal").status === "active" && !WORLD.flags.frontier_scout_guided)
     table.push("lost_scout", "lost_scout");
+  if (availableEncounters.includes("index hound") && questState("unwritten_index").status === "active" && !WORLD.flags.archive_index_resolved)
+    table.push("index_hound", "index_hound");
   if (availableEncounters.length >= 2) table.push("raid");
   return table[randint(0, table.length - 1)];
 }
@@ -1689,6 +1733,7 @@ function exploreDiscoveryLabel(kind) {
     shrine: "approach the roadside shrine", echo: "listen to the memory echo", townhint: "follow the smoke toward town",
     raid: "intercept the discovered raiding party",
     lost_scout: "follow the scout's signal flare",
+    index_hound: "follow the Index Hound's trail",
   })[kind] || "investigate the discovery";
 }
 
