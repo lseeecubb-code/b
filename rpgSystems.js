@@ -270,6 +270,33 @@ const SIDE_QUESTS = {
   },
 };
 Object.assign(SIDE_QUESTS, {
+  quiet_road_pests: {
+    name: "Green in the Grass", giver: "Innkeeper",
+    desc: "Clear three mosslings away from the gardens outside Wayrest.",
+    type: "kills", target: "mossling", need: 3,
+    reward: { xp: 55, coin: 35, "moon herb": 2 }, chapterMin: 0,
+  },
+  burrow_under_wayrest: {
+    name: "Something Under the Cellar", giver: "Innkeeper",
+    desc: "Track the burrow rats tunnelling beneath the old road.",
+    type: "kills", target: "burrow rat", need: 3,
+    requiresQuests: ["quiet_road_pests"],
+    reward: { xp: 75, coin: 55, meat: 2 }, chapterMin: 0,
+  },
+  lanterns_out: {
+    name: "Thieves in the Twilight", giver: "Wayrest Guard",
+    desc: "Recover stolen lantern glass from two thieves on the Quiet Road.",
+    type: "kills", target: "lantern thief", need: 2,
+    requiresQuests: ["burrow_under_wayrest"], minLevel: 2,
+    reward: { xp: 105, coin: 75, "lantern glass": 1 }, chapterMin: 0,
+  },
+  roots_under_wayrest: {
+    name: "The Old Road's Heart", giver: "Wayrest Guard",
+    desc: "Follow the mossback's trail to its lair and settle the trouble beneath the road.",
+    type: "kills", target: "mossback guardian", need: 1,
+    requiresQuests: ["quiet_road_pests", "burrow_under_wayrest", "lanterns_out"], minLevel: 3,
+    reward: { xp: 155, coin: 120, "guardian bark": 2, "moon herb": 2 }, chapterMin: 0,
+  },
   jackal_pelts: {
     name: "Tracks in the Dust", giver: "Innkeeper",
     desc: "Thin the dust jackals prowling the Quiet Road.", type: "kills", target: "dust jackal", need: 3,
@@ -399,6 +426,8 @@ const ACHIEVEMENTS = {
   three_horizons: { name: "Three Horizons", desc: "Complete the Ash, Null, and Hollow regional surveys." },
   beyond_the_map: { name: "Beyond the Map", desc: "Find and defeat the Lost Cartographer." },
   unanswered: { name: "The Unanswered Bell", desc: "Find and defeat the Bell Without a Tongue." },
+  wayrest_regular: { name: "Wayrest's Favorite", desc: "Complete all four jobs on the Quiet Road." },
+  mossback_slayer: { name: "Heart of the Old Road", desc: "Find and defeat the Mossback Guardian." },
   supply_scout: { name: "Supply Scout", desc: "Find moon herb, black salt, and a clockwork spring." },
   maker: { name: "Made by Hand", desc: "Craft every new formula added in this content update." },
 };
@@ -748,9 +777,12 @@ function checkAchievements() {
   if (["star_glass_survey", "ashen_reliquary", "hollow_patrol"].every((id) => questState(id).status === "done")) unlockAchievement("three_horizons");
   if (killCount("the lost cartographer") > 0) unlockAchievement("beyond_the_map");
   if (killCount("the bell without a tongue") > 0) unlockAchievement("unanswered");
+  if (killCount("mossback guardian") > 0) unlockAchievement("mossback_slayer");
+  if (["quiet_road_pests", "burrow_under_wayrest", "lanterns_out", "roots_under_wayrest"].every((id) => questState(id).status === "done"))
+    unlockAchievement("wayrest_regular");
   if (["dust jackal", "frontier marksman", "bellbound acolyte", "null leech", "footnote mimic"].every((n) => killCount(n) > 0)) unlockAchievement("field_notes");
   if (["moon herb", "black salt", "clockwork spring"].every((n) => (WORLD.recipeMaterialsSeen || []).includes(n))) unlockAchievement("supply_scout");
-  if (["moonlit poultice", "salt ward", "clockwork charge", "sunfire bomb", "trailbreaker bow", "bellguard", "nullweave coat", "archivist's ring", "margin seal", "last line tonic"].every((n) => (WORLD.recipesCrafted || []).includes(n))) unlockAchievement("maker");
+  if (["moonlit poultice", "salt ward", "clockwork charge", "sunfire bomb", "trailbreaker bow", "bellguard", "nullweave coat", "archivist's ring", "margin seal", "last line tonic", "field stew", "mosswrap boots", "roadward charm", "lantern charm", "mossback buckler"].every((n) => (WORLD.recipesCrafted || []).includes(n))) unlockAchievement("maker");
 }
 
 function recruitCompanion(id, announce = true) {
@@ -1512,6 +1544,12 @@ async function maybeExploreEvent(areaName, selectedKind = null, availableEncount
   if (!selectedKind && Math.random() > 0.28) return false;
   WORLD.eventsDone = (WORLD.eventsDone || 0) + 1;
   const table = ["chest", "trap", "merchant", "camp", "npc", "riddle", "cache", "scrap", "forage", "shrine", "echo"];
+  if (areaName === "The Quiet Road" && STORY.chapter === 0) {
+    if (!WORLD.flags.quiet_waystone_resolved) table.push("quiet_waystone");
+    if (!WORLD.flags.trapped_messenger_resolved) table.push("trapped_messenger");
+    if (questState("roots_under_wayrest").status === "active" && PLAYER.level >= enemyRequiredLevel("mossback guardian"))
+      table.push("mossback_lair");
+  }
   if (STORY.chapter >= 1) table.push("townhint");
   if (availableEncounters.includes("index hound") && questState("unwritten_index").status === "active" && !WORLD.flags.archive_index_resolved) table.push("index_hound");
   if (availableEncounters.includes("glasswing moth") && !WORLD.flags.starfall_cache_opened) table.push("starfall");
@@ -1697,6 +1735,101 @@ async function maybeExploreEvent(areaName, selectedKind = null, availableEncount
       addItem("coin", 15);
     }
     return true;
+  }
+  if (kind === "quiet_waystone") {
+    if (WORLD.flags.quiet_waystone_resolved) {
+      print("The old waystone rests where you left it.");
+      return true;
+    }
+    print("An old waystone has fallen across a fork in the Quiet Road. Fresh moss hides its carvings.");
+    print("1. Lift the stone back into place and leave an offering.");
+    print("2. Search the cracked base for anything still useful.");
+    print("0. Leave it for now.");
+    while (true) {
+      const choice = (await input("What do you do? [1/2/0]: ")).trim().toLowerCase();
+      if (["0", "leave", "back"].includes(choice)) return true;
+      if (["1", "lift", "repair", "offering"].includes(choice)) {
+        WORLD.flags.quiet_waystone_resolved = true;
+        WORLD.rested = 1;
+        addItem("road pin", 1);
+        addItem("moon herb", 1);
+        print("The road opens again. You feel ready for the next fight.");
+        return true;
+      }
+      if (["2", "search", "base", "pin"].includes(choice)) {
+        WORLD.flags.quiet_waystone_resolved = true;
+        addItem("road pin", 1);
+        addItem("coin", 12);
+        print("You find a brass road pin and a few coins wedged under the marker.");
+        return true;
+      }
+      print("Choose 1 to set the waystone upright, 2 to search it, or 0 to leave.");
+    }
+  }
+  if (kind === "trapped_messenger") {
+    if (WORLD.flags.trapped_messenger_resolved) return true;
+    print("A courier is pinned beneath an overturned handcart. A lantern thief's tracks disappear into the grass.");
+    print("1. Spend a potion to treat the courier.");
+    print("2. Share your food and help them stand.");
+    print("3. Salvage the cart's spare supplies and move on.");
+    print("0. Leave the scene for now.");
+    while (true) {
+      const choice = (await input("How do you help? [1/2/3/0]: ")).trim().toLowerCase();
+      if (["0", "leave", "back"].includes(choice)) return true;
+      if (["1", "potion", "medicine"].includes(choice)) {
+        if ((inventory.potion || 0) < 1) {
+          print("You need a potion to treat the courier. Choose another option.");
+          continue;
+        }
+        removeItem("potion", 1, true);
+        WORLD.flags.trapped_messenger_resolved = true;
+        WORLD.rested = 1;
+        addItem("coin", 38);
+        print("The courier gets back on their feet and marks a safer trail for you.");
+        print("Earned 30 Exp.");
+        grantXp(30);
+        return true;
+      }
+      if (["2", "food", "meat", "share"].includes(choice)) {
+        if ((inventory.meat || 0) < 1) {
+          print("You have no meat to share. Choose another option.");
+          continue;
+        }
+        removeItem("meat", 1, true);
+        WORLD.flags.trapped_messenger_resolved = true;
+        addItem("moon herb", 2);
+        addItem("coin", 15);
+        print("The courier shares a bundle of herbs in thanks and limps back toward Wayrest.");
+        return true;
+      }
+      if (["3", "salvage", "supplies", "cart"].includes(choice)) {
+        WORLD.flags.trapped_messenger_resolved = true;
+        addItem("wood", 3);
+        addItem("leather", 1);
+        addItem("coin", 8);
+        print("You salvage the cart's dry supplies and leave the courier enough room to crawl free.");
+        return true;
+      }
+      print("Choose 1 to use a potion, 2 to share meat, 3 to salvage supplies, or 0 to leave.");
+    }
+  }
+  if (kind === "mossback_lair") {
+    if (questState("roots_under_wayrest").status !== "active") return true;
+    print("A curtain of roots parts around a hollow under the old road. The Mossback Guardian is curled around a stone heart.");
+    print("1. Step inside and challenge the guardian.");
+    print("0. Mark the entrance and return later.");
+    while (true) {
+      const choice = (await input("Do you enter the lair? [1/0]: ")).trim().toLowerCase();
+      if (["0", "leave", "back", "later"].includes(choice)) return true;
+      if (["1", "enter", "fight", "yes"].includes(choice)) {
+        STORY.flags.add("quiet_road_mossback_found");
+        print("The roots tighten around the road as the guardian rises.");
+        await fightMonster("mossback guardian");
+        tryTurnInQuests();
+        return true;
+      }
+      print("Choose 1 to enter the lair or 0 to return to the road.");
+    }
   }
   if (kind === "signal_cache") {
     if (WORLD.flags.frontier_signal_cache_found) return true;
@@ -1897,6 +2030,12 @@ async function maybeExploreEvent(areaName, selectedKind = null, availableEncount
 function rollExploreDiscovery(availableEncounters) {
   if (Math.random() > 0.38) return null;
   const table = ["chest", "trap", "merchant", "camp", "npc", "riddle", "cache", "scrap", "forage", "shrine", "echo"];
+  if (STORY.chapter === 0 && availableEncounters.includes("mossling")) {
+    if (!WORLD.flags.quiet_waystone_resolved) table.push("quiet_waystone", "quiet_waystone");
+    if (!WORLD.flags.trapped_messenger_resolved) table.push("trapped_messenger", "trapped_messenger");
+    if (questState("roots_under_wayrest").status === "active" && PLAYER.level >= enemyRequiredLevel("mossback guardian"))
+      table.push("mossback_lair", "mossback_lair", "mossback_lair");
+  }
   if (STORY.chapter >= 1) table.push("townhint");
   if (STORY.chapter >= 1 && questState("frontier_signal").status === "active" && !WORLD.flags.frontier_scout_guided)
     table.push("lost_scout", "lost_scout");
@@ -1927,6 +2066,9 @@ function exploreDiscoveryLabel(kind) {
     lost_atlas: "follow the atlas to the edge of the kingdom",
     signal_cache: "search the broken signal lantern",
     silent_bell: "follow the sound of the silent bell",
+    quiet_waystone: "investigate the fallen waystone",
+    trapped_messenger: "help the courier trapped beneath the handcart",
+    mossback_lair: "follow the roots to the Mossback Guardian's lair",
   })[kind] || "investigate the discovery";
 }
 
