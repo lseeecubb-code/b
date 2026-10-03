@@ -27,6 +27,7 @@ const COMMANDS = {
   quests: [showQuestLog, "quests", "Track side quests, objectives, and rewards"],
   achievements: [showAchievements, "achievements", "Celebrate milestones earned along the way"],
   settings: [showSettingsMenu, "settings", "Adjust difficulty, combat log, and display preferences"],
+  save: [() => autosave(true), "save", "Save your adventure immediately"],
   saves: [saveSlotsMenu, "saves", "Manage your three local save slots"],
   completed: [loadCompletedRun, "completed", "Restore your most recently completed campaign"],
   ngplus: [startNewGamePlus, "ngplus", "Begin a tougher replay after choosing an ending"],
@@ -68,7 +69,7 @@ const MENU = [
   ["⚔️", ["fight", "bestiary", "journal"]],
   ["🧙", ["inventory", "stats", "skills", "allocate", "perks", "magic", "info", "equip", "unequip"]],
   ["🔨", ["craft", "recipes", "shop", "buy", "sell"]],
-  ["🏕️", ["town", "quests", "party", "achievements", "settings", "saves", "completed", "ngplus", "event", "github", "copy", "load", "menu", "quit"]],
+  ["🏕️", ["town", "quests", "party", "achievements", "settings", "save", "saves", "completed", "ngplus", "event", "github", "copy", "load", "menu", "quit"]],
 ];
 const ORDER = MENU.flatMap((x) => x[1]),
   cnum = (n) => ORDER.indexOf(n) + 1;
