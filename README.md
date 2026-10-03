@@ -19,10 +19,14 @@ Your choices matter, and the further you go, the more the game starts to questio
 ## ⚔️ Gameplay
 
 * Turn-based battles
+* Enemy attacks use a visible per-move accuracy value; misses leave an opening to counter
+* Centered reward lines highlight earned money, XP, and obtained items
 * Crafting and equipment
 * Story choices and quests
 * Different areas and enemies
 * Choose to fight or spare ordinary exploration encounters
+* Optional exploration quest: find the wounded scout and choose how to get them home
+* Spend stat points by name or number (for example, `allocate 2 3` spends three points on Agility)
 * Regional five-island raids with no timer and raid-token upgrades
 * Elemental reactions: frost cracks burning armor; lightning spreads poison in group fights
 * Multiple endings
@@ -56,4 +60,5 @@ For development, the files in this folder are the canonical source. Make changes
 ### Ready to play?
 
 **[Start THE LAST SAVE →](https://lseeecubb-code.github.io/rpg-game/)**
+
 
