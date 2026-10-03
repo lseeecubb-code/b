@@ -101,12 +101,26 @@
       button:hover {
         background: #252525;
       }
-      .status {
+      .footer-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
         padding: 5px 14px;
         border-top: 1px solid #222;
-        color: #888;
-        font-size: 12px;
       }
+      .status {
+        flex: 0 0 auto;
+        padding: 5px 9px;
+        border: 1px solid #444;
+        border-radius: 4px;
+        background: #111;
+        color: #ddd;
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .status:hover:not(:disabled) { background: #1a1a1a; border-color: #777; }
+      .status:disabled { cursor: wait; }
       .status.is-loading {
         color: #e6c86e;
       }
@@ -123,10 +137,16 @@
         }
       }
       .help {
-        padding: 0 14px 7px;
-        color: #666;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+        min-width: 0;
+        color: #888;
         font-size: 11px;
       }
+      .version { color: #aaa; white-space: nowrap; }
       @media (max-width: 700px) {
         .terminal {
           height: 98vh;
@@ -401,10 +421,12 @@
         >
       </div>
       <div id="screen" tabindex="0"></div>
-      <div class="status" id="status" role="status" aria-live="polite">Ready</div>
-      <div class="help">
-        Enter = run command · ↑/↓ = history · saves are automatic in this browser · works fully
-        offline
+      <div class="footer-row">
+        <button class="status" id="settingsButton" type="button" aria-label="Open game settings">⚙️ Settings</button>
+        <div class="help">
+          <span>↵ Enter runs a command · ↑/↓ browse history</span>
+          <span class="version" id="gameVersion">THE LAST SAVE · v1.0</span>
+        </div>
       </div>
       <div class="input-row">
         <span class="prompt">&gt;&gt;&gt;</span
