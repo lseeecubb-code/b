@@ -591,7 +591,7 @@ const FX = (() => {
     if (!audio) return;
     const begin = () => {
       if (!activeBattleMusic || !soundOn || audio.state !== "running" || battleMusicTimer !== null) return;
-      musicBus.gain.setTargetAtTime(0.18, audio.currentTime, 0.25);
+      musicBus.gain.setTargetAtTime(0.55, audio.currentTime, 0.25);
       const theme = activeBattleMusic.theme;
       const beat = 60 / theme.tempo;
       const barLength = beat * 4;
@@ -635,7 +635,7 @@ const FX = (() => {
     pauseBattleMusic();
     activeBattleMusic = null;
     if (musicBus && audio) musicBus.gain.setTargetAtTime(0, audio.currentTime, 0.16);
-    if (musicBus && audio) musicBus.gain.setTargetAtTime(on && activeBattleMusic ? 0.18 : 0, audio.currentTime, 0.18);
+    if (musicBus && audio) musicBus.gain.setTargetAtTime(on && activeBattleMusic ? 0.55 : 0, audio.currentTime, 0.18);
     if (on && activeBattleMusic) resumeBattleMusic();
     else if (!on) pauseBattleMusic();
   }
