@@ -1022,9 +1022,9 @@ const FX = (() => {
     { match: /You gain .* status for|The .* is .* for \d+ turns/, cls: "fx-status", run: () => play("status") },
 
     // ----- fight flow -----
-    { match: /^Earned \$[\d,]+.*$/, cls: "fx-reward-feed", run: (m) => (play("coin"), showRewardNotification(m[0])) },
-    { match: /^Earned [\d,]+ Exp\..*$/, cls: "fx-reward-feed", run: (m) => (play("xp"), showRewardNotification(m[0])) },
-    { match: /^Obtained <.+> \(\d+x\)$/, cls: "fx-reward-feed", run: (m) => (play("pickup"), showRewardNotification(m[0])) },
+    { match: /^Earned \$[\d,]+/, cls: "fx-reward-feed", run: () => play("coin") },
+    { match: /^Earned [\d,]+ Exp\./, cls: "fx-reward-feed", run: () => play("xp") },
+    { match: /^Obtained <.+> \(\d+x\)$/, cls: "fx-reward-feed", run: () => play("pickup") },
     {
       match: /🏆 You defeated/,
       cls: "fx-win",
@@ -1198,24 +1198,6 @@ const FX = (() => {
       return wrapper;
     }
     return document.createTextNode(line);
-  }
-
-  function showRewardNotification(line) {
-    if (!(line.startsWith("Earned $") || /^Earned [\d,]+ Exp\./.test(line) || /^Obtained <.+> \(\d+x\)$/.test(line))) return;
-    let area = terminal.querySelector(".reward-toast-area");
-    if (!area) {
-      area = document.createElement("div");
-      area.className = "reward-toast-area";
-      area.setAttribute("aria-live", "polite");
-      area.setAttribute("aria-atomic", "false");
-      terminal.appendChild(area);
-    }
-    const toast = document.createElement("div");
-    toast.className = "reward-toast";
-    toast.append(buildContent(line));
-    area.appendChild(toast);
-    while (area.children.length > 5) area.firstElementChild.remove();
-    setTimeout(() => toast.remove(), 3300);
   }
 
   // ---------- Public API ----------
