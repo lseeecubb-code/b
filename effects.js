@@ -755,6 +755,14 @@ const FX = (() => {
     resumeBattleMusic();
   }
 
+  let lastAmbientMusicIndex = -1;
+  const ambientMusicFiles = [
+    "the-quiet-road",
+    "the-ruined-sanctuary",
+    "the-starlit-archive",
+    "the-ashen-wilds",
+  ];
+
   function startAmbientMusic() {
     if (activeBattleMusic?.ambient) {
       resumeBattleMusic();
@@ -768,12 +776,14 @@ const FX = (() => {
     }
     battleAudio = null;
     battleAudioUrl = null;
+    const offset = 1 + Math.floor(Math.random() * (ambientMusicFiles.length - 1));
+    lastAmbientMusicIndex = (lastAmbientMusicIndex + offset) % ambientMusicFiles.length;
     activeBattleMusic = {
       theme: battleTheme("the quiet road", false, { root: 110, scale: [0, 2, 4, 7, 9], wave: "sine", tempo: 76 }),
       boss: false,
       bar: 0,
-      musicFile: null,
-      fileFailed: true,
+      musicFile: `audio/ambient/${ambientMusicFiles[lastAmbientMusicIndex]}.wav`,
+      fileFailed: false,
       ambient: true,
     };
     resumeBattleMusic();
