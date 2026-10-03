@@ -1199,6 +1199,7 @@ async function fightMonster(arg = "", elite = false) {
   if (elite && f.enemies) f.enemies = f.enemies.map((e) => makeEnemyState(e.name, true));
   const battleEnemies = Array.isArray(name) ? name : [name];
   const bossEncounter = elite || battleEnemies.some((enemy) => monsters[enemy]?.chance <= 0);
+  if (typeof FX !== "undefined") FX.startBattleMusic(battleEnemies, bossEncounter);
   (f.enemies || []).forEach((e) => noteBestiaryEncounter(e.name.replace(/^elite /, "")));
   if (typeof FX !== "undefined") FX.startBattleMusic(battleEnemies, bossEncounter, f.enemies?.length === 1 ? f.enemies[0].phases?.[0]?.music : null);
   const stopMusic = () => {
