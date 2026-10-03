@@ -553,6 +553,7 @@ function attachEnemyAccessors(f) {
   def("last_move", "last_move");
   def("intent", "intent");
   def("phase", "phase");
+  def("eventFlags", "eventFlags");
 }
 
 function makeEnemyState(name, elite = false) {
@@ -582,6 +583,7 @@ function makeEnemyState(name, elite = false) {
     last_move: null,
     intent: null,
     phase: 0,
+    eventFlags: {},
     elite: !!elite,
   };
 }
