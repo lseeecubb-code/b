@@ -32,6 +32,10 @@ const FX = (() => {
   let cursor = 0; // when the next queued sound may start (keeps bursts of lines from piling up)
   let battleMusicTimer = null;
   let activeBattleMusic = null;
+  let battleAudio = null;
+  let battleAudioUrl = null;
+  let battleAudioFallbackTimer = null;
+  let battleMusicGeneration = 0;
   let corruptionTimer = null;
 
   function buildGraph() {
@@ -594,10 +598,75 @@ const FX = (() => {
   function pauseBattleMusic() {
     if (battleMusicTimer !== null) clearInterval(battleMusicTimer);
     battleMusicTimer = null;
+    if (battleAudioFallbackTimer !== null) clearTimeout(battleAudioFallbackTimer);
+    battleAudioFallbackTimer = null;
+    if (battleAudio) battleAudio.pause();
+  }
+
+  function fallbackToSynthesizedMusic(generation, track) {
+    if (generation !== battleMusicGeneration || !activeBattleMusic || activeBattleMusic !== track) return;
+    if (battleAudioFallbackTimer !== null) clearTimeout(battleAudioFallbackTimer);
+    battleAudioFallbackTimer = null;
+    if (battleAudio) {
+      battleAudio.onerror = null;
+      battleAudio.pause();
+    }
+    battleAudio = null;
+    battleAudioUrl = null;
+    track.musicFile = null;
+    track.fileFailed = true;
+    resumeBattleMusic();
+  }
+
+  function playEnemyMusicFile(track) {
+    const generation = battleMusicGeneration;
+    if (!track?.musicFile || !soundOn || !activeBattleMusic) return;
+    if (typeof Audio === "undefined") {
+      fallbackToSynthesizedMusic(generation, track);
+      return;
+    }
+    const url = track.musicFile;
+    if (!battleAudio || battleAudioUrl !== url) {
+      if (battleAudio) {
+        battleAudio.onerror = null;
+        battleAudio.pause();
+      }
+      battleAudio = new Audio(url);
+      battleAudioUrl = url;
+      battleAudio.loop = true;
+      battleAudio.preload = "auto";
+      battleAudio.volume = 0.55;
+      battleAudio.onerror = () => fallbackToSynthesizedMusic(generation, track);
+    }
+    const player = battleAudio;
+    if (battleAudioFallbackTimer !== null) clearTimeout(battleAudioFallbackTimer);
+    battleAudioFallbackTimer = setTimeout(() => fallbackToSynthesizedMusic(generation, track), 6000);
+    let attempt;
+    try {
+      attempt = player.play();
+    } catch (error) {
+      fallbackToSynthesizedMusic(generation, track);
+      return;
+    }
+    if (attempt && typeof attempt.then === "function") {
+      attempt.then(() => {
+        if (generation !== battleMusicGeneration || activeBattleMusic !== track) {
+          player.pause();
+          return;
+        }
+        if (battleAudioFallbackTimer !== null) clearTimeout(battleAudioFallbackTimer);
+        battleAudioFallbackTimer = null;
+        if (musicBus && audio) musicBus.gain.setTargetAtTime(0, audio.currentTime, 0.18);
+      }).catch(() => fallbackToSynthesizedMusic(generation, track));
+    }
   }
 
   function resumeBattleMusic() {
     if (!activeBattleMusic || !soundOn) return;
+    if (activeBattleMusic.musicFile && !activeBattleMusic.fileFailed) {
+      playEnemyMusicFile(activeBattleMusic);
+      return;
+    }
     unlockAudio();
     if (!audio) return;
     const begin = () => {
@@ -636,14 +705,27 @@ const FX = (() => {
     else begin();
   }
 
-  function startBattleMusic(enemyNames, boss = false, musicProfile = null) {
+  function startBattleMusic(enemyNames, boss = false, musicProfile = null, musicFile = null) {
     pauseBattleMusic();
-    activeBattleMusic = { theme: battleTheme(enemyNames, boss, musicProfile), bar: 0 };
+    battleMusicGeneration++;
+    activeBattleMusic = {
+      theme: battleTheme(enemyNames, boss, musicProfile),
+      bar: 0,
+      musicFile: typeof musicFile === "string" ? musicFile.trim() : null,
+      fileFailed: false,
+    };
     resumeBattleMusic();
   }
 
   function stopBattleMusic() {
     pauseBattleMusic();
+    battleMusicGeneration++;
+    if (battleAudio) {
+      battleAudio.onerror = null;
+      battleAudio.pause();
+    }
+    battleAudio = null;
+    battleAudioUrl = null;
     activeBattleMusic = null;
     if (musicBus && audio) musicBus.gain.setTargetAtTime(0, audio.currentTime, 0.16);
   }
