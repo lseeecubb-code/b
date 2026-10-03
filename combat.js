@@ -645,6 +645,7 @@ async function playerTurn(f) {
     if (action === "attack" || action === "heavy") {
       if (action === "heavy") f.energy -= C.HEAVY_COST;
       const r = playerAttack(f, action === "heavy");
+      triggerEnemyEvent(f, action, extra);
       if (f.monster_hp <= 0) break;
       if (r === "crit") {
         print("⚡ Critical hit! It's your turn again!");
@@ -690,6 +691,7 @@ async function playerTurn(f) {
         print(`💨 You escaped from the ${f.name}!`);
       } else print("❌ You couldn't get away!");
     } else if (action === "item") useItem(f, extra);
+    if (action !== "attack" && action !== "heavy") triggerEnemyEvent(f, action, extra);
     break;
   }
   f.choice = action;
@@ -993,6 +995,39 @@ function showBestiaryJournal(arg = "") {
       });
       print(`Recorded drops: ${Object.keys(enemy.drops || {}).map(title).join(", ") || "none"}`);
     } else print("Defeat this enemy to reveal its field notes and drops.");
+  }
+}
+
+// Enemy forms can watch named player actions via their `event_flags` config.
+// Triggered flags persist for that enemy across its phases and print each configured reaction once.
+function triggerEnemyEvent(f, action, detail = null) {
+  const enemy = f.enemies?.[f.target];
+  if (!enemy || !f.monster?.event_flags) return;
+  if (!enemy.eventFlags || typeof enemy.eventFlags !== "object") enemy.eventFlags = {};
+  const events = new Set(["player_action", `player_${action}`, action]);
+  if (action === "magic") {
+    const spell = typeof detail === "string" ? SPELLS[detail] : detail;
+    if (spell?.element) events.add(`player_${spell.element}`);
+    if (spell?.heal) events.add("player_heal");
+  }
+  if (action === "item") {
+    const item = USABLE_ITEMS[detail];
+    if (item?.heal) events.add("player_heal");
+    if (item?.damage) events.add(item.element ? `player_${item.element}` : "player_bomb");
+  }
+  for (const event of events) {
+    const rule = f.monster.event_flags[event];
+    if (!rule) continue;
+    const config = typeof rule === "string" ? { message: rule } : rule;
+    if (!config || typeof config !== "object") continue;
+    const flag = config.flag || event;
+    if (config.once !== false && enemy.eventFlags[flag]) continue;
+    enemy.eventFlags[flag] = true;
+    enemy.eventFlags[event] = true;
+    if (config.message) {
+      print(`\n👁️ ${cap(f.name)}: “${config.message}”`);
+      if (typeof clog === "function") clog(f, `${f.name} reacted to ${event}`);
+    }
   }
 }
 
