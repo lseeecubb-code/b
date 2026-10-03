@@ -25,6 +25,7 @@ function saveCode() {
           fracture: STORY.fracture,
           ending: STORY.ending,
           kills: STORY.kills,
+          journal: STORY.journal || [],
         },
         world: typeof WORLD !== "undefined" ? WORLD : undefined,
       })
@@ -90,6 +91,16 @@ function applySave({ inv, eq, pl, st, world }) {
   STORY.kills = {};
   if (st.kills && typeof st.kills === "object")
     for (const k in st.kills) STORY.kills[k] = ci(st.kills[k], 0, 1e9);
+  STORY.journal = Array.isArray(st.journal)
+    ? st.journal.filter((entry) => entry && typeof entry === "object" && typeof entry.text === "string")
+        .slice(-60)
+        .map((entry) => ({
+          chapter: ci(entry.chapter, 0, STORY_CHAPTERS.length - 1),
+          kind: String(entry.kind || "memory").slice(0, 24),
+          text: entry.text.slice(0, 180),
+          value: String(entry.value || "").slice(0, 60),
+        }))
+    : [];
   if (world && typeof WORLD !== "undefined" && typeof defaultWorld === "function") {
     const base = defaultWorld();
     WORLD = {

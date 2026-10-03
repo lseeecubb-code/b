@@ -792,6 +792,7 @@ function recruitCompanion(id, announce = true) {
   WORLD.companions.recruited.push(id);
   if (WORLD.companions.active.length < 1) WORLD.companions.active.push(id);
   WORLD.companions.hp[id] = companionMaxHp(id);
+  if (typeof recordStoryMoment === "function") recordStoryMoment(`${d.name} joined your party.`, "companion", id);
   if (announce) {
     print(`\n🤝 ${d.name} joins you. (${d.role})`);
     print(`   ${d.joinText}`);
@@ -1432,6 +1433,12 @@ async function blacksmith() {
   print(`Next upgrade: ${ironNeed} iron, ${coinNeed} coin.`);
   if ((inventory.iron || 0) < ironNeed || (inventory.coin || 0) < coinNeed) {
     print("You lack materials or coin.");
+    return;
+  }
+  if (typeof previewGearChange === "function") previewGearChange(n, u + 1);
+  const confirm = (await input(`Upgrade ${n} to +${u + 1}? (y/n): `)).trim().toLowerCase();
+  if (confirm !== "y" && confirm !== "yes") {
+    print("Upgrade cancelled; your materials are untouched.");
     return;
   }
   removeItem("iron", ironNeed);
@@ -2194,6 +2201,7 @@ async function startNewGamePlus() {
   WORLD.rarity = worldKeep.rarity;
   WORLD.companions = worldKeep.companions;
   WORLD.usedCombatItem = false;
+  if (typeof recordStoryMoment === "function") recordStoryMoment(`New Game+ began with an echo of the "${PLAYER.ngPlusEnding}" ending.`, "ending", PLAYER.ngPlusEnding);
   if (PLAYER.ngPlusEnding === "remember") {
     PLAYER.vit = Math.min(25, PLAYER.vit + 2);
     print("🌿 Ending bonus: Remember — +2 Vitality for this New Game+ run.");
@@ -2425,6 +2433,7 @@ async function chooseRoute() {
       WORLD.flags.routeChoices = WORLD.flags.routeChoices || [];
       WORLD.flags.routeChoices.push("safe");
       WORLD.flags.routeVisitedChapter = STORY.chapter;
+      if (typeof recordStoryMoment === "function") recordStoryMoment(`You took the safe road through ${area}.`, "choice", "safe");
       if (WORLD.dungeonRun?.active || WORLD.towerRun?.active) {
         const run = WORLD.dungeonRun?.active ? WORLD.dungeonRun : WORLD.towerRun;
         run.hp = Math.min(getStats().max_hp, run.hp + heal);
@@ -2445,6 +2454,7 @@ async function chooseRoute() {
       WORLD.flags.routeChoices = WORLD.flags.routeChoices || [];
       WORLD.flags.routeChoices.push("risky");
       WORLD.flags.routeVisitedChapter = STORY.chapter;
+      if (typeof recordStoryMoment === "function") recordStoryMoment(`You took the risky shortcut through ${area}.`, "choice", "risky");
       print(`You cut through the dangerous shortcut. An elite ${title(foe)} blocks the way!`);
       await fightMonster(foe, true);
       return;

@@ -570,17 +570,13 @@ const FX = (() => {
       if (audio) play("yes");
       if (!activeBattleMusic) startAmbientMusic();
     }
-    if (musicBus && audio) {
-      const synthesizedTrack = activeBattleMusic && (!activeBattleMusic.musicFile || activeBattleMusic.fileFailed);
-      musicBus.gain.setTargetAtTime(on && synthesizedTrack ? musicVolume / 100 : 0, audio.currentTime, 0.18);
-    }
-    if (on && activeBattleMusic) resumeBattleMusic();
-    else if (!on) pauseBattleMusic();
+    // This setting controls sound effects only. Music has its own volume slider.
   }
 
   function setMusicVolume(value) {
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) return;
+    const previousVolume = musicVolume;
     musicVolume = Math.max(0, Math.min(100, Math.round(parsed)));
     try {
       localStorage.setItem(MUSIC_VOLUME_KEY, String(musicVolume));
@@ -590,9 +586,13 @@ const FX = (() => {
     if (slider) slider.value = String(musicVolume);
     if (output) output.textContent = `${musicVolume}%`;
     if (battleAudio) battleAudio.volume = musicVolume / 100;
-    if (musicBus && audio && soundOn && activeBattleMusic && (!activeBattleMusic.musicFile || activeBattleMusic.fileFailed)) {
+    if (musicVolume === 0) {
+      pauseBattleMusic();
+      if (musicBus && audio) musicBus.gain.setTargetAtTime(0, audio.currentTime, 0.12);
+    } else if (musicBus && audio && activeBattleMusic && (!activeBattleMusic.musicFile || activeBattleMusic.fileFailed)) {
       musicBus.gain.setTargetAtTime(musicVolume / 100, audio.currentTime, 0.12);
     }
+    if (previousVolume === 0 && musicVolume > 0 && activeBattleMusic) resumeBattleMusic();
   }
 
   // Original procedural battle themes. Enemy families share a musical palette, while a stable
@@ -654,7 +654,7 @@ const FX = (() => {
 
   function playEnemyMusicFile(track) {
     const generation = battleMusicGeneration;
-    if (!track?.musicFile || !soundOn || !activeBattleMusic) return;
+    if (!track?.musicFile || musicVolume <= 0 || !activeBattleMusic) return;
     if (typeof Audio === "undefined") {
       fallbackToSynthesizedMusic(generation, track);
       return;
@@ -699,7 +699,7 @@ const FX = (() => {
   }
 
   function resumeBattleMusic() {
-    if (!activeBattleMusic || !soundOn) return;
+    if (!activeBattleMusic || musicVolume <= 0) return;
     if (activeBattleMusic.musicFile && !activeBattleMusic.fileFailed) {
       playEnemyMusicFile(activeBattleMusic);
       return;
@@ -707,14 +707,14 @@ const FX = (() => {
     unlockAudio();
     if (!audio) return;
     const begin = () => {
-      if (!activeBattleMusic || !soundOn || audio.state !== "running" || battleMusicTimer !== null) return;
+      if (!activeBattleMusic || musicVolume <= 0 || audio.state !== "running" || battleMusicTimer !== null) return;
       musicBus.gain.setTargetAtTime(musicVolume / 100, audio.currentTime, 0.25);
       const theme = activeBattleMusic.theme;
       const beat = 60 / theme.tempo;
       const barLength = beat * 4;
       const melody = [0, 2, 4, 2, 5, 4, 2, 1];
       const playBar = () => {
-        if (!activeBattleMusic || !soundOn || !audio || audio.state !== "running") return;
+        if (!activeBattleMusic || musicVolume <= 0 || !audio || audio.state !== "running") return;
         const now = audio.currentTime + 0.04;
         const bar = activeBattleMusic.bar++;
         const scale = theme.scale;

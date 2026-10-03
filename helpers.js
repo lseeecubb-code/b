@@ -86,7 +86,7 @@ function resetState() {
   inventory = { ...START_INV };
   equipment = { weapon: null, offhand: null, head: null, armor: null, feet: null, trinket: null };
   PLAYER = { level: 1, xp: 0, ...defaultPlayerExtra() };
-  STORY = { chapter: 0, fracture: 0, flags: new Set(), seen: new Set(), ending: null, kills: {} };
+  STORY = { chapter: 0, fracture: 0, flags: new Set(), seen: new Set(), ending: null, kills: {}, journal: [] };
   WORLD = defaultWorld();
   WORLD.recipeMaterialsSeen = Object.keys(inventory).filter((name) => name !== "coin");
 }

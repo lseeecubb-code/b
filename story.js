@@ -3,6 +3,88 @@ const curChapter = () =>
   STORY_CHAPTERS[Math.max(0, Math.min(STORY.chapter, STORY_CHAPTERS.length - 1))];
 const scene = (id) => [...(STORY_SCENES[id] || [])];
 const killCount = (n) => STORY.kills[n] || 0;
+
+function recordStoryMoment(text, kind = "memory", value = "") {
+  if (!STORY) return;
+  if (!Array.isArray(STORY.journal)) STORY.journal = [];
+  const entry = {
+    chapter: STORY.chapter,
+    kind: String(kind).slice(0, 24),
+    text: String(text).trim().slice(0, 180),
+    value: String(value || "").slice(0, 60),
+  };
+  if (!entry.text) return;
+  STORY.journal.push(entry);
+  if (STORY.journal.length > 60) STORY.journal.splice(0, STORY.journal.length - 60);
+}
+
+function showCampaignChronicle() {
+  const chapter = curChapter();
+  print("\n📚 CAMPAIGN CHRONICLE");
+  print("Current chapter: " + chapter.id + " — " + chapter.title);
+  print("Current objective: " + STORY_PROGRESS[chapter.id].objective);
+  const entries = (STORY.journal || []).slice(-14);
+  if (!entries.length) print("\nNo memories have been recorded yet. The story will save major choices and milestones here.");
+  else {
+    print("\nRecent memories:");
+    entries.forEach((entry) => print("  Ch " + entry.chapter + ": " + entry.text));
+  }
+  const ending = STORY.ending || (PLAYER.ngPlus ? PLAYER.ngPlusEnding : null);
+  if (ending) print("\nThe ending echo carried by this run: " + title(ending) + ".");
+  const active = WORLD.companions?.active?.[0];
+  const companion = typeof COMPANION_DEFS !== "undefined" ? COMPANION_DEFS[active] : null;
+  if (companion) print("Traveling with: " + companion.name + ".");
+}
+
+async function replayChapter(choice = "") {
+  const available = STORY_CHAPTERS.filter((chapter) => {
+    const sid = STORY_SCENE_BY_CHAPTER[chapter.id];
+    return chapter.id < STORY.chapter || STORY.flags.has("chapter_" + chapter.id + "_complete") ||
+      (chapter.id === STORY.chapter && sid && STORY.seen.has(sid)) ||
+      (chapter.id === STORY_CHAPTERS.length - 1 && STORY.flags.has("final_defeated"));
+  });
+  if (!available.length) {
+    print("No chapter memories are available yet. Play through a chapter opening first.");
+    return;
+  }
+  if (!choice.trim()) {
+    print("\n🕰️ CHAPTER MEMORIES");
+    available.forEach((chapter) => print("  " + chapter.id + ". " + chapter.title));
+    choice = await input("Replay which chapter? (number or title, blank to cancel): ");
+  }
+  choice = choice.trim().toLowerCase();
+  if (!choice) return;
+  let id = /^\d+$/.test(choice) ? Number(choice) : -1;
+  if (id < 0) {
+    const found = available.find((chapter) => chapter.title.toLowerCase() === choice);
+    if (found) id = found.id;
+  }
+  const chapter = available.find((entry) => entry.id === id);
+  if (!chapter) {
+    print("That chapter memory is not available yet. Choose one from 'replay'.");
+    return;
+  }
+  print("\n🕰️ MEMORY: CHAPTER " + chapter.id + " — " + chapter.title);
+  const sid = STORY_SCENE_BY_CHAPTER[chapter.id];
+  if (sid) scene(sid).forEach((line) => print(line));
+  const route = (STORY.journal || []).filter((entry) => entry.chapter === chapter.id &&
+    entry.kind === "choice" && ["safe", "risky"].includes(entry.value)).slice(-1)[0];
+  const companionId = WORLD.companions?.active?.[0];
+  const companion = typeof COMPANION_DEFS !== "undefined" ? COMPANION_DEFS[companionId] : null;
+  const reflections = typeof COMPANION_REPLAY_LINES !== "undefined" ? COMPANION_REPLAY_LINES[companionId] : null;
+  if (companion && reflections) {
+    print("\n🤝 " + companion.name + " remembers:");
+    print("\"" + reflections[route?.value || "default"] + "\"");
+  } else print("\nBring a companion along with 'party' to hear their reflection in this memory.");
+  if (chapter.id === STORY_CHAPTERS.length - 1 && STORY.flags.has("final_defeated")) {
+    const preview = (await input("\nPreview an ending? [remember/release/rewrite, blank to skip]: ")).trim().toLowerCase();
+    if (ENDINGS[preview]) {
+      print("\n🔮 WHAT-IF MEMORY — your saved ending will not change.");
+      print(ENDINGS[preview].title);
+      print(ENDINGS[preview].text);
+    }
+  }
+}
 // Picks a random fourth-wall message that fits the current Fracture level.
 function showStrangeEvent() {
   print("\n🌀 " + fourthWall());
@@ -67,6 +149,7 @@ function recordVictory(mn) {
     return;
   }
   chapterRewards(ch);
+  recordStoryMoment("Chapter " + ch + ": " + STORY_CHAPTERS[ch].title + " completed.", "chapter");
   STORY.flags.add(`chapter_${ch}_complete`);
   if (ch === STORY_CHAPTERS.length - 1) {
     STORY.flags.add("final_defeated");
@@ -79,6 +162,7 @@ function recordVictory(mn) {
   STORY.fracture = STORY_CHAPTERS[STORY.chapter].fracture;
   const nw = curChapter();
   STORY.flags.add(`chapter_${nw.id}_unlocked`);
+  recordStoryMoment("Chapter " + nw.id + ": " + nw.title + " opened.", "chapter");
   print("\n" + "=".repeat(62));
   print("📖");
   print(`Chapter ${nw.id}: ${nw.title}`);
@@ -109,6 +193,7 @@ function storyIntro() {
   scene("chapter_0_intro").forEach((l) => print(l));
   STORY.seen.add("chapter_0_intro");
   STORY.flags.add("story_started");
+  recordStoryMoment("Mira found you on the quiet road, already writing down its silences.", "scene");
   print("\n🎯");
   print(STORY_PROGRESS[0].objective);
 }
@@ -194,6 +279,7 @@ function openHiddenPassage() {
     return;
   }
   STORY.flags.add("secret_missing_page_found");
+  recordStoryMoment("You found the hidden passage behind the margin.", "discovery");
   print("\n📄 XYZZY. A line of text tears open in the margin.");
   print("A hidden challenger has been added to your fight list. Type 'fight the missing page' when ready.");
 }
@@ -265,11 +351,13 @@ async function exploreStory() {
       return;
     }
     if (["2", "event", "discovery"].includes(choice)) {
+      recordStoryMoment("You followed the discovery: " + exploreDiscoveryLabel(discovery) + ".", "choice", "discovery");
       await maybeExploreEvent(an, discovery, availableEnc);
       if (typeof maybePromptLevelUp === "function") await maybePromptLevelUp();
       return;
     }
   }
+  if (discovery) recordStoryMoment("You followed " + title(enemy) + " tracks instead of investigating the discovery.", "choice", "tracks");
   let fightArg = enemy;
   if (Math.random() < 0.18 && !needed.includes(enemy) && monsters[enemy]?.chance > 0) {
     const pal = availableEnc.find((n) => n !== enemy) || enemy;
@@ -289,6 +377,7 @@ async function exploreStory() {
     if (["fight", "f", "1", "yes", "y", ""].includes(choice)) break;
     if (["spare", "s", "mercy", "2", "leave"].includes(choice)) {
       WORLD.flags.mercifulEncounters = (WORLD.flags.mercifulEncounters || 0) + 1;
+      recordStoryMoment("You spared " + encounterNames.map((name) => title(name)).join(" and ") + ".", "choice", "spare");
       print(`💛 You lower your weapon. ${encounterNames.map((name) => title(name)).join(" and ")} leave peacefully.`);
       print("No XP, loot, or kill progress is earned from a spared encounter.");
       return;
@@ -324,6 +413,7 @@ async function showEnding() {
     if (ENDINGS[c]) {
       STORY.ending = c;
       STORY.flags.add("ending_complete");
+      recordStoryMoment("You chose the " + ENDINGS[c].title.toLowerCase() + " ending.", "ending", c);
       play(c);
       if (typeof checkAchievements === "function") checkAchievements();
       print("\n🔁 You can begin New Game+ with 'ngplus'. Your completed ending stays safe.");

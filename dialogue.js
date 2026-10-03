@@ -602,6 +602,24 @@ const ENDINGS = {
   },
 };
 
+const COMPANION_REPLAY_LINES = {
+  mira: {
+    safe: "You chose the slower road. I filled two more pages with the things we might have missed.",
+    risky: "You chose the dangerous road. I wrote down why it was worth the risk.",
+    default: "I thought I had written this moment already. I had the ending wrong.",
+  },
+  kael: {
+    safe: "No one was left behind on this road. That is a choice worth remembering.",
+    risky: "You chose the dangerous path. I chose to stand between it and you.",
+    default: "The road is still here. That is enough to make it worth guarding.",
+  },
+  nyx: {
+    safe: "A steady path leaves fewer seams for the dark to follow.",
+    risky: "A shortcut is only a shortcut if you know what it cuts away.",
+    default: "The gap has not closed. Neither have we.",
+  },
+};
+
 const ENDGAME_PROMPT = [
   "THE LAST SAVE:",
   '"The hero has done enough."',
