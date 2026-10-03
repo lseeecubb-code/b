@@ -1,0 +1,1 @@
+Four original, looping ambient soundscapes: the Quiet Road, Ruined Sanctuary, Starlit Archive, and Ashen Wilds. The game chooses a different ambient track when returning from a battle. Files are 16-bit, 22.05 kHz mono WAV loops.
