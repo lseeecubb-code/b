@@ -865,6 +865,11 @@ function rollIntent(f) {
 // Plays out the enemy's turn.
 async function monsterTurn(f) {
   f.owner = "monster";
+  // A boss that just changed form has no planned move yet (advanceBossForms clears it): plan and telegraph one.
+  if (!f.intent) {
+    rollIntent(f);
+    showIntent(f);
+  }
   const name = f.name;
   const it = f.intent,
     k = it.kind;
@@ -1502,4 +1507,3 @@ function showBestiary(arg = "") {
     );
   }
 }
-
