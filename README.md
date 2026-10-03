@@ -29,6 +29,7 @@ Your choices matter, and the further you go, the more the game starts to questio
 * Spend stat points by name or number (for example, `allocate 2 3` spends three points on Agility)
 * Regional five-island raids with no timer and raid-token upgrades
 * Elemental reactions: frost cracks burning armor; lightning spreads poison in group fights
+* A new Archive side quest with a rare Index Hound, a fight-or-spare discovery, and a craftable trinket made from its ink fragments
 * Multiple endings
 
 ## 💾 Saves
