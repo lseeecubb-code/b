@@ -947,7 +947,6 @@ const monsters = {
     dodge_chance: 12,
     parry_rate: 50,
     dodge_rate: 50,
-    music_file: "audio/enemies/wyvern.wav",
   },
   demon: {
     icon: "😈",

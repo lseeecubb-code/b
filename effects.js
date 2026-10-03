@@ -2,7 +2,7 @@
 //
 // The game engine only ever calls print(). This file watches the lines being printed and
 // reacts to them: it colors them, shakes or flashes the screen, floats damage numbers and plays
-// local audio files with synthesized fallbacks, so the game still works offline from file://.
+// small synthesized sounds (no audio files, so the game still works offline from file://).
 //
 // To add a new effect, add one entry to RULES below. To mute everything, use the Sound button.
 
@@ -13,7 +13,7 @@ const FX = (() => {
   const reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // ---------- Sound ----------
-  // Local audio files are preferred; Web Audio synthesis remains the offline-safe fallback.
+  // All sounds are synthesized with the Web Audio API (no audio files, so it works from file://).
   // Building blocks: tone() = an oscillator with an envelope, noise() = filtered noise (swooshes,
   // crunches, booms), bell() = metallic ring (clangs, coins, chimes). Everything runs through a
   // compressor and a little reverb so it sounds fuller than raw beeps.
@@ -32,9 +32,6 @@ const FX = (() => {
   let cursor = 0; // when the next queued sound may start (keeps bursts of lines from piling up)
   let battleMusicTimer = null;
   let activeBattleMusic = null;
-  let battleAudio = null;
-  let battleTrackPath = null;
-  let battleTrackFailed = false;
   let battleAudio = null;
   let battleAudioUrl = null;
   let battleAudioFallbackTimer = null;
@@ -509,10 +506,6 @@ const FX = (() => {
     },
   };
 
-  // External audio files are preferred; the Web Audio version above remains the fallback.
-  const SOUND_FILE_OVERRIDES = {};
-  const soundFilePlayers = new Map();
-
   // How long (seconds) each sound occupies the queue before the next one may start. Short
   // sounds use the default; fanfares reserve more so they don't get trampled.
   const DURATION = {
@@ -529,82 +522,16 @@ const FX = (() => {
 
   // Plays a named sound. Sounds triggered in the same instant are lined up one after another
   // (a burst of lines becomes a short sequence instead of one smeared noise).
-  // Drop a file named audio/sfx/<effect-key>.wav to replace any registered sound.
-  // SOUND_FILE_OVERRIDES can point an individual key to another relative path or URL.
-  const SOUND_FILE_OVERRIDES = {};
-  const soundFilePlayers = new Map();
-
-  function playSynthSound(name) {
-    if (!audio || audio.state !== "running" || !SOUNDS[name]) return;
+  function play(name) {
+    if (!soundOn || !audio || audio.state !== "running" || !SOUNDS[name]) return;
     const now = audio.currentTime;
     const start = Math.max(now, cursor);
-    if (start - now > 0.8 && !IMPORTANT.has(name)) return;
+    if (start - now > 0.8 && !IMPORTANT.has(name)) return; // too far behind: drop the small stuff
     base = start - now;
-    try { SOUNDS[name](); } catch (e) {}
+    try {
+      SOUNDS[name]();
+    } catch (e) {}
     base = 0;
-    cursor = start + (DURATION[name] || 0.11);
-  }
-
-  function useSynthFallback(name, state) {
-    if (state.failed) return;
-    state.failed = true;
-    if (state.fallbackTimer !== null) clearTimeout(state.fallbackTimer);
-    state.fallbackTimer = null;
-    state.player.onerror = null;
-    playSynthSound(name);
-  }
-
-  function play(name) {
-    if (!soundOn || !SOUNDS[name]) return;
-    const now = audio ? audio.currentTime : performance.now() / 1000;
-    const start = Math.max(now, cursor);
-    if (start - now > 0.8 && !IMPORTANT.has(name)) return;
-    const delay = Math.max(0, (start - now) * 1000);
-    let fallbackPlayed = false;
-    const playSynthFallback = () => {
-      if (fallbackPlayed || !soundOn || !audio || audio.state !== "running") return;
-      fallbackPlayed = true;
-      base = Math.max(0, start - audio.currentTime);
-      try { SOUNDS[name](); } catch (e) {}
-      base = 0;
-    };
-    const path = SOUND_FILE_OVERRIDES[name] || `audio/sfx/${name}.wav`;
-    let entry = soundFilePlayers.get(name);
-    if (!entry && typeof Audio !== "undefined") {
-      try {
-        const player = new Audio(path);
-        player.preload = "auto";
-        player.volume = 0.72;
-        entry = { player, failed: false, fallback: null };
-        player.addEventListener("error", () => {
-          entry.failed = true;
-          if (entry.fallback) entry.fallback();
-        });
-        soundFilePlayers.set(name, entry);
-      } catch (e) { entry = null; }
-    }
-    if (entry && !entry.failed) {
-      entry.fallback = playSynthFallback;
-      const startFile = () => {
-        if (!soundOn || entry.failed) return;
-        try {
-          entry.player.currentTime = 0;
-          const result = entry.player.play();
-          if (result && typeof result.catch === "function") result.catch(() => {
-            entry.failed = true;
-            playSynthFallback();
-          });
-        } catch (e) {
-          entry.failed = true;
-          playSynthFallback();
-        }
-      };
-      if (delay) setTimeout(startFile, delay);
-      else startFile();
-    } else {
-      if (delay) setTimeout(playSynthFallback, delay);
-      else playSynthFallback();
-    }
     cursor = start + (DURATION[name] || 0.11);
   }
 
@@ -632,15 +559,7 @@ const FX = (() => {
       if (audio) play("yes");
     }
     if (musicBus && audio) {
-      musicBus.gain.setTargetAtTime(on && activeBattleMusic && (!battleTrackPath || battleTrackFailed) ? 0.55 : 0, audio.currentTime, 0.18);
-    }
-    soundFilePlayers.forEach((state) => {
-      state.player.volume = on ? 0.72 : 0;
-      if (!on && state.ready) state.player.pause();
-    });
-    for (const { player } of soundFilePlayers.values()) {
-      player.volume = on ? 0.72 : 0;
-      if (!on) player.pause();
+      musicBus.gain.setTargetAtTime(on && activeBattleMusic && !activeBattleMusic.musicFile ? 0.55 : 0, audio.currentTime, 0.18);
     }
     if (on && activeBattleMusic) resumeBattleMusic();
     else if (!on) pauseBattleMusic();
@@ -683,44 +602,79 @@ const FX = (() => {
   function pauseBattleMusic() {
     if (battleMusicTimer !== null) clearInterval(battleMusicTimer);
     battleMusicTimer = null;
+    if (battleAudioFallbackTimer !== null) clearTimeout(battleAudioFallbackTimer);
+    battleAudioFallbackTimer = null;
     if (battleAudio) battleAudio.pause();
+  }
+
+  function fallbackToSynthesizedMusic(generation, track) {
+    if (generation !== battleMusicGeneration || !activeBattleMusic || activeBattleMusic !== track) return;
+    if (battleAudioFallbackTimer !== null) clearTimeout(battleAudioFallbackTimer);
+    battleAudioFallbackTimer = null;
+    if (battleAudio) {
+      battleAudio.onerror = null;
+      battleAudio.pause();
+    }
+    battleAudio = null;
+    battleAudioUrl = null;
+    track.musicFile = null;
+    track.fileFailed = true;
+    resumeBattleMusic();
+  }
+
+  function playEnemyMusicFile(track) {
+    const generation = battleMusicGeneration;
+    if (!track?.musicFile || !soundOn || !activeBattleMusic) return;
+    if (typeof Audio === "undefined") {
+      fallbackToSynthesizedMusic(generation, track);
+      return;
+    }
+    const url = track.musicFile;
+    if (!battleAudio || battleAudioUrl !== url) {
+      if (battleAudio) {
+        battleAudio.onerror = null;
+        battleAudio.pause();
+      }
+      battleAudio = new Audio(url);
+      battleAudioUrl = url;
+      battleAudio.loop = true;
+      battleAudio.preload = "auto";
+      battleAudio.volume = 0.55;
+      battleAudio.onerror = () => fallbackToSynthesizedMusic(generation, track);
+    }
+    const player = battleAudio;
+    if (musicBus && audio) musicBus.gain.setTargetAtTime(0, audio.currentTime, 0.18);
+    const onTrackStarted = () => {
+      if (generation !== battleMusicGeneration || activeBattleMusic !== track) {
+        player.pause();
+        return;
+      }
+      if (battleAudioFallbackTimer !== null) clearTimeout(battleAudioFallbackTimer);
+      battleAudioFallbackTimer = null;
+      if (musicBus && audio) musicBus.gain.setTargetAtTime(0, audio.currentTime, 0.18);
+    };
+    player.onplaying = onTrackStarted;
+    if (battleAudioFallbackTimer !== null) clearTimeout(battleAudioFallbackTimer);
+    battleAudioFallbackTimer = setTimeout(() => fallbackToSynthesizedMusic(generation, track), 6000);
+    let attempt;
+    try {
+      attempt = player.play();
+    } catch (error) {
+      fallbackToSynthesizedMusic(generation, track);
+      return;
+    }
+    if (attempt && typeof attempt.then === "function") {
+      attempt.then(onTrackStarted).catch(() => fallbackToSynthesizedMusic(generation, track));
+    }
   }
 
   function resumeBattleMusic() {
     if (!activeBattleMusic || !soundOn) return;
-    unlockAudio();
-    if (battleTrackPath && !battleTrackFailed && typeof Audio !== "undefined") {
-      try {
-        if (!battleAudio) {
-          battleAudio = new Audio(battleTrackPath);
-          battleAudio.loop = true;
-          battleAudio.preload = "auto";
-          battleAudio.volume = 0.55;
-          const player = battleAudio;
-          const failed = () => {
-            if (battleAudio !== player) return;
-            battleTrackFailed = true;
-            player.pause();
-            battleAudio = null;
-            resumeBattleMusic();
-          };
-          player.addEventListener("error", failed, { once: true });
-        }
-        const result = battleAudio.play();
-        if (result && typeof result.catch === "function") result.catch(() => {
-          if (battleAudio) {
-            battleTrackFailed = true;
-            battleAudio.pause();
-            battleAudio = null;
-            resumeBattleMusic();
-          }
-        });
-        return;
-      } catch (e) {
-        battleTrackFailed = true;
-        battleAudio = null;
-      }
+    if (activeBattleMusic.musicFile && !activeBattleMusic.fileFailed) {
+      playEnemyMusicFile(activeBattleMusic);
+      return;
     }
+    unlockAudio();
     if (!audio) return;
     const begin = () => {
       if (!activeBattleMusic || !soundOn || audio.state !== "running" || battleMusicTimer !== null) return;
@@ -747,7 +701,7 @@ const FX = (() => {
           const step = (melody[(i + (theme.seed % melody.length) + bar) % melody.length] + (bar % 2 ? 1 : 0)) % scale.length;
           const octave = i === 3 || i === 7 ? 2 : 1;
           if ((i + theme.seed) % 5 !== 0) {
-            musicNote(theme.root * Math.pow(2, (scale[step] + 12 * octave) / 12), now + i * beat / 2, beat * 0.34, activeBattleMusic.boss ? 0.035 : 0.025, theme.wave);
+            musicNote(theme.root * Math.pow(2, (scale[step] + 12 * octave) / 12), now + i * beat / 2, beat * 0.34, boss ? 0.035 : 0.025, theme.wave);
           }
         }
       };
@@ -760,13 +714,13 @@ const FX = (() => {
 
   function startBattleMusic(enemyNames, boss = false, musicProfile = null, musicFile = null) {
     pauseBattleMusic();
-    battleAudio = null;
-    const label = (Array.isArray(enemyNames) ? enemyNames[0] : enemyNames) || "";
-    const slug = String(label).toLowerCase().normalize("NFKD").replace(/[\\u0300-\\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    const solo = !Array.isArray(enemyNames) || enemyNames.length === 1;
-    battleTrackPath = musicFile || (solo && slug ? `audio/music/enemies/${slug}.wav` : boss ? "audio/music/boss-default.wav" : "audio/music/battle-default.wav");
-    battleTrackFailed = false;
-    activeBattleMusic = { theme: battleTheme(enemyNames, boss, musicProfile), bar: 0, boss };
+    battleMusicGeneration++;
+    activeBattleMusic = {
+      theme: battleTheme(enemyNames, boss, musicProfile),
+      bar: 0,
+      musicFile: typeof musicFile === "string" ? musicFile.trim() : null,
+      fileFailed: false,
+    };
     resumeBattleMusic();
   }
 
@@ -881,9 +835,6 @@ const FX = (() => {
   function stopBattleMusic() {
     pauseBattleMusic();
     activeBattleMusic = null;
-    battleAudio = null;
-    battleTrackPath = null;
-    battleTrackFailed = false;
     if (musicBus && audio) musicBus.gain.setTargetAtTime(0, audio.currentTime, 0.16);
   }
 
