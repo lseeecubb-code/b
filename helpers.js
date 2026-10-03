@@ -66,6 +66,7 @@ function defaultWorld() {
     recipeMaterialsSeen: [],
     trackedRecipes: [],
     recipesCrafted: [],
+    bestiary: {},
     companions: { recruited: [], active: [], hp: {} },
     rested: 0,
     eventsDone: 0,
@@ -342,3 +343,4 @@ function describeSkill(s) {
   if (s.cooldown) p.push(`${s.cooldown}-turn cooldown`);
   return p.join(", ");
 }
+
