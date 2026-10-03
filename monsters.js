@@ -1571,8 +1571,35 @@ function bossPhaseForm(boss, override, phaseIndex) {
     dodge_rate: override.dodge_rate,
     resist: override.resist || {},
     music: override.music,
+    dialogue: override.dialogue || boss.dialogue,
     phaseIndex,
   };
+}
+
+// Enemy speech is optional and can be authored per move or per phase form.
+const ENEMY_DIALOGUE = {
+  "goblin king": { attack: ["My throne will be built on your bones!", "Kneel before the crown!"], phase: ["You broke my crown. Now face the king beneath it!"], attacks: { "crown cleaver": ["A crown is still sharp!"], "bloodied barrage": ["Bleed for your king!"] } },
+  "alpha wolf": { attack: ["The moon has marked you!", "Run. The pack is closing in."], phase: ["The moon answers. The hunt begins anew!"], attacks: { "lunar pounce": ["Nowhere to run beneath this moon!"] } },
+  "orc warlord": { attack: ["Stand and be broken!", "My warband will hear of this!"], phase: ["Enough. I will finish this myself!"] },
+  "ancient golem": { attack: ["INTRUDER DETECTED.", "THE CORE WILL NOT FALL."], phase: ["CORE LIMITERS RELEASED. THREAT WILL BE ELIMINATED."] },
+  "frost giant king": { attack: ["The cold has no mercy for you.", "Be still beneath the winter."], phase: ["The deep winter wakes. Let the world freeze with you!"] },
+  "ash demon": { attack: ["Burn until nothing remains!", "Your hope feeds the flame!"], phase: ["The cinders were only the beginning!"] },
+  "the unnamed king": { attack: ["There is no world left to save.", "Your struggle echoes in an empty kingdom."], phase: ["The throne remembers its true sovereign."] },
+  "the leftover": { attack: ["I was not meant to be forgotten!", "Give me an ending worth keeping!"], phase: ["Then I will write myself into the ending!"] },
+  "the watcher": { attack: ["I have seen this choice before.", "Your next move is already recorded."], phase: ["Observation is over. Now I intervene."] },
+  "the witness": { attack: ["Every strike becomes testimony.", "The record will show what you did here."], phase: ["The testimony is incomplete. I will correct it."] },
+  "the archivist": { attack: ["Filed under: inevitable.", "This pattern has ended many heroes."], phase: ["A new chapter. A new classification for your failure."] },
+  "the first hero": { attack: ["Show me the strength that brought you here!", "I will not make this trial easy."], phase: ["I remember this power. Now I remember how to use it."] },
+  "the editor": { attack: ["That move has been cut.", "I decide which actions remain on the page."], phase: ["Revision complete. Your turn is next to be rewritten."] },
+  "the author": { attack: ["I wrote this moment long ago.", "Your resistance makes the story more interesting."], phase: ["The draft ends here. Let me write the final version."] },
+  "the last save": { attack: ["Recovery point unavailable.", "Your progress cannot protect you now."], phase: ["The final overwrite has begun. There will be no undo."] },
+  "clockwork hound": { attack: ["TARGET ACQUIRED.", "BITE PROTOCOL ENGAGED."] },
+  "mire witch": { attack: ["The mire keeps what it takes.", "Sink quietly into the blackwater."] },
+  "archive stalker": { attack: ["You were missing from this chapter for a reason.", "No one reads the footnotes until it is too late."] },
+  "margin warden": { attack: ["That choice needs correcting.", "You have crossed the margin for the last time."] },
+};
+for (const [name, dialogue] of Object.entries(ENEMY_DIALOGUE)) {
+  if (monsters[name]) monsters[name].dialogue = dialogue;
 }
 
 for (const [name, secondForm] of Object.entries(BOSS_PHASE_TWO)) {
