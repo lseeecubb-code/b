@@ -1582,6 +1582,25 @@ const BOSS_PHASE_TWO = {
   "clockwork hound": { name: "Overclocked Hound", hp: 72, icon: "🐺⚙️", block_chance: 0, block_reduction: 0, basic_attack: { damage: [15, 22], type: "fast" }, abilities: { "overdrive bite": { chance: 28, damage: [12, 18], hits: 2, type: "fast" }, "steam burst": { chance: 20, damage: [24, 34], element: "fire", special_effect: { type: "burn", chance: 40, damage: 3, turns: 2 } } }, parry_chance: 10, dodge_chance: 35, parry_rate: 48, dodge_rate: 72, resist: { fire: 40, frost: 0 }, music: { root: 164.81, scale: [0, 2, 4, 7, 9], wave: "square", tempo: 140 } },
   "mire witch": { name: "The Drowned Oracle", hp: 112, icon: "🧙‍♀️🌫️", block_chance: 0, block_reduction: 0, basic_attack: { damage: [21, 30], element: "frost" }, abilities: { "blackwater curse": { chance: 28, damage: [17, 24], special_effect: { type: "poison", chance: 80, damage: 5, turns: 3 } }, "suffocating fog": { chance: 22, damage: [13, 19], element: "frost", special_effect: { type: "slow", chance: 70, damage: 0, turns: 2 } } }, parry_chance: 6, dodge_chance: 28, parry_rate: 40, dodge_rate: 68, resist: { fire: 0, frost: 55 }, music: { root: 138.59, scale: [0, 1, 5, 7, 8], wave: "sine", tempo: 90 } },
   "archive stalker": { name: "The Missing Chapter", hp: 315, icon: "📖👤", block_chance: 0, block_reduction: 0, basic_attack: { damage: [44, 60], parryable: false }, abilities: { "footnote ambush": { chance: 28, damage: [52, 70], dodgeable: false, special_effect: { type: "weakened", chance: 55, damage: 0, turns: 2 } }, "page torn free": { chance: 22, damage: [30, 42], hits: 2, special_effect: { type: "bleed", chance: 40, damage: 4, turns: 2 } } }, parry_chance: 0, dodge_chance: 35, parry_rate: 0, dodge_rate: 70, resist: { fire: 35, frost: 15 }, music: { root: 98, scale: [0, 3, 5, 6, 10], wave: "triangle", tempo: 110 } },
+  "index hound": {
+    name: "The Index Hound", hp: 365, icon: "🐺📜",
+    block_chance: 8, block_reduction: 0.25,
+    basic_attack: { damage: [34, 46], type: "fast" },
+    abilities: {
+      "page-ripper": { chance: 26, damage: [42, 56], accuracy: 82, type: "fast", special_effect: { type: "bleed", chance: 35, damage: 5, turns: 2 } },
+      "catalogue howl": { chance: 20, damage: [30, 40], accuracy: 90, element: "frost", special_effect: { type: "weakened", chance: 45, damage: 0, turns: 2 } },
+    },
+    chance: 12,
+    drops: {
+      coin: { chance: 100, min_drop: 50, max_drop: 90 },
+      "ink fragment": { chance: 90, min_drop: 1, max_drop: 2 },
+      "soul shard": { chance: 28, min_drop: 1, max_drop: 1 },
+      "ancient crystal": { chance: 10, min_drop: 1, max_drop: 1 },
+    },
+    parry_chance: 15, dodge_chance: 32, parry_rate: 55, dodge_rate: 70,
+    resist: { fire: 0, frost: 25 },
+    music: { root: 138.59, scale: [0, 2, 5, 7, 10], wave: "triangle", tempo: 126 },
+  },
   "margin warden": { name: "The Final Errata", hp: 645, icon: "✒️⚔️", block_chance: 35, block_reduction: 0.6, basic_attack: { damage: [62, 80], type: "heavy" }, abilities: { "redline sweep": { chance: 26, damage: [78, 102], dodgeable: false, special_effect: { type: "slow", chance: 60, damage: 0, turns: 2 } }, "correct the ending": { chance: 20, heal: [85, 120], special_effect: { type: "fortified", chance: 100, damage: 0, turns: 2 } } }, parry_chance: 30, dodge_chance: 10, parry_rate: 65, dodge_rate: 45, resist: { fire: 35, frost: 35 }, music: { root: 82.41, scale: [0, 2, 3, 6, 9], wave: "sawtooth", tempo: 96 } },
   "the last save": { name: "The Final Overwrite", hp: 2300, icon: "💾🌑", block_chance: 0, block_reduction: 0, basic_attack: { damage: [92, 126], parryable: false, element: "fire" }, abilities: { "erase the timeline": { chance: 26, damage: [122, 160], cutscene: "logo-fall", blockable: false, special_effect: { type: "burn", chance: 70, damage: 10, turns: 3 }, warning: true, telegraph: "starts erasing the timeline with" }, "restore corrupted data": { chance: 20, heal: [150, 220], special_effect: { type: "shield", chance: 100, absorb: 65, turns: 2 } }, "forced shutdown": { chance: 14, damage: [100, 138], hits: 2, cutscene: "void-pulse", dodgeable: false } }, parry_chance: 0, dodge_chance: 50, parry_rate: 0, dodge_rate: 82, resist: { fire: 50, frost: 35 }, music: { root: 73.42, scale: [0, 1, 4, 6, 8], wave: "sawtooth", tempo: 132 } },
   "the missing page": {
@@ -1652,6 +1671,7 @@ const ENEMY_DIALOGUE = {
   "clockwork hound": { attack: ["TARGET ACQUIRED.", "BITE PROTOCOL ENGAGED."] },
   "mire witch": { attack: ["The mire keeps what it takes.", "Sink quietly into the blackwater."] },
   "archive stalker": { attack: ["You were missing from this chapter for a reason.", "No one reads the footnotes until it is too late."] },
+  "index hound": { attack: ["The catalogue has already chosen its keeper.", "Find the line. Chase it. Lose your place."] },
   "margin warden": { attack: ["That choice needs correcting.", "You have crossed the margin for the last time."] },
 };
 for (const [name, dialogue] of Object.entries(ENEMY_DIALOGUE)) {
@@ -1896,7 +1916,7 @@ const ENEMY_LEVELS = {
   "stone golem": 6, "the unnamed king": 6, "null leech": 7,
   "ancient dragon": 10, "frost giant": 7, "frost giant king": 10,
   "ancient golem": 11, demon: 7, "ash demon": 12, "archive stalker": 13,
-  "footnote mimic": 13, "the leftover": 8, "the watcher": 10,
+  "footnote mimic": 13, "index hound": 14, "the leftover": 8, "the watcher": 10,
   "the witness": 12, "the archivist": 14, "the first hero": 16,
   "the editor": 18, "margin warden": 18, "the author": 20, "the last save": 22, "the missing page": 12, "the echo of attempts": 16,
 };
@@ -1914,6 +1934,7 @@ const ELEMENT_WEAKNESSES = {
   "ancient golem": { lightning: 30 },
   wraith: { fire: 20 },
   "ancient dragon": { frost: 20 },
+  "index hound": { fire: 25 },
 };
 for (const [name, weak] of Object.entries(ELEMENT_WEAKNESSES)) monsters[name].weak = weak;
 
