@@ -62,6 +62,7 @@ function getStats() {
     max_hp: C.BASE_MAX_HP,
     damage: 0,
     guard: 0.0,
+    max_energy: 0,
     parry: 0,
     crit: 0,
     dodge: 0,
@@ -138,8 +139,8 @@ const dodgeChance = (a, s) =>
     ? Math.max(5, Math.min(C.DODGE_MAX, C.DODGE + (C.DODGE_MOD[a.type] || 0) + s.dodge))
     : 0;
 const weaponSkills = () => {
-  const w = equipment.weapon;
-  return w ? (ITEMS[w].skills || []).map((n) => SKILLS[n]) : [];
+  const learned = new Set(Object.values(equipment).filter(Boolean).flatMap((item) => ITEMS[item]?.skills || []));
+  return [...learned].map((name) => SKILLS[name]).filter(Boolean);
 };
 
 function showInventory(arg = "") {
@@ -211,7 +212,7 @@ function showStats() {
   print(`❤️ Maximum HP: ${s.max_hp}`);
   print(`⚔️ Damage range: ${C.PLAYER_DAMAGE[0] + s.damage}–${C.PLAYER_DAMAGE[1] + s.damage}`);
   print(`🎯 Hit chance: ${C.ATTACK_HIT}%   ·   Critical chance: ${C.CRIT + s.crit}%`);
-  print(`⚡ Energy: ${C.START_ENERGY} starting, ${typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY} maximum`);
+  print(`⚡ Energy: ${C.START_ENERGY} starting, ${typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY} maximum · Focus restores ${typeof focusRecovery === "function" ? focusRecovery() : C.RECOVER}`);
   print(`🛡️ Guard: reduces damage by ${int(guardReduction(s) * 100)}% (piercing attacks bypass it)`);
   print(`🧱 Defence: blocks ${s.defense} damage per hit (minimum ${C.MIN_DMG})`);
   print(`🤺 Parry chance: ${C.PARRY + s.parry}% base`);
@@ -242,7 +243,7 @@ function showStats() {
   }
   const sk = weaponSkills();
   if (sk.length) {
-    print("\n⚔️");
+    print("\n✨ Skills from equipped gear:");
     sk.forEach((k) => print(`- ${title(k.name)} (${k.cost} energy): ${k.desc}`));
   }
 }
@@ -419,7 +420,7 @@ async function showItemInfo(arg = "") {
     if (cur === null) print(`Your ${it.id} slot is empty, so you'd gain all of the above.`);
     else if (cur !== name) print(`Versus your ${cur}: ${compareGear(name, cur)}`);
     if (it.skills?.length) {
-      print("Weapon skills:");
+      print("Skills granted while equipped:");
       it.skills.forEach((sn) => {
         const s = SKILLS[sn];
         print(`  - ${title(sn)} (${s.cost} energy): ${s.desc}`);
