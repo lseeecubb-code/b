@@ -639,6 +639,17 @@ const FX = (() => {
       battleAudio.onerror = () => fallbackToSynthesizedMusic(generation, track);
     }
     const player = battleAudio;
+    if (musicBus && audio) musicBus.gain.setTargetAtTime(0, audio.currentTime, 0.18);
+    const onTrackStarted = () => {
+      if (generation !== battleMusicGeneration || activeBattleMusic !== track) {
+        player.pause();
+        return;
+      }
+      if (battleAudioFallbackTimer !== null) clearTimeout(battleAudioFallbackTimer);
+      battleAudioFallbackTimer = null;
+      if (musicBus && audio) musicBus.gain.setTargetAtTime(0, audio.currentTime, 0.18);
+    };
+    player.onplaying = onTrackStarted;
     if (battleAudioFallbackTimer !== null) clearTimeout(battleAudioFallbackTimer);
     battleAudioFallbackTimer = setTimeout(() => fallbackToSynthesizedMusic(generation, track), 6000);
     let attempt;
@@ -649,15 +660,7 @@ const FX = (() => {
       return;
     }
     if (attempt && typeof attempt.then === "function") {
-      attempt.then(() => {
-        if (generation !== battleMusicGeneration || activeBattleMusic !== track) {
-          player.pause();
-          return;
-        }
-        if (battleAudioFallbackTimer !== null) clearTimeout(battleAudioFallbackTimer);
-        battleAudioFallbackTimer = null;
-        if (musicBus && audio) musicBus.gain.setTargetAtTime(0, audio.currentTime, 0.18);
-      }).catch(() => fallbackToSynthesizedMusic(generation, track));
+      attempt.then(onTrackStarted).catch(() => fallbackToSynthesizedMusic(generation, track));
     }
   }
 
