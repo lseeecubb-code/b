@@ -6,7 +6,8 @@ const DEFAULT_ATTACK = {
   blockable: true,
   dodgeable: true,
   pierces_guard: false,
-  accuracy: 100,
+  // Every move can override this in its data. A miss leaves the enemy exposed.
+  accuracy: 92,
   hits: 1,
   special_effect: null,
   warning: false,
@@ -87,7 +88,7 @@ const monsters = {
     basic_attack: { damage: [4, 8] },
     abilities: {
       "dagger stab": { chance: 30, damage: [6, 10], type: "fast" },
-      "thrown rock": { chance: 20, stun: 25, stun_turns: 1, damage: [5, 9], parryable: false, telegraph: "hurls" },
+      "thrown rock": { chance: 20, stun: 25, stun_turns: 1, damage: [5, 9], accuracy: 84, parryable: false, telegraph: "hurls" },
       "dirty trick": {
         chance: 10, stun: 30, stun_turns: 1,
         damage: [3, 6],
@@ -1275,8 +1276,8 @@ Object.assign(monsters, {
     icon: "🏹", hp: 82, block_chance: 8, block_reduction: 0.25,
     basic_attack: { damage: [9, 14], type: "fast" },
     abilities: {
-      "pinning shot": { chance: 22, damage: [12, 18], type: "fast", special_effect: { type: "slow", chance: 35, damage: 0, turns: 2 } },
-      "barbed arrow": { chance: 14, damage: [10, 15], special_effect: { type: "bleed", chance: 45, damage: 3, turns: 2 } },
+      "pinning shot": { chance: 22, damage: [12, 18], type: "fast", accuracy: 96, special_effect: { type: "slow", chance: 35, damage: 0, turns: 2 } },
+      "barbed arrow": { chance: 14, damage: [10, 15], accuracy: 78, special_effect: { type: "bleed", chance: 45, damage: 3, turns: 2 } },
     },
     chance: 38, drops: { coin: { chance: 100, min_drop: 18, max_drop: 42 }, "clockwork spring": { chance: 18, min_drop: 1, max_drop: 1 }, leather: { chance: 35, min_drop: 1, max_drop: 2 } },
     parry_chance: 12, dodge_chance: 22, parry_rate: 55, dodge_rate: 65,
@@ -1915,3 +1916,4 @@ const ELEMENT_WEAKNESSES = {
   "ancient dragon": { frost: 20 },
 };
 for (const [name, weak] of Object.entries(ELEMENT_WEAKNESSES)) monsters[name].weak = weak;
+
