@@ -486,6 +486,7 @@ const FOURTH_WALL_EVENTS = {
     "The game refuses to describe what is behind you.",
     'The screen displays: "INPUT RECEIVED."',
     'The Witness asks: "Are you still there?"',
+    "A word is scratched below the menu: XYZZY.",
   ],
   5: [
     "The final boss has no health bar.",
