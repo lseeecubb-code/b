@@ -1264,6 +1264,77 @@ const monsters = {
 };
 
 Object.assign(monsters, {
+  mossling: {
+    name: "Mossling", icon: "🍃", hp: 26,
+    block_chance: 3, block_reduction: 0.25,
+    basic_attack: { damage: [3, 6], accuracy: 94 },
+    abilities: {
+      "spore puff": { chance: 18, damage: [3, 5], accuracy: 86, special_effect: { type: "slow", chance: 22, damage: 0, turns: 1 } },
+    },
+    chance: 62, loot_chance: 84,
+    drops: {
+      "moss fiber": { chance: 62, min_drop: 1, max_drop: 2 },
+      "moon herb": { chance: 24, min_drop: 1, max_drop: 1 },
+      coin: { chance: 100, min_drop: 2, max_drop: 7 },
+    },
+    parry_chance: 2, dodge_chance: 12, parry_rate: 34, dodge_rate: 46,
+    resist: { frost: 10 },
+  },
+  "burrow rat": {
+    name: "Burrow Rat", icon: "🐀🪨", hp: 34,
+    block_chance: 4, block_reduction: 0.3,
+    basic_attack: { damage: [4, 7], accuracy: 91, type: "fast" },
+    abilities: {
+      "stone-dust scramble": { chance: 20, damage: [5, 9], accuracy: 84, type: "fast", special_effect: { type: "exposed", chance: 20, damage: 0, turns: 1 } },
+    },
+    chance: 42, loot_chance: 86,
+    drops: {
+      meat: { chance: 78, min_drop: 1, max_drop: 2 },
+      "rat fang": { chance: 28, min_drop: 1, max_drop: 1 },
+      "moss fiber": { chance: 34, min_drop: 1, max_drop: 2 },
+      coin: { chance: 100, min_drop: 3, max_drop: 9 },
+    },
+    parry_chance: 3, dodge_chance: 16, parry_rate: 38, dodge_rate: 52,
+    resist: { frost: 10 },
+  },
+  "lantern thief": {
+    name: "Lantern Thief", icon: "🕯️🗡️", hp: 58,
+    block_chance: 7, block_reduction: 0.3,
+    basic_attack: { damage: [7, 11], accuracy: 88, type: "fast" },
+    abilities: {
+      "snuff the flame": { chance: 22, damage: [8, 13], accuracy: 82, special_effect: { type: "weakened", chance: 30, damage: 0, turns: 1 } },
+      "quick cut": { chance: 18, damage: [5, 8], hits: 2, accuracy: 84, type: "fast" },
+    },
+    chance: 22, loot_chance: 86,
+    drops: {
+      "lantern glass": { chance: 66, min_drop: 1, max_drop: 2 },
+      leather: { chance: 46, min_drop: 1, max_drop: 2 },
+      coin: { chance: 100, min_drop: 9, max_drop: 18 },
+    },
+    parry_chance: 8, dodge_chance: 24, parry_rate: 48, dodge_rate: 64,
+    weak: { lightning: 20 },
+  },
+  "mossback guardian": {
+    name: "Mossback Guardian", icon: "🪵🛡️", hp: 176,
+    block_chance: 24, block_reduction: 0.45,
+    basic_attack: { damage: [13, 19], accuracy: 88, type: "heavy" },
+    abilities: {
+      "root sweep": { chance: 24, damage: [16, 23], accuracy: 84, type: "heavy", warning: true, telegraph: "drags its roots through the road with a" },
+      "bark regrowth": { chance: 18, heal: [20, 34], special_effect: { type: "fortified", chance: 100, damage: 0, turns: 1 } },
+    },
+    chance: 0, secret_flag: "quiet_road_mossback_found", loot_chance: 100,
+    drops: {
+      "guardian bark": { chance: 100, min_drop: 2, max_drop: 3 },
+      "moss fiber": { chance: 100, min_drop: 2, max_drop: 4 },
+      "moon herb": { chance: 60, min_drop: 1, max_drop: 2 },
+      coin: { chance: 100, min_drop: 35, max_drop: 55 },
+    },
+    parry_chance: 14, dodge_chance: 0, parry_rate: 52, dodge_rate: 0,
+    resist: { frost: 20 }, weak: { fire: 25 },
+  },
+});
+
+Object.assign(monsters, {
   "dust jackal": {
     icon: "🐕", hp: 27, block_chance: 4, block_reduction: 0.25,
     basic_attack: { damage: [4, 7] },
@@ -1806,6 +1877,10 @@ const ENEMY_DIALOGUE = {
   "bellbound cantor": { attack: ["The nave has room for one more voice.", "Listen closely. The last note is yours."] },
   "the bell without a tongue": { attack: ["No tongue. No rope. Still, you heard it.", "Every silence has a sound beneath it."], phase: ["The bell cracks. The echo keeps ringing."] },
   "margin warden": { attack: ["That choice needs correcting.", "You have crossed the margin for the last time."] },
+  mossling: { attack: ["The road is ours now!", "The moss rustles with tiny feet."] },
+  "burrow rat": { attack: ["The earth belongs to us.", "A quick bite, then back underground."] },
+  "lantern thief": { attack: ["The dark is safer for everyone.", "You don't need that light as much as I do."] },
+  "mossback guardian": { attack: ["Roots remember every footstep.", "Wayrest has forgotten what sleeps beneath it."], phase: ["The old road wakes beneath the moss."] },
 };
 for (const [name, dialogue] of Object.entries(ENEMY_DIALOGUE)) {
   if (monsters[name]) monsters[name].dialogue = dialogue;
@@ -2039,7 +2114,9 @@ for (const [name, phases] of Object.entries(BOSS_EVENT_REACTIONS)) {
 // Minimum player level recommended before an enemy can appear or be challenged.
 const ENEMY_LEVELS = {
   rat: 1, slime: 1, "dust jackal": 1,
+  mossling: 1, "burrow rat": 1,
   goblin: 2, wolf: 2, "wild boar": 2, "giant spider": 2, harpy: 2,
+  "lantern thief": 2, "mossback guardian": 3,
   skeleton: 2, zombie: 2, bandit: 2, "giant crab": 2, "armored goblin": 2,
   "goblin king": 3, "clockwork hound": 3, witch: 4, "dire wolf": 4,
   orc: 4, wyvern: 4, "alpha wolf": 4, "frontier marksman": 3,
@@ -2059,6 +2136,9 @@ for (const [name, enemy] of Object.entries(monsters)) enemy.level = ENEMY_LEVELS
 // Explicit field-tested vulnerabilities used by spell damage, poise breaks, and combat readouts.
 const ELEMENT_WEAKNESSES = {
   slime: { lightning: 25 },
+  mossling: { fire: 25 },
+  "burrow rat": { frost: 15 },
+  "mossback guardian": { fire: 25 },
   zombie: { fire: 20 },
   skeleton: { fire: 15 },
   "fire elemental": { frost: 40 },
