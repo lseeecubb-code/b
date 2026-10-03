@@ -1589,4 +1589,67 @@ for (const [name, secondForm] of Object.entries(BOSS_PHASE_TWO)) {
   boss.phases = [bossPhaseForm(boss, firstForm, 0), bossPhaseForm(boss, secondForm, 1)];
 }
 
+// Endgame bosses remember notable player choices for the rest of the encounter.
+const BOSS_EVENT_REACTIONS = {
+  "the watcher": [
+    {
+      player_magic: { flag: "watcher_saw_magic", message: "A spell. I have recorded its shape." },
+      player_heal: { flag: "watcher_saw_healing", message: "You preserve yourself. The pattern is clear." },
+    },
+    {
+      player_guard: { flag: "watcher_saw_guard", message: "Still hiding behind a guard? I can see through it now." },
+      player_counter: { flag: "watcher_was_countered", message: "You turned my opening against me. I will not offer it twice." },
+    },
+  ],
+  "the witness": [
+    {
+      player_skill: { flag: "witness_saw_skill", message: "A practiced technique. I will include it in the record." },
+      player_item: { flag: "witness_saw_item", message: "You reach for a tool when the story turns against you." },
+    },
+    {
+      player_heal: { flag: "witness_saw_healing", message: "You mend the damage. The testimony grows longer." },
+      player_magic: { flag: "witness_saw_magic", message: "Your magic changes the account, but not the ending." },
+    },
+  ],
+  "the archivist": [
+    {
+      player_heavy: { flag: "archivist_saw_heavy", message: "An inefficient use of force. Filed under predictable." },
+      player_counter: { flag: "archivist_saw_counter", message: "An unexpected response. Reclassifying your combat record." },
+    },
+    {
+      player_heal: { flag: "archivist_saw_healing", message: "Restoration noted. I have already indexed that remedy." },
+      player_magic: { flag: "archivist_saw_magic", message: "Arcane output logged. The next page accounts for it." },
+    },
+  ],
+  "the author": [
+    {
+      player_guard: { flag: "author_saw_guard", message: "You choose defense. I can rewrite the scene around it." },
+      player_dodge: { flag: "author_saw_dodge", message: "You evade the line I wrote. I will shorten the next one." },
+    },
+    {
+      player_heal: { flag: "author_saw_healing", message: "You refuse the ending. Then I will write another wound." },
+      player_frost: { flag: "author_saw_frost", message: "Frost against the draft. I have changed the climate." },
+      player_fire: { flag: "author_saw_fire", message: "Fire against the page. I have changed the ink." },
+    },
+  ],
+  "the last save": [
+    {
+      player_magic: { flag: "save_saw_magic", message: "Unusual input detected. Recording your preferred solution." },
+      player_item: { flag: "save_saw_item", message: "Consumable use recorded. Your inventory is part of the pattern." },
+      player_counter: { flag: "save_saw_counter", message: "Counter detected. Updating the enemy response model." },
+    },
+    {
+      player_heal: { flag: "save_saw_healing", message: "Recovery detected. I will overwrite that advantage." },
+      player_skill: { flag: "save_saw_skill", message: "Weapon technique recorded. Your next move is no longer a surprise." },
+      player_heavy: { flag: "save_saw_heavy", message: "Heavy strike recorded. Adjusting the final sequence." },
+    },
+  ],
+};
+for (const [name, phases] of Object.entries(BOSS_EVENT_REACTIONS)) {
+  const boss = monsters[name];
+  if (boss?.phases) phases.forEach((events, index) => {
+    if (boss.phases[index]) boss.phases[index].event_flags = events;
+  });
+}
+
 
