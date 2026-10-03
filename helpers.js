@@ -291,6 +291,7 @@ function describeBuffs(n) {
     p = [];
   if ("damage" in d) p.push(`${sgn(d.damage)} damage`);
   if ("max_hp" in d) p.push(`${sgn(d.max_hp)} max HP`);
+  if ("max_energy" in d) p.push(`+${d.max_energy} max energy`);
   if ("guard" in d) p.push(`+${int(d.guard * 100)}% guard`);
   if ("parry" in d) p.push(`+${d.parry}% parry`);
   if ("crit" in d) p.push(`+${d.crit}% crit`);
