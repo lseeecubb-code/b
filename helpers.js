@@ -162,7 +162,7 @@ function removeItem(n, a, q = false) {
   }
   inventory[n] = c - a;
   if (inventory[n] === 0) delete inventory[n];
-  if (!q) print(n === "coin" ? `Spent $${a}` : `📦 Removed ${a} × ${n} from your inventory.`);
+  if (!q) print(`📦 Removed ${a} × ${n} from your inventory.`);
   return true;
 }
 
