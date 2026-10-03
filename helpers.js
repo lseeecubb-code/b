@@ -7,7 +7,7 @@ const C = {
   CRIT_MULT: 1.5,
   MAX_ENERGY: 6,
   START_ENERGY: 4,
-  RECOVER: 2,
+  RECOVER: 3,
   ATTACK_GAIN: 1,
   HEAVY_COST: 2,
   HEAVY_MULT: 2.0,
@@ -291,7 +291,6 @@ function describeBuffs(n) {
     p = [];
   if ("damage" in d) p.push(`${sgn(d.damage)} damage`);
   if ("max_hp" in d) p.push(`${sgn(d.max_hp)} max HP`);
-  if ("max_energy" in d) p.push(`+${d.max_energy} max energy`);
   if ("guard" in d) p.push(`+${int(d.guard * 100)}% guard`);
   if ("parry" in d) p.push(`+${d.parry}% parry`);
   if ("crit" in d) p.push(`+${d.crit}% crit`);

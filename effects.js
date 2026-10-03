@@ -731,9 +731,6 @@ const FX = (() => {
     pauseBattleMusic();
     activeBattleMusic = null;
     if (musicBus && audio) musicBus.gain.setTargetAtTime(0, audio.currentTime, 0.16);
-    if (musicBus && audio) musicBus.gain.setTargetAtTime(on && activeBattleMusic ? 0.55 : 0, audio.currentTime, 0.18);
-    if (on && activeBattleMusic) resumeBattleMusic();
-    else if (!on) pauseBattleMusic();
   }
 
   // ---------- Screen effects ----------
