@@ -1348,8 +1348,6 @@ Object.assign(monsters, {
     parry_rate: 65,
     dodge_rate: 60,
   },
-  "the missing page": { title: "THE MARGIN'S MISSING LINE", lines: ["A blank line appears where the terminal should end.", "Ink gathers into a figure that was never written.", "You found the page that the story removed."], effect: "fracture" },
-  "the echo of attempts": { title: "SAVE ECHO DETECTED", lines: ["Three old signals collapse into one.", "A familiar silhouette loads from the wrong save.", "It remembers the last move you made."], effect: "glitch" },
   "the first hero": {
     icon: "🗡️",
     hp: 2000,
@@ -1531,30 +1529,6 @@ Object.assign(monsters, {
     parry_rate: 75,
     dodge_rate: 75,
   },
-  "the missing page": {
-    icon: "📄🌑", hp: 1480, block_chance: 8, block_reduction: 0.35,
-    basic_attack: { damage: [52, 72], parryable: false, element: "frost" },
-    abilities: {
-      "margin tear": { chance: 26, damage: [72, 96], element: "frost", warning: true, telegraph: "rips through the margin with", special_effect: { type: "weakened", chance: 45, damage: 0, turns: 2 } },
-      "footnote swarm": { chance: 24, damage: [22, 32], hits: 3, special_effect: { type: "bleed", chance: 35, damage: 5, turns: 2 } },
-      "restore the blank": { chance: 14, heal: [95, 145] },
-    },
-    chance: 0, secret_flag: "secret_missing_page_found",
-    drops: { "void crystal": { chance: 100, min_drop: 4, max_drop: 7 }, "ancient heart": { chance: 60, min_drop: 1, max_drop: 2 } },
-    resist: { fire: 25, frost: 50 }, parry_chance: 24, dodge_chance: 32, parry_rate: 60, dodge_rate: 68,
-  },
-  "the echo of attempts": {
-    icon: "💾👤", hp: 1900, block_chance: 12, block_reduction: 0.4,
-    basic_attack: { damage: [64, 86], type: "fast" },
-    abilities: {
-      "replay the strike": { chance: 28, damage: [28, 38], hits: 3, type: "fast" },
-      "borrowed last stand": { chance: 18, damage: [102, 138], type: "heavy", warning: true, telegraph: "repeats your oldest mistake with", special_effect: { type: "burn", chance: 35, damage: 8, turns: 2 } },
-      "reload the echo": { chance: 16, heal: [115, 175], special_effect: { type: "shield", chance: 100, absorb: 45, turns: 2 } },
-    },
-    chance: 0, secret_flag: "secret_echo_save_found",
-    drops: { "void crystal": { chance: 100, min_drop: 8, max_drop: 12 }, "ancient heart": { chance: 100, min_drop: 2, max_drop: 3 } },
-    resist: { fire: 30, frost: 30 }, parry_chance: 28, dodge_chance: 34, parry_rate: 65, dodge_rate: 68,
-  },
 });
 
 // Optional custom battle music: add music_file: "audio/enemies/name.mp3" to any
@@ -1583,29 +1557,6 @@ const BOSS_PHASE_TWO = {
   "archive stalker": { name: "The Missing Chapter", hp: 315, icon: "📖👤", block_chance: 0, block_reduction: 0, basic_attack: { damage: [44, 60], parryable: false }, abilities: { "footnote ambush": { chance: 28, damage: [52, 70], dodgeable: false, special_effect: { type: "weakened", chance: 55, damage: 0, turns: 2 } }, "page torn free": { chance: 22, damage: [30, 42], hits: 2, special_effect: { type: "bleed", chance: 40, damage: 4, turns: 2 } } }, parry_chance: 0, dodge_chance: 35, parry_rate: 0, dodge_rate: 70, resist: { fire: 35, frost: 15 }, music: { root: 98, scale: [0, 3, 5, 6, 10], wave: "triangle", tempo: 110 } },
   "margin warden": { name: "The Final Errata", hp: 645, icon: "✒️⚔️", block_chance: 35, block_reduction: 0.6, basic_attack: { damage: [62, 80], type: "heavy" }, abilities: { "redline sweep": { chance: 26, damage: [78, 102], dodgeable: false, special_effect: { type: "slow", chance: 60, damage: 0, turns: 2 } }, "correct the ending": { chance: 20, heal: [85, 120], special_effect: { type: "fortified", chance: 100, damage: 0, turns: 2 } } }, parry_chance: 30, dodge_chance: 10, parry_rate: 65, dodge_rate: 45, resist: { fire: 35, frost: 35 }, music: { root: 82.41, scale: [0, 2, 3, 6, 9], wave: "sawtooth", tempo: 96 } },
   "the last save": { name: "The Final Overwrite", hp: 2300, icon: "💾🌑", block_chance: 0, block_reduction: 0, basic_attack: { damage: [92, 126], parryable: false, element: "fire" }, abilities: { "erase the timeline": { chance: 26, damage: [122, 160], cutscene: "logo-fall", blockable: false, special_effect: { type: "burn", chance: 70, damage: 10, turns: 3 }, warning: true, telegraph: "starts erasing the timeline with" }, "restore corrupted data": { chance: 20, heal: [150, 220], special_effect: { type: "shield", chance: 100, absorb: 65, turns: 2 } }, "forced shutdown": { chance: 14, damage: [100, 138], hits: 2, cutscene: "void-pulse", dodgeable: false } }, parry_chance: 0, dodge_chance: 50, parry_rate: 0, dodge_rate: 82, resist: { fire: 50, frost: 35 }, music: { root: 73.42, scale: [0, 1, 4, 6, 8], wave: "sawtooth", tempo: 132 } },
-  "the missing page": {
-    name: "The Page That Refuses to Burn", hp: 920, icon: "📄🔥",
-    block_chance: 0, block_reduction: 0.25,
-    basic_attack: { damage: [72, 96], element: "fire", parryable: false },
-    abilities: {
-      "burn the margins": { chance: 28, damage: [84, 112], element: "fire", cutscene: "redline-slice", warning: true, telegraph: "sets the edges of the page alight with" },
-      "shred the footnotes": { chance: 26, damage: [30, 42], hits: 3, type: "fast", special_effect: { type: "bleed", chance: 45, damage: 6, turns: 2 } },
-    },
-    parry_chance: 0, dodge_chance: 45, parry_rate: 0, dodge_rate: 78,
-    resist: { fire: 45, frost: 10 }, music: { root: 77.78, scale: [0, 1, 4, 6, 9], wave: "sawtooth", tempo: 118 },
-  },
-  "the echo of attempts": {
-    name: "The Save That Remembers", hp: 2250, icon: "💾🌘",
-    block_chance: 0, block_reduction: 0.3,
-    basic_attack: { damage: [82, 110], type: "heavy", element: "frost" },
-    abilities: {
-      "repeat the ending": { chance: 26, damage: [46, 62], hits: 2, element: "frost", cutscene: "void-pulse", special_effect: { type: "slow", chance: 55, damage: 0, turns: 2 } },
-      "overwrite the attempt": { chance: 20, damage: [122, 158], element: "fire", cutscene: "logo-fall", warning: true, telegraph: "overwrites the copy with" },
-      "restore the first frame": { chance: 18, heal: [135, 195], special_effect: { type: "empowered", chance: 100, damage: 0, turns: 2 } },
-    },
-    parry_chance: 0, dodge_chance: 42, parry_rate: 0, dodge_rate: 78,
-    resist: { fire: 25, frost: 35 }, music: { root: 65.41, scale: [0, 1, 3, 7, 8], wave: "square", tempo: 138 },
-  },
 };
 
 function bossPhaseForm(boss, override, phaseIndex) {
@@ -1646,8 +1597,6 @@ const ENEMY_DIALOGUE = {
   "the editor": { attack: ["That move has been cut.", "I decide which actions remain on the page."], phase: ["Revision complete. Your turn is next to be rewritten."] },
   "the author": { attack: ["I wrote this moment long ago.", "Your resistance makes the story more interesting."], phase: ["The draft ends here. Let me write the final version."] },
   "the last save": { attack: ["Recovery point unavailable.", "Your progress cannot protect you now."], phase: ["The final overwrite has begun. There will be no undo."] },
-  "the missing page": { attack: ["I was cut before anyone could read me.", "The margin is the only place left for me."], phase: ["Then I will burn the space around the words."] },
-  "the echo of attempts": { attack: ["I remember every ending you loaded past.", "This is the move you made before."], phase: ["The first save is still alive in the copy."] },
   "clockwork hound": { attack: ["TARGET ACQUIRED.", "BITE PROTOCOL ENGAGED."] },
   "mire witch": { attack: ["The mire keeps what it takes.", "Sink quietly into the blackwater."] },
   "archive stalker": { attack: ["You were missing from this chapter for a reason.", "No one reads the footnotes until it is too late."] },
@@ -1897,6 +1846,6 @@ const ENEMY_LEVELS = {
   "ancient golem": 11, demon: 7, "ash demon": 12, "archive stalker": 13,
   "footnote mimic": 13, "the leftover": 8, "the watcher": 10,
   "the witness": 12, "the archivist": 14, "the first hero": 16,
-  "the editor": 18, "margin warden": 18, "the author": 20, "the last save": 22, "the missing page": 12, "the echo of attempts": 16,
+  "the editor": 18, "margin warden": 18, "the author": 20, "the last save": 22,
 };
 for (const [name, enemy] of Object.entries(monsters)) enemy.level = ENEMY_LEVELS[name] || Math.max(1, Math.ceil(enemy.hp / 150));
