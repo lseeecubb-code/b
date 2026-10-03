@@ -981,7 +981,7 @@ function advanceBossForms(f) {
     print(`❤️ New form: ${e.hp}/${e.monster.hp} HP · ${Object.keys(e.monster.abilities || {}).map(title).join(", ") || "new combat style"}.`);
     if (typeof noteBestiaryPhase === "function") noteBestiaryPhase(e.name, e.displayName);
     if (typeof clog === "function") clog(f, `${e.displayName} entered phase ${nextIndex + 1}`);
-    if (typeof FX !== "undefined") FX.startBattleMusic([e.name, e.displayName], true, form.music);
+    if (typeof FX !== "undefined") FX.startBattleMusic([e.name, e.displayName], true, form.music, form.music_file);
   }
   return changed;
 }
@@ -1274,7 +1274,7 @@ async function fightMonster(arg = "", elite = false) {
   const battleEnemies = Array.isArray(name) ? name : [name];
   const bossEncounter = elite || battleEnemies.some((enemy) => monsters[enemy]?.chance <= 0);
   (f.enemies || []).forEach((e) => noteBestiaryEncounter(e.name.replace(/^elite /, "")));
-  if (typeof FX !== "undefined") FX.startBattleMusic(battleEnemies, bossEncounter, f.enemies?.length === 1 ? f.enemies[0].phases?.[0]?.music : null);
+  if (typeof FX !== "undefined") FX.startBattleMusic(battleEnemies, bossEncounter, f.enemies?.length === 1 ? f.enemies[0].phases?.[0]?.music : null, f.enemies?.length === 1 ? f.enemies[0].monster?.music_file : null);
   const stopMusic = () => {
     if (typeof FX !== "undefined") FX.stopBattleMusic();
   };
