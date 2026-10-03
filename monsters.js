@@ -1616,6 +1616,143 @@ for (const [name, secondForm] of Object.entries(BOSS_PHASE_TWO)) {
   boss.phases = [bossPhaseForm(boss, firstForm, 0), bossPhaseForm(boss, secondForm, 1)];
 }
 
+const BOSS_OPENINGS = {
+  "goblin king": {
+    "title": "THE CROWN BREAKS",
+    "lines": [
+      "The goblin court falls silent.",
+      "Its king rises, blood bright along the broken crown.",
+      "Kneel, and I may remember your name."
+    ]
+  },
+  "alpha wolf": {
+    "title": "THE PACK ANSWERS",
+    "lines": [
+      "A howl rolls across the battlefield.",
+      "Moonlight gathers in the alpha’s eyes.",
+      "The hunt ends with you."
+    ]
+  },
+  "orc warlord": {
+    "title": "IRONBLOOD",
+    "lines": [
+      "The war drums stop.",
+      "The warlord lifts its scarred axe.",
+      "You wanted the strongest. Here I am."
+    ]
+  },
+  "ancient golem": {
+    "title": "CORE UNBOUND",
+    "lines": [
+      "The stone floor splits open.",
+      "A molten heart ignites beneath the ancient armor.",
+      "THREAT DETECTED. CONTAINMENT FAILED."
+    ],
+    "effect": "fracture"
+  },
+  "frost giant king": {
+    "title": "RIMEHEART",
+    "lines": [
+      "The air turns painfully still.",
+      "The giant king steps from the blizzard, frost crawling over its crown.",
+      "The last warmth leaves this world now."
+    ],
+    "effect": "glitch"
+  },
+  "ash demon": {
+    "title": "CINDERHEART",
+    "lines": [
+      "Ash falls upward into a burning sky.",
+      "The demon unfolds from the fire.",
+      "Feed the flame with your fear."
+    ],
+    "effect": "fracture"
+  },
+  "the unnamed king": {
+    "title": "THE EMPTY THRONE",
+    "lines": [
+      "A crown appears above a throne with no kingdom.",
+      "A voice speaks from the dark between the stones.",
+      "There is no world here to save."
+    ],
+    "effect": "glitch"
+  },
+  "the leftover": {
+    "title": "THE UNFINISHED REMNANT",
+    "lines": [
+      "The terminal hesitates, as if a line failed to load.",
+      "Something unfinished drags itself into the story.",
+      "You cannot leave me as a footnote."
+    ],
+    "effect": "tear"
+  },
+  "the watcher": {
+    "title": "THE UNBLINKING EYE",
+    "lines": [
+      "Every sound cuts out.",
+      "A single eye opens across the screen.",
+      "I have already seen how you lose."
+    ],
+    "effect": "glitch"
+  },
+  "the witness": {
+    "title": "THE TESTIMONY",
+    "lines": [
+      "A page turns by itself.",
+      "The witness steps forward, surrounded by burning script.",
+      "This encounter will be entered into evidence."
+    ],
+    "effect": "fracture"
+  },
+  "the archivist": {
+    "title": "THE LIVING INDEX",
+    "lines": [
+      "The shelves stretch beyond the edge of the terminal.",
+      "A figure closes a book and marks your name.",
+      "Your ending has already been catalogued."
+    ],
+    "effect": "tear"
+  },
+  "the first hero": {
+    "title": "THE LAST TRIAL",
+    "lines": [
+      "A familiar silhouette waits beneath a pale light.",
+      "The hero raises their weapon in salute.",
+      "Show me what you became."
+    ]
+  },
+  "the editor": {
+    "title": "THE REDLINE",
+    "lines": [
+      "The command prompt blinks out of rhythm.",
+      "Red marks crawl across the page.",
+      "This scene needs a few corrections."
+    ],
+    "effect": "fracture"
+  },
+  "the author": {
+    "title": "THE AUTHOR’S DRAFT",
+    "lines": [
+      "The screen fills with an unfinished sentence.",
+      "A figure steps out from between the words.",
+      "I decide what happens next."
+    ],
+    "effect": "tear"
+  },
+  "the last save": {
+    "title": "THE FINAL OVERWRITE",
+    "lines": [
+      "The terminal dims. The save icon flickers once.",
+      "A final presence reaches through the screen.",
+      "No checkpoint. No retry. Let us begin."
+    ],
+    "effect": "tear"
+  }
+};
+for (const [name, opening] of Object.entries(BOSS_OPENINGS)) {
+  if (monsters[name]) monsters[name].opening = opening;
+}
+
 // Endgame bosses remember notable player choices for the rest of the encounter.
 const BOSS_EVENT_REACTIONS = {
   "the watcher": [
@@ -1625,7 +1762,7 @@ const BOSS_EVENT_REACTIONS = {
     },
     {
       player_guard: { flag: "watcher_saw_guard", message: "Still hiding behind a guard? I can see through it now." },
-      player_counter: { flag: "watcher_was_countered", message: "You turned my opening against me. I will not offer it twice." },
+      player_counter: { flag: "watcher_was_countered", message: "You turned my opening against me. I will not offer it twice.", terminal_effect: "fracture", effect_duration: 1500 },
     },
   ],
   "the witness": [
@@ -1654,21 +1791,31 @@ const BOSS_EVENT_REACTIONS = {
       player_dodge: { flag: "author_saw_dodge", message: "You evade the line I wrote. I will shorten the next one." },
     },
     {
-      player_heal: { flag: "author_saw_healing", message: "You refuse the ending. Then I will write another wound." },
+      player_heal: { flag: "author_saw_healing", message: "You refuse the ending. Then I will write another wound.", terminal_effect: "fracture", control_glitch: true },
       player_frost: { flag: "author_saw_frost", message: "Frost against the draft. I have changed the climate." },
-      player_fire: { flag: "author_saw_fire", message: "Fire against the page. I have changed the ink." },
+      player_fire: { flag: "author_saw_fire", message: "Fire against the page. I have changed the ink.", terminal_effect: "tear", effect_duration: 1900 },
     },
   ],
   "the last save": [
     {
-      player_magic: { flag: "save_saw_magic", message: "Unusual input detected. Recording your preferred solution." },
-      player_item: { flag: "save_saw_item", message: "Consumable use recorded. Your inventory is part of the pattern." },
+      player_magic: { flag: "save_saw_magic", message: "Unusual input detected. Recording your preferred solution.", terminal_effect: "glitch", effect_duration: 1700 },
+      player_item: { flag: "save_saw_item", message: "Consumable use recorded. Your inventory is part of the pattern.", terminal_effect: "tear", effect_duration: 2200, control_glitch: true },
       player_counter: { flag: "save_saw_counter", message: "Counter detected. Updating the enemy response model." },
     },
     {
-      player_heal: { flag: "save_saw_healing", message: "Recovery detected. I will overwrite that advantage." },
-      player_skill: { flag: "save_saw_skill", message: "Weapon technique recorded. Your next move is no longer a surprise." },
+      player_heal: { flag: "save_saw_healing", message: "Recovery detected. I will overwrite that advantage.", terminal_effect: "fracture", effect_duration: 1900 },
+      player_skill: { flag: "save_saw_skill", message: "Weapon technique recorded. Your next move is no longer a surprise.", terminal_effect: "glitch", effect_duration: 1600, control_glitch: true },
       player_heavy: { flag: "save_saw_heavy", message: "Heavy strike recorded. Adjusting the final sequence." },
+    },
+  ],
+  "the editor": [
+    {
+      player_attack: { flag: "editor_rewrites_controls", message: "The command line is being revised. Attack and Guard switch places next turn.", terminal_effect: "glitch", control_glitch: true },
+      player_skill: { flag: "editor_strikes_through", message: "A tear opens through the command line.", terminal_effect: "tear", effect_duration: 2100 },
+    },
+    {
+      player_item: { flag: "editor_deletes_item_line", message: "That action was removed from the revision.", terminal_effect: "fracture", control_glitch: true },
+      player_counter: { flag: "editor_countered", message: "A correction in the margin. I will remember it.", terminal_effect: "glitch" },
     },
   ],
 };
