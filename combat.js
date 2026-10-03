@@ -1281,7 +1281,6 @@ function rollLoot(m) {
     print("💨 Unlucky! The monster dropped nothing.");
     return;
   }
-  print("🎉 The monster dropped loot!");
   let any = false;
   for (const [n, d] of Object.entries(m.drops))
     if (percent(d.chance)) {
@@ -1306,7 +1305,7 @@ function winFight(f) {
   });
   const xm = names[0]?.monster?._xpMult || 1;
   xp = Math.floor(xp * xm);
-  print(`✨ You gain ${xp} XP.`);
+  print(`Earned ${xp} Exp.`);
   grantXp(xp);
   names.forEach((e) => {
     rollLoot(e.monster || f.monster);
@@ -1641,3 +1640,4 @@ function showBestiary(arg = "") {
     );
   }
 }
+
