@@ -984,7 +984,7 @@ function advanceBossForms(f) {
     print(`❤️ New form: ${e.hp}/${e.monster.hp} HP · ${Object.keys(e.monster.abilities || {}).map(title).join(", ") || "new combat style"}.`);
     if (typeof noteBestiaryPhase === "function") noteBestiaryPhase(e.name, e.displayName);
     if (typeof clog === "function") clog(f, `${e.displayName} entered phase ${nextIndex + 1}`);
-    if (typeof FX !== "undefined") FX.startBattleMusic([e.name, e.displayName], true, form.music, form.music_file);
+    if (typeof FX !== "undefined") FX.startBattleMusic([form.name || e.name, e.displayName], true, form.music, form.music_file);
   }
   return changed;
 }
