@@ -42,11 +42,10 @@ function chapterRewards(ch) {
     print(`\n🎉 QUEST COMPLETE: ${qn}`);
     for (const [k, a] of Object.entries(q.reward)) {
       if (k === "xp") {
-        print(`   ✨ +${a} XP`);
+        print(`Earned ${a} Exp.`);
         grantXp(a);
       } else {
-        print(`   🎁 +${a} ${k}`);
-        addItem(k, a, true);
+        addItem(k, a);
       }
     }
     return;
@@ -333,3 +332,4 @@ async function showEnding() {
     print("Choose exactly: remember, release, or rewrite.");
   }
 }
+
