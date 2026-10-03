@@ -42,7 +42,7 @@ const Typewriter = (() => {
     {
       tier: "event",
       match:
-        /A wild .* appeared|YOUR TURN|'S TURN|You hit the|You are hit|Counterattack deals|Critical hit|✨ The .* uses|✨ You use|You swing|🧪 You use|It heals|drains|Guard reduces|You raise your guard|ready yourself|get ready to dodge|You try to|deals \d+ damage|wears off|You are (poisoned|burning|bleeding)|You defeated|defeated you|XP from|dropped loot|Unlucky|PHOENIX|LEVEL UP|unlocked!|Recoil|It explodes/,
+        /A wild .* appeared|YOUR TURN|'S TURN|You hit the|You are hit|Counterattack deals|Critical hit|✨ The .* uses|✨ You use|You swing|🧪 You use|It heals|drains|Guard reduces|You raise your guard|ready yourself|get ready to dodge|You try to|deals \d+ damage|wears off|You are (poisoned|burning|bleeding)|You defeated|defeated you|XP from|Earned .*?(?:Exp|\$)|Obtained <|dropped loot|Unlucky|PHOENIX|LEVEL UP|unlocked!|Recoil|It explodes/,
     },
   ];
 
@@ -213,3 +213,4 @@ const Typewriter = (() => {
 
   return { print, idle, skip, isBusy, setBattle };
 })();
+
