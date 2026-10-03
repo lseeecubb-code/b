@@ -213,7 +213,15 @@ function showStats() {
   );
   if (PLAYER.ngPlus) print(`🔁 Run: New Game+ ${PLAYER.ngPlus}`);
   print(`💪 Attributes: STR ${PLAYER.str ?? 5}  AGI ${PLAYER.agi ?? 5}  VIT ${PLAYER.vit ?? 5}  FOC ${PLAYER.foc ?? 5}`);
-  if (PLAYER.statPoints) print(`✨ Stat points to spend: ${PLAYER.statPoints} — type 'allocate'`);
+  if (PLAYER.statPoints) {
+    print(`✨ Stat points to spend: ${PLAYER.statPoints} — type 'allocate' for the menu`);
+    print("📌 Allocate by number or name (add a count to spend more than one point):");
+    print("  1 / str / strength  →  Strength (physical damage)");
+    print("  2 / agi / agility   →  Agility (dodge and parry)");
+    print("  3 / vit / vitality  →  Vitality (maximum HP)");
+    print("  4 / foc / focus     →  Focus (energy and spell power)");
+    print("  Examples: allocate 2 3   ·   allocate vitality 2");
+  }
   if (PLAYER.skillPoints) print(`🌿 Perk points to spend: ${PLAYER.skillPoints} — type 'perks'`);
   print(`❤️ Maximum HP: ${s.max_hp}`);
   print(`⚔️ Damage range: ${C.PLAYER_DAMAGE[0] + s.damage}–${C.PLAYER_DAMAGE[1] + s.damage}`);
@@ -225,7 +233,7 @@ function showStats() {
   print(`💨 Dodge chance: ${C.DODGE + s.dodge}% base`);
   print(`🏃 Escape chance: ${Math.min(C.RUN_MAX, C.RUN + s.dodge)}%`);
   if (typeof showAttributeSummary === "function") {
-    print("\nSTR → physical damage · AGI → dodge/parry · VIT → max HP · FOC → energy/spells");
+    print("STR → physical damage · AGI → dodge/parry · VIT → max HP · FOC → energy/spells");
   }
   print("\n🧰");
   for (const slot in equipment) {
@@ -495,12 +503,16 @@ function showEnemyInfo(name) {
   const resists = Object.entries(m.resist || {}).filter(([, value]) => value > 0);
   print(resists.length ? `🧯 Resistances: ${resists.map(([e, v]) => `${title(e)} ${v}%`).join(", ")}` : "🧯 Resistances: none known");
   print("\n⚔️");
-  print(`  Basic attack: ${m.basic_attack?.damage ? `${m.basic_attack.damage[0]}–${m.basic_attack.damage[1]} damage` : "standard strike"}`);
+  const basicAttack = makeAttack("basic attack", m.basic_attack);
+  print(`  Basic attack: ${m.basic_attack?.damage ? `${m.basic_attack.damage[0]}–${m.basic_attack.damage[1]} damage` : "standard strike"} (${basicAttack.accuracy}% accuracy)`);
   const abilities = Object.entries(m.abilities || {});
   if (!abilities.length) print("  No special abilities recorded.");
   abilities.forEach(([ability, a]) => {
     const details = [];
-    if (a.damage) details.push(`${a.damage[0]}–${a.damage[1]} damage`);
+    if (a.damage) {
+      details.push(`${a.damage[0]}–${a.damage[1]} damage`);
+      details.push(`${makeAttack(ability, a).accuracy}% accuracy`);
+    }
     if (a.heal) details.push(`heals ${a.heal[0]}–${a.heal[1]} HP`);
     if (a.element) details.push(`${a.element} damage`);
     if (a.special_effect) details.push(`may inflict ${a.special_effect.type}`);
@@ -512,4 +524,5 @@ function showEnemyInfo(name) {
   print(`📖 Status: ${fightUnlocked(name) ? "discovered — you can challenge it with 'fight'" : `undiscovered — ${lockReason(name)}`}`);
   print("Use 'bestiary <enemy>' to review its move pattern and encounter odds.");
 }
+
 
