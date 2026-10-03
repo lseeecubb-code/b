@@ -138,6 +138,12 @@ async function exploreStory() {
     print(`\nThe area '${an}' has no valid encounters yet.`);
     return;
   }
+  const availableEnc = enc.filter((name) => PLAYER.level >= enemyRequiredLevel(name));
+  if (!availableEnc.length) {
+    const nextLevel = Math.min(...enc.map(enemyRequiredLevel));
+    print(`\n🛡️ The creatures here are too dangerous for you yet. Reach level ${nextLevel} to face the weakest local enemy.`);
+    return;
+  }
   print("\n" + "=".repeat(62));
   print(`🗺️ ${an.toUpperCase()}`);
   print("=".repeat(62));
@@ -163,7 +169,7 @@ async function exploreStory() {
       );
   }
   const needed = Object.entries(p.kills)
-    .filter(([e, n]) => killCount(e) < n && monsters[e])
+    .filter(([e, n]) => killCount(e) < n && monsters[e] && PLAYER.level >= enemyRequiredLevel(e))
     .map((x) => x[0]);
   if (typeof maybeExploreEvent === "function" && !(needed.length && (ch === 0 || Math.random() < 0.4))) {
     if (await maybeExploreEvent(an)) {
@@ -175,13 +181,13 @@ async function exploreStory() {
   if (needed.length && (ch === 0 || Math.random() < 0.4)) enemy = needed[0];
   else
     enemy = wchoice(
-      enc,
-      enc.map((n) => Math.max(1, monsters[n].chance))
+      availableEnc,
+      availableEnc.map((n) => Math.max(1, monsters[n].chance))
     );
   print(`\n👣 You press farther into ${an}, watching for movement...`);
   let fightArg = enemy;
   if (Math.random() < 0.18 && !needed.includes(enemy) && monsters[enemy]?.chance > 0) {
-    const pal = enc.find((n) => n !== enemy) || enemy;
+    const pal = availableEnc.find((n) => n !== enemy) || enemy;
     fightArg = enemy + "," + pal;
     print(`⚠️ Two enemies move to surround you: ${title(enemy)} and ${title(pal)}.`);
   } else if (Math.random() < 0.1 && monsters[enemy]?.chance > 0) {
