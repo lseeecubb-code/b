@@ -549,10 +549,16 @@ const FX = (() => {
       unlockAudio();
       if (audio) play("yes");
     }
+    if (musicBus && audio) {
+      musicBus.gain.setTargetAtTime(on && activeBattleMusic ? 0.55 : 0, audio.currentTime, 0.18);
+    }
+    if (on && activeBattleMusic) resumeBattleMusic();
+    else if (!on) pauseBattleMusic();
   }
 
-  // Original procedural battle themes use Web Audio, with no external music files.
-  function battleTheme(enemyNames, boss) {
+  // Original procedural battle themes. Enemy families share a musical palette, while a stable
+  // name-based seed changes the melody so repeated encounters aren't all identical.
+  function battleTheme(enemyNames, boss, musicProfile = null) {
     const label = (Array.isArray(enemyNames) ? enemyNames : [enemyNames]).join(" ").toLowerCase();
     let theme;
     if (boss) theme = { root: 110, scale: [0, 3, 5, 7, 10], wave: "sawtooth", tempo: 104 };
@@ -563,6 +569,10 @@ const FX = (() => {
     else theme = { root: 130.81, scale: [0, 2, 4, 7, 9], wave: "triangle", tempo: 100 };
     let seed = 0;
     for (let i = 0; i < label.length; i++) seed = (seed * 31 + label.charCodeAt(i)) >>> 0;
+    if (musicProfile && typeof musicProfile === "object") theme = { ...theme, ...musicProfile };
+    else if (typeof musicProfile === "string") {
+      for (let i = 0; i < musicProfile.length; i++) seed = (seed * 31 + musicProfile.charCodeAt(i)) >>> 0;
+    }
     return { ...theme, seed };
   }
 
@@ -601,7 +611,7 @@ const FX = (() => {
         const now = audio.currentTime + 0.04;
         const bar = activeBattleMusic.bar++;
         const scale = theme.scale;
-        const chordRoot = bar % 4 === 2 ? 3 : bar % 4 === 3 ? 4 : 0;
+        const chordRoot = (bar % 4 === 2 ? 3 : bar % 4 === 3 ? 4 : 0);
         [0, 2, 4].forEach((interval, i) => {
           const semitone = scale[(chordRoot + interval) % scale.length] + (i === 0 ? -12 : 0);
           musicNote(theme.root * Math.pow(2, semitone / 12), now, barLength * 0.82, 0.025, "triangle");
@@ -612,9 +622,9 @@ const FX = (() => {
         });
         for (let i = 0; i < 8; i++) {
           const step = (melody[(i + (theme.seed % melody.length) + bar) % melody.length] + (bar % 2 ? 1 : 0)) % scale.length;
+          const octave = i === 3 || i === 7 ? 2 : 1;
           if ((i + theme.seed) % 5 !== 0) {
-            const octave = i === 3 || i === 7 ? 2 : 1;
-            musicNote(theme.root * Math.pow(2, (scale[step] + 12 * octave) / 12), now + i * beat / 2, beat * 0.34, activeBattleMusic.boss ? 0.035 : 0.025, theme.wave);
+            musicNote(theme.root * Math.pow(2, (scale[step] + 12 * octave) / 12), now + i * beat / 2, beat * 0.34, boss ? 0.035 : 0.025, theme.wave);
           }
         }
       };
@@ -625,9 +635,9 @@ const FX = (() => {
     else begin();
   }
 
-  function startBattleMusic(enemyNames, boss = false) {
+  function startBattleMusic(enemyNames, boss = false, musicProfile = null) {
     pauseBattleMusic();
-    activeBattleMusic = { theme: battleTheme(enemyNames, boss), boss, bar: 0 };
+    activeBattleMusic = { theme: battleTheme(enemyNames, boss, musicProfile), bar: 0 };
     resumeBattleMusic();
   }
 
@@ -635,9 +645,6 @@ const FX = (() => {
     pauseBattleMusic();
     activeBattleMusic = null;
     if (musicBus && audio) musicBus.gain.setTargetAtTime(0, audio.currentTime, 0.16);
-    if (musicBus && audio) musicBus.gain.setTargetAtTime(on && activeBattleMusic ? 0.55 : 0, audio.currentTime, 0.18);
-    if (on && activeBattleMusic) resumeBattleMusic();
-    else if (!on) pauseBattleMusic();
   }
 
   // ---------- Screen effects ----------
@@ -1029,3 +1036,4 @@ const FX = (() => {
 
   return { renderLine, play, blip, startBattleMusic, stopBattleMusic };
 })();
+

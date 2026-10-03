@@ -100,6 +100,16 @@ function applySave({ inv, eq, pl, st, world }) {
       quests: world.quests && typeof world.quests === "object" ? world.quests : {},
       upgrades: world.upgrades && typeof world.upgrades === "object" ? world.upgrades : {},
       rarity: world.rarity && typeof world.rarity === "object" ? world.rarity : {},
+      bestiary: world.bestiary && typeof world.bestiary === "object"
+        ? Object.fromEntries(Object.entries(world.bestiary)
+            .filter(([name, row]) => typeof name === "string" && typeof row === "object" && row !== null && (typeof monsters === "undefined" || monsters[name]))
+            .map(([name, row]) => [name, {
+              encounters: Math.max(0, parseInt(row.encounters) || 0),
+              defeats: Math.max(0, parseInt(row.defeats) || 0),
+              phases: Array.isArray(row.phases) ? [...new Set(row.phases.filter((value) => typeof value === "string"))] : [],
+              moves: Array.isArray(row.moves) ? [...new Set(row.moves.filter((value) => typeof value === "string"))] : [],
+            }]))
+        : {},
       recipeUnlocks: Array.isArray(world.recipeUnlocks)
         ? world.recipeUnlocks.filter((n) => typeof RECIPE_DISCOVERY !== "undefined" && RECIPE_DISCOVERY[n])
         : [],
@@ -182,3 +192,4 @@ async function loadData() {
     `✅ Save loaded! Level ${PLAYER.level}, ${inventory.coin || 0} coin, Chapter ${STORY.chapter}.`
   );
 }
+
