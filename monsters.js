@@ -1590,7 +1590,7 @@ const BOSS_PHASE_TWO = {
       "page-ripper": { chance: 26, damage: [42, 56], accuracy: 82, type: "fast", special_effect: { type: "bleed", chance: 35, damage: 5, turns: 2 } },
       "catalogue howl": { chance: 20, damage: [30, 40], accuracy: 90, element: "frost", special_effect: { type: "weakened", chance: 45, damage: 0, turns: 2 } },
     },
-    chance: 12,
+    chance: 12, loot_chance: 80,
     drops: {
       coin: { chance: 100, min_drop: 50, max_drop: 90 },
       "ink fragment": { chance: 90, min_drop: 1, max_drop: 2 },
@@ -1600,6 +1600,75 @@ const BOSS_PHASE_TWO = {
     parry_chance: 15, dodge_chance: 32, parry_rate: 55, dodge_rate: 70,
     resist: { fire: 0, frost: 25 },
     music: { root: 138.59, scale: [0, 2, 5, 7, 10], wave: "triangle", tempo: 126 },
+  },
+  "ashbound sentinel": {
+    name: "The Cinder Bellguard", hp: 225, icon: "🛡️🔔",
+    block_chance: 27, block_reduction: 0.46,
+    basic_attack: { damage: [23, 33], element: "fire" },
+    abilities: {
+      "censer swing": { chance: 25, damage: [30, 42], accuracy: 89, element: "fire", special_effect: { type: "burn", chance: 40, damage: 4, turns: 2 } },
+      "ash veil": { chance: 16, damage: [18, 26], accuracy: 94, special_effect: { type: "weakened", chance: 42, damage: 0, turns: 2 } },
+    },
+    chance: 22, loot_chance: 82,
+    drops: {
+      "ashen sigil": { chance: 74, min_drop: 1, max_drop: 2 },
+      "ember core": { chance: 28, min_drop: 1, max_drop: 1 },
+      "black salt": { chance: 36, min_drop: 1, max_drop: 2 },
+    },
+    parry_chance: 22, dodge_chance: 5, parry_rate: 65, dodge_rate: 32,
+    resist: { fire: 50, frost: 0 }, music: { root: 92.5, scale: [0, 2, 3, 7, 9], wave: "sawtooth", tempo: 82 },
+  },
+  "glasswing moth": {
+    name: "The Star-Drinker", hp: 245, icon: "🦋✨",
+    block_chance: 0, block_reduction: 0,
+    basic_attack: { damage: [22, 31], type: "fast" },
+    abilities: {
+      "shard-dust gust": { chance: 25, damage: [15, 22], hits: 2, accuracy: 87, type: "fast" },
+      "gravity flutter": { chance: 18, damage: [25, 34], accuracy: 91, element: "frost", special_effect: { type: "slow", chance: 48, damage: 0, turns: 2 } },
+    },
+    chance: 13, loot_chance: 84,
+    drops: {
+      "star glass": { chance: 78, min_drop: 1, max_drop: 2 },
+      "glimmer wing": { chance: 44, min_drop: 1, max_drop: 2 },
+      "moon herb": { chance: 22, min_drop: 1, max_drop: 2 },
+    },
+    parry_chance: 5, dodge_chance: 48, parry_rate: 35, dodge_rate: 80,
+    resist: { fire: 0, frost: 35 }, music: { root: 164.81, scale: [0, 2, 5, 7, 11], wave: "sine", tempo: 144 },
+  },
+  "hollow sentinel": {
+    name: "The Unfinished Guard", hp: 530, icon: "🛡️🕯️",
+    block_chance: 34, block_reduction: 0.55,
+    basic_attack: { damage: [52, 68], type: "heavy" },
+    abilities: {
+      "oathbound march": { chance: 24, damage: [36, 48], hits: 2, accuracy: 88, type: "heavy" },
+      "guard the empty throne": { chance: 20, heal: [58, 86], special_effect: { type: "shield", chance: 100, absorb: 28, turns: 2 } },
+    },
+    chance: 18, loot_chance: 88,
+    drops: {
+      "oath fragment": { chance: 76, min_drop: 1, max_drop: 2 },
+      "ancient crystal": { chance: 22, min_drop: 1, max_drop: 1 },
+      iron: { chance: 42, min_drop: 2, max_drop: 4 },
+    },
+    parry_chance: 28, dodge_chance: 0, parry_rate: 68, dodge_rate: 0,
+    resist: { fire: 15, frost: 15 }, music: { root: 73.42, scale: [0, 2, 3, 7, 9], wave: "triangle", tempo: 76 },
+  },
+  "the lost cartographer": {
+    name: "The Lost Cartographer", hp: 1480, icon: "🧭🗺️",
+    block_chance: 12, block_reduction: 0.35,
+    basic_attack: { damage: [58, 78], type: "heavy" },
+    abilities: {
+      "wrong turn": { chance: 25, damage: [70, 92], accuracy: 86, warning: true, telegraph: "marks a dead end on your map with", special_effect: { type: "weakened", chance: 38, damage: 0, turns: 2 } },
+      "fold the road": { chance: 23, damage: [31, 43], hits: 2, accuracy: 90, element: "frost", special_effect: { type: "slow", chance: 40, damage: 0, turns: 2 } },
+      "redraw the border": { chance: 17, heal: [72, 108], special_effect: { type: "shield", chance: 100, absorb: 35, turns: 2 } },
+    },
+    chance: 0, secret_flag: "secret_cartographer_found", loot_chance: 100,
+    drops: {
+      "star glass": { chance: 100, min_drop: 2, max_drop: 3 },
+      "oath fragment": { chance: 100, min_drop: 2, max_drop: 3 },
+      "ancient crystal": { chance: 70, min_drop: 1, max_drop: 2 },
+    },
+    parry_chance: 26, dodge_chance: 28, parry_rate: 62, dodge_rate: 66,
+    resist: { fire: 10, frost: 10 }, music: { root: 110, scale: [0, 1, 4, 6, 9], wave: "triangle", tempo: 108 },
   },
   "margin warden": { name: "The Final Errata", hp: 645, icon: "✒️⚔️", block_chance: 35, block_reduction: 0.6, basic_attack: { damage: [62, 80], type: "heavy" }, abilities: { "redline sweep": { chance: 26, damage: [78, 102], dodgeable: false, special_effect: { type: "slow", chance: 60, damage: 0, turns: 2 } }, "correct the ending": { chance: 20, heal: [85, 120], special_effect: { type: "fortified", chance: 100, damage: 0, turns: 2 } } }, parry_chance: 30, dodge_chance: 10, parry_rate: 65, dodge_rate: 45, resist: { fire: 35, frost: 35 }, music: { root: 82.41, scale: [0, 2, 3, 6, 9], wave: "sawtooth", tempo: 96 } },
   "the last save": { name: "The Final Overwrite", hp: 2300, icon: "💾🌑", block_chance: 0, block_reduction: 0, basic_attack: { damage: [92, 126], parryable: false, element: "fire" }, abilities: { "erase the timeline": { chance: 26, damage: [122, 160], cutscene: "logo-fall", blockable: false, special_effect: { type: "burn", chance: 70, damage: 10, turns: 3 }, warning: true, telegraph: "starts erasing the timeline with" }, "restore corrupted data": { chance: 20, heal: [150, 220], special_effect: { type: "shield", chance: 100, absorb: 65, turns: 2 } }, "forced shutdown": { chance: 14, damage: [100, 138], hits: 2, cutscene: "void-pulse", dodgeable: false } }, parry_chance: 0, dodge_chance: 50, parry_rate: 0, dodge_rate: 82, resist: { fire: 50, frost: 35 }, music: { root: 73.42, scale: [0, 1, 4, 6, 8], wave: "sawtooth", tempo: 132 } },
@@ -1672,6 +1741,10 @@ const ENEMY_DIALOGUE = {
   "mire witch": { attack: ["The mire keeps what it takes.", "Sink quietly into the blackwater."] },
   "archive stalker": { attack: ["You were missing from this chapter for a reason.", "No one reads the footnotes until it is too late."] },
   "index hound": { attack: ["The catalogue has already chosen its keeper.", "Find the line. Chase it. Lose your place."] },
+  "ashbound sentinel": { attack: ["The bells have not excused you.", "The nave is sealed. The oath remains."] },
+  "glasswing moth": { attack: ["The star belongs to the dark.", "Your shadow is heavier than you know."] },
+  "hollow sentinel": { attack: ["The patrol does not end.", "The throne is empty. Our post is not."] },
+  "the lost cartographer": { attack: ["You are walking off the edge of the world.", "I have mapped every ending. This one is mine."] },
   "margin warden": { attack: ["That choice needs correcting.", "You have crossed the margin for the last time."] },
 };
 for (const [name, dialogue] of Object.entries(ENEMY_DIALOGUE)) {
@@ -1916,7 +1989,8 @@ const ENEMY_LEVELS = {
   "stone golem": 6, "the unnamed king": 6, "null leech": 7,
   "ancient dragon": 10, "frost giant": 7, "frost giant king": 10,
   "ancient golem": 11, demon: 7, "ash demon": 12, "archive stalker": 13,
-  "footnote mimic": 13, "index hound": 14, "the leftover": 8, "the watcher": 10,
+  "footnote mimic": 13, "index hound": 14, "glasswing moth": 10, "ashbound sentinel": 6,
+  "hollow sentinel": 16, "the lost cartographer": 17, "the leftover": 8, "the watcher": 10,
   "the witness": 12, "the archivist": 14, "the first hero": 16,
   "the editor": 18, "margin warden": 18, "the author": 20, "the last save": 22, "the missing page": 12, "the echo of attempts": 16,
 };
@@ -1935,6 +2009,10 @@ const ELEMENT_WEAKNESSES = {
   wraith: { fire: 20 },
   "ancient dragon": { frost: 20 },
   "index hound": { fire: 25 },
+  "glasswing moth": { lightning: 30 },
+  "ashbound sentinel": { frost: 35 },
+  "hollow sentinel": { fire: 25 },
+  "the lost cartographer": { lightning: 20 },
 };
 for (const [name, weak] of Object.entries(ELEMENT_WEAKNESSES)) monsters[name].weak = weak;
 
