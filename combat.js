@@ -1277,7 +1277,8 @@ function saveDungeonVitals(f) {
 // Rolls the defeated enemy's drops and adds them to the inventory.
 function rollLoot(m) {
   const boss = m.chance <= 0;
-  if (!boss && !percent(m.chance)) {
+  const lootChance = m.loot_chance ?? m.chance;
+  if (!boss && !percent(lootChance)) {
     print("💨 Unlucky! The monster dropped nothing.");
     return;
   }
