@@ -799,6 +799,43 @@ const FX = (() => {
     }, Math.max(700, Math.min(4000, Number(duration) || 1700)));
   }
 
+  // A short split-screen cut with a central void and a mostly-hash glyph burst.
+  function realityCut(duration = 2600) {
+    if (!terminal) return;
+    const previous = terminal.querySelector(".last-save-cut");
+    if (previous) previous.remove();
+    const overlay = document.createElement("div");
+    overlay.className = "last-save-cut";
+    overlay.setAttribute("aria-hidden", "true");
+    const left = document.createElement("div");
+    left.className = "cut-half cut-half-left";
+    const right = document.createElement("div");
+    right.className = "cut-half cut-half-right";
+    const seam = document.createElement("div");
+    seam.className = "cut-seam";
+    const voidBox = document.createElement("div");
+    voidBox.className = "cut-void";
+    const field = document.createElement("div");
+    field.className = "cut-hash-field";
+    for (let i = 0; i < 96; i++) {
+      const glyph = document.createElement("span");
+      glyph.className = "cut-glyph";
+      glyph.textContent = Math.random() < 0.84
+        ? "#"
+        : ["@", "%", "&", "/", "!", "?", "0", "1"][Math.floor(Math.random() * 8)];
+      glyph.style.left = (Math.random() * 98) + "%";
+      glyph.style.top = (Math.random() * 96) + "%";
+      glyph.style.setProperty("--glyph-delay", Math.floor(Math.random() * 520) + "ms");
+      glyph.style.setProperty("--glyph-drift", (Math.random() * 36 - 18) + "px");
+      field.appendChild(glyph);
+    }
+    overlay.append(left, right, seam, voidBox, field);
+    terminal.appendChild(overlay);
+    play("warning");
+    const life = reduceMotion ? 900 : Math.max(1800, Math.min(4000, Number(duration) || 2600));
+    setTimeout(() => overlay.remove(), life + 80);
+  }
+
   // Damage number that drifts up from the player (left) or the enemy (right).
   function floatNumber(text, side, kind) {
     if (reduceMotion) return;
@@ -1160,6 +1197,6 @@ const FX = (() => {
   document.getElementById("soundToggle")?.addEventListener("click", () => setSound(!soundOn, true));
   setSound(soundOn);
 
-  return { renderLine, play, blip, startBattleMusic, stopBattleMusic, corrupt };
+  return { renderLine, play, blip, startBattleMusic, stopBattleMusic, corrupt, realityCut };
 })();
 
