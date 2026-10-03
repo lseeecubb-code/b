@@ -32,6 +32,7 @@ const FX = (() => {
   let cursor = 0; // when the next queued sound may start (keeps bursts of lines from piling up)
   let battleMusicTimer = null;
   let activeBattleMusic = null;
+  let corruptionTimer = null;
 
   function buildGraph() {
     const rate = audio.sampleRate;
@@ -648,7 +649,7 @@ const FX = (() => {
   }
 
   // Original procedural battle themes use Web Audio, with no external music files.
-  function battleTheme(enemyNames, boss) {
+  function battleTheme(enemyNames, boss, musicProfile = null) {
     const label = (Array.isArray(enemyNames) ? enemyNames : [enemyNames]).join(" ").toLowerCase();
     let theme;
     if (boss) theme = { root: 110, scale: [0, 3, 5, 7, 10], wave: "sawtooth", tempo: 104 };
@@ -659,6 +660,10 @@ const FX = (() => {
     else theme = { root: 130.81, scale: [0, 2, 4, 7, 9], wave: "triangle", tempo: 100 };
     let seed = 0;
     for (let i = 0; i < label.length; i++) seed = (seed * 31 + label.charCodeAt(i)) >>> 0;
+    if (musicProfile && typeof musicProfile === "object") theme = { ...theme, ...musicProfile };
+    else if (typeof musicProfile === "string") {
+      for (let i = 0; i < musicProfile.length; i++) seed = (seed * 31 + musicProfile.charCodeAt(i)) >>> 0;
+    }
     return { ...theme, seed };
   }
 
@@ -706,6 +711,17 @@ const FX = (() => {
           const bassStep = scale[(chordRoot + beatIndex * 2) % scale.length] - 24;
           musicNote(theme.root * Math.pow(2, bassStep / 12), now + beat * beatIndex, beat * 1.3, 0.045, "sine");
         });
+        if (activeBattleMusic.boss) {
+          // Original bass pulse and arpeggio add an arcade-metal feel to the boss theme.
+          for (let beatIndex = 0; beatIndex < 4; beatIndex++) {
+            const bassStep = scale[(bar + beatIndex * 2) % scale.length] - 24 + (beatIndex === 2 ? 7 : 0);
+            musicNote(theme.root * Math.pow(2, bassStep / 12), now + beat * beatIndex, beat * 0.42, 0.024, "square");
+          }
+          for (let i = 0; i < 8; i++) {
+            const note = scale[(bar * 2 + i * 2 + (theme.seed % scale.length)) % scale.length] + 24;
+            musicNote(theme.root * Math.pow(2, note / 12), now + i * beat / 2, beat * 0.22, 0.012, "square");
+          }
+        }
         for (let i = 0; i < 8; i++) {
           const step = (melody[(i + (theme.seed % melody.length) + bar) % melody.length] + (bar % 2 ? 1 : 0)) % scale.length;
           if ((i + theme.seed) % 5 !== 0) {
@@ -721,9 +737,9 @@ const FX = (() => {
     else begin();
   }
 
-  function startBattleMusic(enemyNames, boss = false) {
+  function startBattleMusic(enemyNames, boss = false, musicProfile = null) {
     pauseBattleMusic();
-    activeBattleMusic = { theme: battleTheme(enemyNames, boss), boss, bar: 0 };
+    activeBattleMusic = { theme: battleTheme(enemyNames, boss, musicProfile), boss, bar: 0 };
     resumeBattleMusic();
   }
 
@@ -757,6 +773,30 @@ const FX = (() => {
     terminal.classList.remove("shake", "shake-strong");
     void terminal.offsetWidth;
     terminal.classList.add(strong ? "shake-strong" : "shake");
+  }
+
+  // Brief screen distortions let endgame bosses rupture the terminal without trapping the UI.
+  function corrupt(kind = "glitch", duration = 1700) {
+    const mode = ["glitch", "fracture", "tear"].includes(kind) ? kind : "glitch";
+    if (!terminal) return;
+    let overlay = terminal.querySelector(".terminal-corruption");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.className = "terminal-corruption";
+      overlay.setAttribute("aria-hidden", "true");
+      terminal.prepend(overlay);
+    }
+    terminal.classList.remove("terminal-corrupted", "corrupt-glitch", "corrupt-fracture", "corrupt-tear");
+    void terminal.offsetWidth;
+    terminal.classList.add("terminal-corrupted", "corrupt-" + mode);
+    if (mode === "fracture") shake(true);
+    flash(mode === "tear" ? "rgba(190, 45, 255, 0.2)" : "rgba(130, 115, 255, 0.18)");
+    play(mode === "fracture" ? "hurtBig" : "warning");
+    if (corruptionTimer !== null) clearTimeout(corruptionTimer);
+    corruptionTimer = setTimeout(() => {
+      terminal.classList.remove("terminal-corrupted", "corrupt-glitch", "corrupt-fracture", "corrupt-tear");
+      corruptionTimer = null;
+    }, Math.max(700, Math.min(4000, Number(duration) || 1700)));
   }
 
   // Damage number that drifts up from the player (left) or the enemy (right).
@@ -1120,6 +1160,6 @@ const FX = (() => {
   document.getElementById("soundToggle")?.addEventListener("click", () => setSound(!soundOn, true));
   setSound(soundOn);
 
-  return { renderLine, play, blip, startBattleMusic, stopBattleMusic };
+  return { renderLine, play, blip, startBattleMusic, stopBattleMusic, corrupt };
 })();
 

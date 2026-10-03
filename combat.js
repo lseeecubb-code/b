@@ -299,8 +299,13 @@ async function chooseSkill(f) {
 // Asks the player for an action and returns it (numbers or names are accepted).
 async function askAction(f) {
   while (true) {
-    const raw = (await input("Choose an action (1-9, or 0 to run away): ")).trim().toLowerCase(),
-      a = ACTION_ALIASES[raw];
+    const raw = (await input("Choose an action (1-9, or 0 to run away): ")).trim().toLowerCase();
+    let a = ACTION_ALIASES[raw];
+    if (f.controlGlitchTurns > 0) {
+      if (["1", "attack", "a"].includes(raw)) a = "guard";
+      else if (["3", "guard", "block"].includes(raw)) a = "attack";
+      if (a) f.controlGlitchTurns--;
+    }
     if (!a) {
       print("Pick 1-9, 0 to run away, or type an action like 'parry', 'magic', 'log'.");
       continue;
@@ -1059,6 +1064,12 @@ function triggerEnemyEvent(f, action, detail = null) {
       print(`\n👁️ ${cap(f.name)}: “${config.message}”`);
       if (typeof clog === "function") clog(f, `${f.name} reacted to ${event}`);
     }
+    if (config.terminal_effect && typeof FX !== "undefined" && typeof FX.corrupt === "function")
+      FX.corrupt(config.terminal_effect, config.effect_duration);
+    if (config.control_glitch) {
+      f.controlGlitchTurns = 1;
+      print("⌨️ The command line distorts: Attack and Guard controls are reversed for your next move.");
+    }
   }
 }
 
@@ -1221,6 +1232,21 @@ function checkEnemyLevel(name) {
   return false;
 }
 // Runs a whole fight, turn by turn, until someone wins or the player runs away.
+async function playBossOpening(f) {
+  const enemy = (f.enemies || []).find((e) => monsters[e.name]?.opening);
+  const scene = monsters[enemy?.name]?.opening;
+  if (!scene) return;
+  print("\n\n╔══ " + scene.title + " ══╗");
+  if (scene.effect && typeof FX !== "undefined" && typeof FX.corrupt === "function")
+    FX.corrupt(scene.effect, 1300);
+  for (const line of scene.lines) {
+    print("   " + line);
+    if (typeof Typewriter !== "undefined" && Typewriter.idle) await Typewriter.idle();
+    await new Promise((resolve) => setTimeout(resolve, 260));
+  }
+  print("╚" + "═".repeat(Math.min(46, scene.title.length + 8)) + "╝");
+}
+
 async function fightMonster(arg = "", elite = false) {
   const req = arg.trim().toLowerCase();
   if (!checkGate(req)) return;
@@ -1251,6 +1277,7 @@ async function fightMonster(arg = "", elite = false) {
     if (typeof FX !== "undefined") FX.stopBattleMusic();
   };
   print(`\n⚔️ A wild ${Array.isArray(name) ? name.map((n) => `${n.toUpperCase()} · Lv ${enemyRequiredLevel(n)}`).join(" & ") : `${name.toUpperCase()} · Lv ${enemyRequiredLevel(name)}`} appeared!`);
+  if (bossEncounter) await playBossOpening(f);
   const eq = Object.values(equipment).filter(Boolean);
   if (eq.length) print("🧰 Equipped: " + eq.join(", "));
   if (typeof applyRested === "function") applyRested(f);
