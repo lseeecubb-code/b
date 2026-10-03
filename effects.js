@@ -1201,7 +1201,7 @@ const FX = (() => {
   }
 
   function showRewardNotification(line) {
-    if (!/^Earned \\$[\\d,]+|^Earned [\\d,]+ Exp\\.|^Obtained <.+> \\(\\d+x\\)$/.test(line)) return;
+    if (!(line.startsWith("Earned $") || /^Earned [\d,]+ Exp\./.test(line) || /^Obtained <.+> \(\d+x\)$/.test(line))) return;
     let area = terminal.querySelector(".reward-toast-area");
     if (!area) {
       area = document.createElement("div");
