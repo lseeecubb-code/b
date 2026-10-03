@@ -1,0 +1,615 @@
+diff --git a/combat.js b/combat.js
+index c92eef9..e6860c8 100644
+--- a/combat.js
++++ b/combat.js
+@@ -1,5 +1,30 @@
+ // Combat: enemy AI, combat UI, player actions, fights and the bestiary.
+-function enemyWeights(m, last = null) {
++// Energy an enemy move costs. Attacks can set `energy_cost`; otherwise heavy = 3, fast = 1, else 2.
++function attackCost(a) {
++  if (a.energy_cost !== undefined) return a.energy_cost;
++  return a.type === "heavy" ? 3 : a.type === "fast" ? 1 : 2;
++}
++function moveCost(kind, a) {
++  if (kind === "attack") return a.name === "basic attack" ? 1 : attackCost(a);
++  if (kind === "heal") return 2;
++  if (kind === "block" || kind === "parry_stance" || kind === "dodge_stance") return 1;
++  return 0;
++}
++// [chance %, turns] an enemy attack stuns the player for if it lands. Every attack can stun.
++function enemyStun(a) {
++  const d = C.ENEMY_STUN[a.name === "basic attack" ? "basic" : a.type] || C.ENEMY_STUN.normal;
++  const ch = a.stun ?? d[0],
++    turns = Math.min(C.PLAYER_STUN_MAX, Math.max(1, a.stun_turns ?? d[1]));
++  return [ch, turns];
++}
++// Accuracy after the enemy's own limits: capped, and lower when it is worn out.
++function enemyAccuracy(a, energyAfter) {
++  let acc = Math.min(C.ENEMY_MAX_ACC, a.accuracy);
++  if (energyAfter !== undefined && energyAfter <= C.ENEMY_TIRED_AT) acc -= C.ENEMY_TIRED_PENALTY;
++  return Math.max(5, acc);
++}
++// `energy` = the enemy's current energy; moves it can't afford are dropped. Omit it for no limit (bestiary).
++function enemyWeights(m, last = null, energy = undefined) {
+   const reacting = C.ATTACKING.includes(last),
+     o = [];
+   let block = m.block_chance || 0;
+@@ -27,16 +52,21 @@ function enemyWeights(m, last = null) {
+     makeAttack("basic attack", m.basic_attack),
+   ]);
+   o.push([m.idle_chance || 0, "idle", null]);
+-  return o.filter((x) => x[0] > 0);
++  let res = o.filter((x) => x[0] > 0);
++  if (energy !== undefined) {
++    res = res.filter((x) => x[1] === "idle" || moveCost(x[1], x[2]) <= energy);
++    if (!res.length || energy <= 0) res = [[100, "recover", null]];
++  }
++  return res;
+ }
+ // Picks one move at random from enemyWeights(), using the weights.
+-function monsterChoose(m, last) {
+-  const o = enemyWeights(m, last),
++function monsterChoose(m, last, energy) {
++  const o = enemyWeights(m, last, energy),
+     p = wchoice(
+       o,
+       o.map((x) => x[0])
+     );
+-  return { kind: p[1], attack: p[2] };
++  return { kind: p[1], attack: p[2], cost: moveCost(p[1], p[2]) };
+ }
+ // Chance (%) that the enemy's parry or dodge stance works against an attack of this type.
+ function stanceRate(m, st, type) {
+@@ -90,7 +120,10 @@ function showStatus(f) {
+   print(`You:          ${hpBar(f.player_hp, f.player_max_hp)}`);
+   print(`Energy:       ${energyBar(f.energy)}`);
+   f.effects.forEach(effLine);
++  if (f.player_stun > 0) print("   💫 STUNNED - you will lose your next turn!");
++  else if (f.player_stun_immune > 0) print("   🛡️ Shaking off the daze - you resist stuns this turn.");
+   print(`${pad(cap(f.name), 13)} ${hpBar(f.monster_hp, f.monster.hp)}`);
++  print(`${pad("", 13)} ⚡ ${f.monster_energy}/${f.monster_max_energy}`);
+   f.monster_effects.forEach(effLine);
+   if (f.guarding) print("   🛡️ GUARDING - your attacks will be weakened this turn!");
+   if (f.stance === "parry") print("   🤺 PARRY STANCE - it may turn your attack against you!");
+@@ -118,6 +151,11 @@ function showIntent(f) {
+     print(`${icon} The ${name} ${it.text}`);
+     return;
+   }
++  if (k === "recover") {
++    print(`${icon} The ${name} is out of energy and must recover!`);
++    print(`   It will regain ${C.ENEMY_RECOVER} energy instead of attacking.`);
++    return;
++  }
+   if (k === "block") {
+     print(`${icon} The ${name} is raising its guard!`);
+     print("   Your attacks will be weakened this turn.");
+@@ -137,6 +175,7 @@ function showIntent(f) {
+   if (k === "heal") {
+     print(`${icon} The ${name} is preparing ${an}!`);
+     print(`   It will heal ${a.heal[0]}-${a.heal[1]} HP.`);
++    if (a.stun) print(`💫 Can stun you (${a.stun}%, ${enemyStun(a)[1]} turn${enemyStun(a)[1] > 1 ? "s" : ""})`);
+     return;
+   }
+   if (a.warning) {
+@@ -150,7 +189,10 @@ function showIntent(f) {
+   );
+   if (a.type !== "normal") print(`Type: ${cap(a.type)}`);
+   if (a.element) print(`Element: ${cap(a.element)}`);
+-  if (a.accuracy < 100) print(`Accuracy: ${a.accuracy}%`);
++  const accNow = enemyAccuracy(a, f.monster_energy - (it.cost || 0));
++  print(`Accuracy: ${accNow}%` + (accNow < Math.min(C.ENEMY_MAX_ACC, a.accuracy) ? " (tired!)" : ""));
++  const [stunC, stunT] = enemyStun(a);
++  if (stunC) print(`💫 Can stun you (${stunC}% if it hits, ${stunT} turn${stunT > 1 ? "s" : ""})`);
+   const s = f.stats,
+     p = parryChance(a, s),
+     d = dodgeChance(a, s);
+@@ -525,6 +567,15 @@ function useSkill(f, s) {
+ async function playerTurn(f) {
+   f.owner = "player";
+   print("\n🟢 YOUR TURN");
++  if (f.player_stun > 0) {
++    f.player_stun--;
++    print("💫 You are stunned and can't act this turn!");
++    if (f.player_stun > 0) print(`   Still stunned for ${f.player_stun} more turn${f.player_stun > 1 ? "s" : ""} after this.`);
++    else f.player_stun_immune = C.PLAYER_STUN_IMMUNE;
++    f.choice = "stunned";
++    return;
++  }
++  if (f.player_stun_immune > 0) f.player_stun_immune--;
+   let action;
+   while (true) {
+     showCombatMenu(f);
+@@ -628,6 +679,19 @@ function resolveDefense(f, a, inc) {
+   }
+   return inc;
+ }
++// Maybe stuns the player after an enemy hit. Guarding halves the chance; a fresh stun is shrugged off briefly.
++function maybeStunPlayer(f, a) {
++  const [base, turns] = enemyStun(a);
++  if (!base || f.player_stun > 0) return;
++  const ch = f.choice === "guard" ? int(base * C.GUARD_STUN_MULT) : base;
++  if (!percent(ch)) return;
++  if (f.player_stun_immune > 0) {
++    print("   🛡️ You're still shaking off the last stun - you resist it!");
++    return;
++  }
++  f.player_stun = turns;
++  print(`💫 You are STUNNED by ${a.name.toUpperCase()}! You'll lose your next ${turns > 1 ? turns + " turns" : "turn"}!`);
++}
+ // Maybe puts poison, burn or bleed on the player after an enemy hit.
+ function applySpecialEffect(f, a) {
+   const e = a.special_effect;
+@@ -671,6 +735,7 @@ function monsterDealDamage(f, a, inc) {
+   print(`💔 You are hit for ${t} damage.`);
+   f.player_hp -= t;
+   applySpecialEffect(f, a);
++  if (f.player_hp > 0) maybeStunPlayer(f, a);
+   return t;
+ }
+ // Decides what the enemy will do on the coming turn.
+@@ -681,7 +746,7 @@ function rollIntent(f) {
+     it = { kind: "stunned", attack: null };
+   } else if (f.staggered) it = { kind: "staggered", attack: null };
+   else {
+-    it = monsterChoose(f.monster, f.choice);
++    it = monsterChoose(f.monster, f.choice, f.monster_energy);
+     if (it.kind === "idle") it.text = IDLE_LINES[randint(0, IDLE_LINES.length - 1)];
+   }
+   f.intent = it;
+@@ -698,12 +763,19 @@ function monsterTurn(f) {
+   print(`\n🔴 THE ${name.toUpperCase()}'S TURN`);
+   f.staggered = false;
+   let attacked = false;
++  f.monster_energy = Math.max(0, f.monster_energy - (it.cost || 0));
++  const tired = f.monster_energy <= C.ENEMY_TIRED_AT;
+   if (k === "stunned") {
+     f.last_move = "was stunned and lost its turn";
+     // Last stunned turn: it recovers, then resists further stuns briefly.
+     if (f.stun_turns <= 0) f.stun_immune = STUN.IMMUNE_TURNS;
+   } else if (k === "staggered") {
+     f.last_move = "was staggered and lost its turn";
++  } else if (k === "recover") {
++    const g = Math.min(C.ENEMY_RECOVER, f.monster_max_energy - f.monster_energy);
++    f.monster_energy += g;
++    print(`😮‍💨 The ${name} catches its breath and regains ${g} energy.`);
++    f.last_move = "recovered energy";
+   } else if (k === "idle") {
+     f.last_move = "did nothing";
+   } else if (k === "block") {
+@@ -715,6 +787,11 @@ function monsterTurn(f) {
+       h = randint(...a.heal);
+     f.monster_hp = Math.min(f.monster.hp, f.monster_hp + h);
+     print(`💚 The ${name} heals ${h} HP.`);
++    // Support moves (roars, howls, smoke bombs...) only stun if they set `stun` explicitly.
++    if (a.stun) {
++      print(`📢 ${a.name.toUpperCase()} rattles you!`);
++      maybeStunPlayer(f, a);
++    }
+     f.last_move = a.name.toUpperCase();
+   } else {
+     const a = it.attack;
+@@ -723,8 +800,12 @@ function monsterTurn(f) {
+       // stun_turns can only become > 0 mid-attack via a perfect parry: stop the rest of the combo.
+       if (f.monster_hp <= 0 || f.player_hp <= 0 || f.stun_turns > 0) break;
+       if (a.hits > 1) print(`   Strike ${n + 1}/${a.hits}:`);
+-      if (!percent(a.accuracy)) {
+-        print(`💨 ${a.name.toUpperCase()} misses you completely!`);
++      if (!percent(enemyAccuracy(a, f.monster_energy))) {
++        print(
++          tired
++            ? `💨 The ${name} is exhausted - ${a.name.toUpperCase()} misses you completely!`
++            : `💨 ${a.name.toUpperCase()} misses you completely!`
++        );
+         continue;
+       }
+       attacked = true;
+@@ -742,6 +823,7 @@ function monsterTurn(f) {
+   if (k !== "stunned" && f.stun_immune > 0) f.stun_immune--;
+   f.guarding = false;
+   f.stance = null;
++  f.monster_energy = Math.min(f.monster_max_energy, f.monster_energy + C.ENEMY_REGEN + (k === "idle" ? 1 : 0));
+   if (f.monster_hp <= 0) return;
+   resolveMonsterEffects(f);
+   if (f.monster_hp <= 0) return;
+@@ -786,6 +868,10 @@ function newFight(n) {
+     stance: null,
+     stun_turns: 0,
+     stun_immune: 0,
++    monster_energy: m.energy ?? C.ENEMY_ENERGY,
++    monster_max_energy: m.energy ?? C.ENEMY_ENERGY,
++    player_stun: 0,
++    player_stun_immune: 0,
+     staggered: false,
+     last_move: null,
+     intent: null,
+diff --git a/helpers.js b/helpers.js
+index 934c12c..a019a82 100644
+--- a/helpers.js
++++ b/helpers.js
+@@ -40,6 +40,27 @@ const C = {
+   LVL_HP: 8,
+   LVL_DMG: 1,
+   MAX_LEVEL: 25,
++  // Enemy energy: every move costs energy; with none left the enemy must recover.
++  ENEMY_ENERGY: 6,
++  ENEMY_RECOVER: 3, // energy gained by the "recover" move
++  ENEMY_REGEN: 1, // free energy gained at the end of each enemy turn
++  ENEMY_MAX_ACC: 92, // no enemy attack is ever more accurate than this
++  ENEMY_TIRED_AT: 1, // energy left (after paying) at or below this = tired
++  ENEMY_TIRED_PENALTY: 15, // accuracy lost while tired
++  // Player stun: lose your next turn(s); briefly immune afterwards.
++  PLAYER_STUN_TURNS: 1,
++  PLAYER_STUN_IMMUNE: 1,
++  // Default stun [chance %, turns] for every enemy attack, by type (basic attacks use "basic").
++  // Per move, set `stun: <chance>` and `stun_turns: <n>` in monsters.js to override (`stun: 0` = can't stun).
++  ENEMY_STUN: {
++    basic: [8, 1],
++    fast: [12, 1],
++    normal: [18, 1],
++    slow: [30, 2],
++    heavy: [35, 2],
++  },
++  PLAYER_STUN_MAX: 3, // longest stun a player can be put under
++  GUARD_STUN_MULT: 0.5, // guarding halves the stun chance
+ };
+ const START_INV = { coin: 100, iron: 5, wood: 5 };
+ const SLOTS = ["weapon", "offhand", "head", "armor", "feet", "trinket"];
+diff --git a/monsters.js b/monsters.js
+index bc3418f..9d29c44 100644
+--- a/monsters.js
++++ b/monsters.js
+@@ -80,9 +80,9 @@ const monsters = {
+     basic_attack: { damage: [4, 8] },
+     abilities: {
+       "dagger stab": { chance: 30, damage: [6, 10], type: "fast" },
+-      "thrown rock": { chance: 20, damage: [5, 9], parryable: false, telegraph: "hurls" },
++      "thrown rock": { chance: 20, stun: 25, stun_turns: 1, damage: [5, 9], parryable: false, telegraph: "hurls" },
+       "dirty trick": {
+-        chance: 10,
++        chance: 10, stun: 30, stun_turns: 1,
+         damage: [3, 6],
+         accuracy: 90,
+         special_effect: { type: "bleed", chance: 60, damage: 2, turns: 3 },
+@@ -114,13 +114,13 @@ const monsters = {
+         special_effect: { type: "bleed", chance: 45, damage: 3, turns: 3 },
+       },
+       pounce: {
+-        chance: 20,
++        chance: 20, stun: 30, stun_turns: 2,
+         damage: [11, 16],
+         type: "heavy",
+         parryable: false,
+         telegraph: "coils up to unleash",
+       },
+-      howl: { chance: 10, heal: [5, 10], telegraph: "raises its head and uses" },
++      howl: { chance: 10, stun: 20, stun_turns: 2, heal: [5, 10], telegraph: "raises its head and uses" },
+     },
+     chance: 100,
+     drops: {
+@@ -141,7 +141,7 @@ const monsters = {
+     basic_attack: { damage: [7, 11] },
+     abilities: {
+       charge: {
+-        chance: 25,
++        chance: 25, stun: 40, stun_turns: 2,
+         damage: [12, 18],
+         type: "heavy",
+         telegraph: "lowers its head and charges",
+@@ -172,7 +172,7 @@ const monsters = {
+       },
+       "rotten lunge": { chance: 20, damage: [9, 13], type: "slow", telegraph: "slowly winds up" },
+       grab: {
+-        chance: 12,
++        chance: 12, stun: 30, stun_turns: 2,
+         damage: [6, 10],
+         parryable: false,
+         blockable: false,
+@@ -214,7 +214,7 @@ const monsters = {
+         special_effect: { type: "poison", chance: 25, damage: 2, turns: 2 },
+       },
+       "web trap": {
+-        chance: 10,
++        chance: 10, stun: 35, stun_turns: 2,
+         damage: [2, 5],
+         parryable: false,
+         blockable: false,
+@@ -247,7 +247,7 @@ const monsters = {
+         telegraph: "hurls a",
+       },
+       "shield bash": {
+-        chance: 20,
++        chance: 20, stun: 40, stun_turns: 2,
+         damage: [10, 14],
+         type: "heavy",
+         pierces_guard: true,
+@@ -313,7 +313,7 @@ const monsters = {
+         special_effect: { type: "bleed", chance: 40, damage: 2, turns: 3 },
+       },
+       "piercing screech": {
+-        chance: 15,
++        chance: 15, stun: 30, stun_turns: 2,
+         damage: [3, 6],
+         parryable: false,
+         blockable: false,
+@@ -338,8 +338,8 @@ const monsters = {
+     block_reduction: 0.55,
+     basic_attack: { damage: [7, 11] },
+     abilities: {
+-      "shield bash": { chance: 20, damage: [6, 9], type: "heavy" },
+-      "guard break": { chance: 15, damage: [9, 13] },
++      "shield bash": { chance: 20, stun: 40, stun_turns: 2, damage: [6, 9], type: "heavy" },
++      "guard break": { chance: 15, stun: 35, stun_turns: 2, damage: [9, 13] },
+     },
+     chance: 55,
+     drops: {
+@@ -362,7 +362,7 @@ const monsters = {
+       cleave: { chance: 25, damage: [14, 20], type: "heavy" },
+       "reckless swing": { chance: 20, damage: [11, 16], type: "fast", accuracy: 75 },
+       "crushing blow": {
+-        chance: 12,
++        chance: 12, stun: 40, stun_turns: 3,
+         damage: [16, 22],
+         type: "slow",
+         parryable: false,
+@@ -370,7 +370,7 @@ const monsters = {
+         warning: true,
+         telegraph: "raises its club to deliver",
+       },
+-      "battle roar": { chance: 8, heal: [10, 18] },
++      "battle roar": { chance: 8, stun: 25, stun_turns: 2, heal: [10, 18] },
+     },
+     chance: 70,
+     drops: {
+@@ -405,7 +405,7 @@ const monsters = {
+         accuracy: 90,
+         telegraph: "draws and throws",
+       },
+-      "smoke bomb": { chance: 10, heal: [8, 15] },
++      "smoke bomb": { chance: 10, stun: 30, stun_turns: 2, heal: [8, 15] },
+     },
+     chance: 70,
+     drops: {
+@@ -536,7 +536,7 @@ const monsters = {
+         telegraph: "bares its fangs and lunges with",
+       },
+       frenzy: { chance: 15, damage: [8, 14], type: "fast", accuracy: 80 },
+-      "moonlit howl": { chance: 10, heal: [10, 18], telegraph: "howls at the moon and uses" },
++      "moonlit howl": { chance: 10, stun: 25, stun_turns: 2, heal: [10, 18], telegraph: "howls at the moon and uses" },
+     },
+     chance: 40,
+     drops: {
+@@ -558,7 +558,7 @@ const monsters = {
+     basic_attack: { damage: [9, 14] },
+     abilities: {
+       "double bite": { chance: 25, damage: [6, 10], hits: 2, type: "fast" },
+-      "pack howl": { chance: 10, heal: [8, 15] },
++      "pack howl": { chance: 10, stun: 25, stun_turns: 2, heal: [8, 15] },
+     },
+     chance: 60,
+     drops: {
+@@ -579,14 +579,14 @@ const monsters = {
+     basic_attack: { damage: [11, 18], type: "slow" },
+     abilities: {
+       "club smash": {
+-        chance: 25,
++        chance: 25, stun: 40, stun_turns: 3,
+         damage: [18, 27],
+         type: "heavy",
+         warning: true,
+         telegraph: "raises a huge club to",
+       },
+       "ground slam": {
+-        chance: 20,
++        chance: 20, stun: 35, stun_turns: 2,
+         damage: [12, 20],
+         type: "slow",
+         parryable: false,
+@@ -627,7 +627,7 @@ const monsters = {
+         element: "frost",
+       },
+       "freezing blast": {
+-        chance: 12,
++        chance: 12, stun: 30, stun_turns: 2,
+         damage: [12, 18],
+         type: "slow",
+         pierces_guard: true,
+@@ -686,12 +686,12 @@ const monsters = {
+     basic_attack: { damage: [16, 24] },
+     abilities: {
+       "club smash": {
+-        chance: 25,
++        chance: 25, stun: 40, stun_turns: 3,
+         damage: [24, 34],
+         type: "heavy",
+         telegraph: "raises its club high",
+       },
+-      roar: { chance: 10, heal: [10, 20] },
++      roar: { chance: 10, stun: 25, stun_turns: 2, heal: [10, 20] },
+     },
+     chance: 30,
+     drops: {
+@@ -759,7 +759,7 @@ const monsters = {
+     abilities: {
+       "soul bolt": { chance: 30, damage: [14, 20], type: "fast", parryable: false },
+       "death grip": {
+-        chance: 15,
++        chance: 15, stun: 35, stun_turns: 2,
+         damage: [10, 16],
+         type: "slow",
+         parryable: false,
+@@ -820,7 +820,7 @@ const monsters = {
+     basic_attack: { damage: [10, 16] },
+     abilities: {
+       "fire breath": {
+-        chance: 30,
++        chance: 30, stun: 30, stun_turns: 2,
+         damage: [18, 26],
+         type: "heavy",
+         parryable: false,
+@@ -832,9 +832,9 @@ const monsters = {
+         special_effect: { type: "burn", chance: 50, damage: 4, turns: 2 },
+         element: "fire",
+       },
+-      "tail swipe": { chance: 25, damage: [12, 18], type: "heavy" },
++      "tail swipe": { chance: 25, stun: 35, stun_turns: 2, damage: [12, 18], type: "heavy" },
+       earthquake: {
+-        chance: 10,
++        chance: 10, stun: 40, stun_turns: 3,
+         damage: [10, 16],
+         type: "slow",
+         parryable: false,
+@@ -843,7 +843,7 @@ const monsters = {
+         warning: true,
+         telegraph: "is about to unleash",
+       },
+-      "dragon roar": { chance: 8, heal: [12, 20] },
++      "dragon roar": { chance: 8, stun: 25, stun_turns: 2, heal: [12, 20] },
+     },
+     chance: 50,
+     drops: {
+@@ -866,7 +866,7 @@ const monsters = {
+     basic_attack: { damage: [14, 22], type: "heavy" },
+     abilities: {
+       inferno: {
+-        chance: 30,
++        chance: 30, stun: 30, stun_turns: 2,
+         damage: [25, 35],
+         type: "heavy",
+         parryable: false,
+@@ -887,7 +887,7 @@ const monsters = {
+       },
+       "ancient regeneration": { chance: 15, heal: [20, 35] },
+       cataclysm: {
+-        chance: 8,
++        chance: 8, stun: 40, stun_turns: 3,
+         damage: [20, 30],
+         type: "slow",
+         parryable: false,
+@@ -919,7 +919,7 @@ const monsters = {
+     basic_attack: { damage: [20, 30] },
+     abilities: {
+       "fire breath": {
+-        chance: 25,
++        chance: 25, stun: 30, stun_turns: 2,
+         damage: [25, 38],
+         parryable: false,
+         dodgeable: true,
+@@ -981,7 +981,7 @@ const monsters = {
+     block_reduction: 0.6,
+     basic_attack: { damage: [24, 36] },
+     abilities: {
+-      "ice smash": { chance: 25, damage: [30, 45], type: "heavy", element: "frost" },
++      "ice smash": { chance: 25, stun: 35, stun_turns: 3, damage: [30, 45], type: "heavy", element: "frost" },
+       "frost wave": { chance: 18, damage: [18, 28], parryable: false, element: "frost" },
+     },
+     chance: 8,
+@@ -1044,8 +1044,8 @@ const monsters = {
+     block_reduction: 0.6,
+     basic_attack: { damage: [28, 42] },
+     abilities: {
+-      "warlord smash": { chance: 25, damage: [38, 55], type: "heavy" },
+-      "battle roar": { chance: 15, heal: [20, 35] },
++      "warlord smash": { chance: 25, stun: 40, stun_turns: 3, damage: [38, 55], type: "heavy" },
++      "battle roar": { chance: 15, stun: 25, stun_turns: 2, heal: [20, 35] },
+     },
+     chance: 0,
+     drops: {
+@@ -1065,7 +1065,7 @@ const monsters = {
+     block_reduction: 0.7,
+     basic_attack: { damage: [32, 48] },
+     abilities: {
+-      "ancient fist": { chance: 25, damage: [45, 65], type: "heavy" },
++      "ancient fist": { chance: 25, stun: 40, stun_turns: 3, damage: [45, 65], type: "heavy" },
+       "crystal burst": { chance: 18, damage: [25, 40], parryable: false },
+     },
+     chance: 0,
+@@ -1086,7 +1086,7 @@ const monsters = {
+     block_reduction: 0.65,
+     basic_attack: { damage: [38, 55] },
+     abilities: {
+-      "king's hammer": { chance: 25, damage: [50, 72], type: "heavy", element: "frost" },
++      "king's hammer": { chance: 25, stun: 40, stun_turns: 3, damage: [50, 72], type: "heavy", element: "frost" },
+       blizzard: { chance: 18, damage: [30, 45], parryable: false, warning: true, element: "frost" },
+       "frost guard": { chance: 12, heal: [25, 45] },
+     },
+@@ -1108,7 +1108,7 @@ const monsters = {
+     block_reduction: 0.6,
+     basic_attack: { damage: [42, 60] },
+     abilities: {
+-      inferno: { chance: 25, damage: [50, 75], parryable: false, warning: true, element: "fire" },
++      inferno: { chance: 25, stun: 30, stun_turns: 2, damage: [50, 75], parryable: false, warning: true, element: "fire" },
+       "demon drain": { chance: 18, damage: [25, 40], heal: [20, 35] },
+       "void curse": {
+         chance: 15,
+@@ -1149,7 +1149,7 @@ const monsters = {
+         dodgeable: true,
+       },
+       godfall: {
+-        chance: 8,
++        chance: 8, stun: 40, stun_turns: 3,
+         damage: [45, 66],
+         type: "slow",
+         parryable: false,
+@@ -1180,7 +1180,7 @@ const monsters = {
+       "invalid state": { chance: 18, damage: [24, 42], type: "fast", dodgeable: false },
+       rollback: { chance: 10, heal: [40, 70] },
+       "out of bounds": {
+-        chance: 8,
++        chance: 8, stun: 35, stun_turns: 3,
+         damage: [52, 77],
+         type: "slow",
+         parryable: false,
+@@ -1233,7 +1233,7 @@ const monsters = {
+       forget: { chance: 14, damage: [42, 66], blockable: false, dodgeable: true },
+       reload: { chance: 8, heal: [75, 125] },
+       "fourth wall": {
+-        chance: 7,
++        chance: 7, stun: 40, stun_turns: 3,
+         damage: [56, 84],
+         type: "slow",
+         parryable: false,
+@@ -1268,7 +1268,7 @@ Object.assign(monsters, {
+       "overdue notice": { chance: 16, damage: [48, 72], parryable: false },
+       "restore backup": { chance: 10, heal: [60, 110] },
+       "sealed vault": {
+-        chance: 8,
++        chance: 8, stun: 40, stun_turns: 3,
+         damage: [62, 90],
+         type: "slow",
+         parryable: false,
+@@ -1306,7 +1306,7 @@ Object.assign(monsters, {
+       },
+       "give up": { chance: 8, heal: [80, 140] },
+       "last attempt": {
+-        chance: 8,
++        chance: 8, stun: 35, stun_turns: 2,
+         damage: [74, 104],
+         type: "slow",
+         parryable: false,
+@@ -1337,7 +1337,7 @@ Object.assign(monsters, {
+       redact: { chance: 18, damage: [50, 78], blockable: false },
+       revise: { chance: 10, heal: [90, 150] },
+       "delete scene": {
+-        chance: 8,
++        chance: 8, stun: 35, stun_turns: 3,
+         damage: [86, 120],
+         type: "slow",
+         parryable: false,
+@@ -1373,7 +1373,7 @@ Object.assign(monsters, {
+       },
+       "second draft": { chance: 10, heal: [100, 170] },
+       "deus ex machina": {
+-        chance: 8,
++        chance: 8, stun: 40, stun_turns: 3,
+         damage: [94, 130],
+         type: "heavy",
+         parryable: false,
+@@ -1410,7 +1410,7 @@ Object.assign(monsters, {
+       },
+       "load previous": { chance: 10, heal: [120, 200] },
+       overwrite: {
+-        chance: 8,
++        chance: 8, stun: 40, stun_turns: 3,
+         damage: [100, 140],
+         type: "slow",
+         parryable: false,
