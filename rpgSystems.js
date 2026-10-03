@@ -326,6 +326,25 @@ Object.assign(SIDE_QUESTS, {
     requiresQuests: ["star_glass_survey", "ashen_reliquary", "hollow_patrol"], minLevel: 17,
     reward: { xp: 1250, coin: 850, "cartographer's compass": 1 }, chapterMin: 7,
   },
+  frontier_dispatch: {
+    name: "Cut the Signal Line", giver: "Frontier Scout",
+    desc: "Stop three frontier outriders from cutting the camp's signal wires.",
+    type: "kills", target: "frontier outrider", need: 3,
+    reward: { xp: 220, coin: 150, "clockwork spring": 2, "signal wire": 2 }, chapterMin: 1,
+  },
+  cathedral_chorus: {
+    name: "A Voice in Every Bell", giver: "Bellkeeper",
+    desc: "Silence three bellbound cantors before their song wakes the nave.",
+    type: "kills", target: "bellbound cantor", need: 3,
+    reward: { xp: 320, coin: 240, "resonant bell": 1, "black salt": 2 }, chapterMin: 2,
+  },
+  silent_bell: {
+    name: "The Bell Without a Tongue", giver: "Bellkeeper",
+    desc: "After the acolytes, cantors, and reliquary are dealt with, ring the silent bell and face what answers.",
+    type: "kills", target: "the bell without a tongue", need: 1,
+    requiresQuests: ["bell_silence", "cathedral_chorus", "ashen_reliquary"], minLevel: 8,
+    reward: { xp: 700, coin: 500, "bellshard maul": 1 }, chapterMin: 2,
+  },
   frontier_signal: {
     name: "A Signal for the Frontier", giver: "Frontier Scout",
     desc: "Find the wounded scout's route map while exploring the Broken Frontier.",
@@ -379,6 +398,7 @@ const ACHIEVEMENTS = {
   field_notes: { name: "Field Notes", desc: "Defeat all five newly discovered regional creatures." },
   three_horizons: { name: "Three Horizons", desc: "Complete the Ash, Null, and Hollow regional surveys." },
   beyond_the_map: { name: "Beyond the Map", desc: "Find and defeat the Lost Cartographer." },
+  unanswered: { name: "The Unanswered Bell", desc: "Find and defeat the Bell Without a Tongue." },
   supply_scout: { name: "Supply Scout", desc: "Find moon herb, black salt, and a clockwork spring." },
   maker: { name: "Made by Hand", desc: "Craft every new formula added in this content update." },
 };
@@ -727,6 +747,7 @@ function checkAchievements() {
   if ((PLAYER.ngPlus || 0) > 0) unlockAchievement("ng");
   if (["star_glass_survey", "ashen_reliquary", "hollow_patrol"].every((id) => questState(id).status === "done")) unlockAchievement("three_horizons");
   if (killCount("the lost cartographer") > 0) unlockAchievement("beyond_the_map");
+  if (killCount("the bell without a tongue") > 0) unlockAchievement("unanswered");
   if (["dust jackal", "frontier marksman", "bellbound acolyte", "null leech", "footnote mimic"].every((n) => killCount(n) > 0)) unlockAchievement("field_notes");
   if (["moon herb", "black salt", "clockwork spring"].every((n) => (WORLD.recipeMaterialsSeen || []).includes(n))) unlockAchievement("supply_scout");
   if (["moonlit poultice", "salt ward", "clockwork charge", "sunfire bomb", "trailbreaker bow", "bellguard", "nullweave coat", "archivist's ring", "margin seal", "last line tonic"].every((n) => (WORLD.recipesCrafted || []).includes(n))) unlockAchievement("maker");
@@ -1496,6 +1517,8 @@ async function maybeExploreEvent(areaName, selectedKind = null, availableEncount
   if (availableEncounters.includes("glasswing moth") && !WORLD.flags.starfall_cache_opened) table.push("starfall");
   if (availableEncounters.includes("ashbound sentinel") && !WORLD.flags.ash_reliquary_opened) table.push("ash_reliquary");
   if (availableEncounters.includes("hollow sentinel") && questState("far_edges").status === "active" && PLAYER.level >= enemyRequiredLevel("the lost cartographer")) table.push("lost_atlas");
+  if (availableEncounters.includes("frontier outrider") && !WORLD.flags.frontier_signal_cache_found) table.push("signal_cache");
+  if (availableEncounters.includes("bellbound cantor") && questState("silent_bell").status === "active" && PLAYER.level >= enemyRequiredLevel("the bell without a tongue")) table.push("silent_bell");
   if (availableEncounters.length >= 2) table.push("raid");
   const kind = selectedKind || table[randint(0, table.length - 1)];
   print("\n👣");
@@ -1675,6 +1698,50 @@ async function maybeExploreEvent(areaName, selectedKind = null, availableEncount
     }
     return true;
   }
+  if (kind === "signal_cache") {
+    if (WORLD.flags.frontier_signal_cache_found) return true;
+    print("A courier's cracked lantern lies under a cairn beside the Broken Frontier road.");
+    print("1. Salvage the signal wire and clockwork spring.");
+    print("2. Repair the lantern and mark a safer route for the camp.");
+    print("0. Leave it under the stones.");
+    while (true) {
+      const choice = (await input("What do you do? [1/2/0]: ")).trim().toLowerCase();
+      if (["0", "leave", "back"].includes(choice)) return true;
+      if (["1", "salvage", "wire", "take"].includes(choice)) {
+        WORLD.flags.frontier_signal_cache_found = true;
+        addItem("signal wire", 2);
+        addItem("clockwork spring", 1);
+        print("You take what can still be used before the wind carries the lantern away.");
+        return true;
+      }
+      if (["2", "repair", "route", "camp"].includes(choice)) {
+        WORLD.flags.frontier_signal_cache_found = true;
+        addItem("signal wire", 1);
+        WORLD.rested = 1;
+        print("The repaired beacon flashes toward camp. You will start your next battle rested.");
+        return true;
+      }
+      print("Choose 1 to salvage it, 2 to repair it, or 0 to leave.");
+    }
+  }
+  if (kind === "silent_bell") {
+    if (questState("silent_bell").status !== "active") return true;
+    print("The Cathedral's silent bell begins to move, though no rope is attached.");
+    print("1. Strike the cracked rim and face whatever answers.");
+    print("0. Let the bell fall silent again.");
+    while (true) {
+      const choice = (await input("Do you ring it? [1/0]: ")).trim().toLowerCase();
+      if (["0", "leave", "back", "later"].includes(choice)) return true;
+      if (["1", "ring", "strike", "fight", "yes"].includes(choice)) {
+        STORY.flags.add("secret_bell_without_tongue_found");
+        print("The sound returns from inside the bell. Something steps out of the echo.");
+        await fightMonster("the bell without a tongue");
+        tryTurnInQuests();
+        return true;
+      }
+      print("Choose 1 to ring the bell or 0 to leave it alone.");
+    }
+  }
   if (kind === "starfall") {
     if (WORLD.flags.starfall_cache_opened) {
       print("Only a dark crater remains. You gather a little moon herb from its rim.");
@@ -1839,6 +1906,9 @@ function rollExploreDiscovery(availableEncounters) {
   if (availableEncounters.includes("ashbound sentinel") && !WORLD.flags.ash_reliquary_opened) table.push("ash_reliquary", "ash_reliquary");
   if (availableEncounters.includes("hollow sentinel") && questState("far_edges").status === "active" && PLAYER.level >= enemyRequiredLevel("the lost cartographer"))
     table.push("lost_atlas", "lost_atlas");
+  if (availableEncounters.includes("frontier outrider") && !WORLD.flags.frontier_signal_cache_found) table.push("signal_cache", "signal_cache");
+  if (availableEncounters.includes("bellbound cantor") && questState("silent_bell").status === "active" && PLAYER.level >= enemyRequiredLevel("the bell without a tongue"))
+    table.push("silent_bell", "silent_bell");
   if (availableEncounters.length >= 2) table.push("raid");
   return table[randint(0, table.length - 1)];
 }
@@ -1855,6 +1925,8 @@ function exploreDiscoveryLabel(kind) {
     starfall: "investigate the fallen star",
     ash_reliquary: "search beneath the Cathedral altar",
     lost_atlas: "follow the atlas to the edge of the kingdom",
+    signal_cache: "search the broken signal lantern",
+    silent_bell: "follow the sound of the silent bell",
   })[kind] || "investigate the discovery";
 }
 
