@@ -301,6 +301,31 @@ Object.assign(SIDE_QUESTS, {
     type: "kills", target: "index hound", need: 1,
     reward: { xp: 520, coin: 300, "soul shard": 2, "ancient crystal": 2 }, chapterMin: 6,
   },
+  star_glass_survey: {
+    name: "A Sky in Pieces", giver: "Nyx",
+    desc: "Collect four pieces of star glass from the Glasswing Moths in the Null Expanse.",
+    type: "collect", target: "star glass", need: 4,
+    reward: { xp: 430, coin: 260, "star glass": 2, "ancient crystal": 1 }, chapterMin: 3,
+  },
+  ashen_reliquary: {
+    name: "The Bell Beneath the Ash", giver: "Bellkeeper",
+    desc: "Recover three ashen sigils from the Cathedral's last sentinels.",
+    type: "collect", target: "ashen sigil", need: 3,
+    reward: { xp: 360, coin: 220, "ember core": 2, "black salt": 2 }, chapterMin: 2,
+  },
+  hollow_patrol: {
+    name: "The Last Patrol", giver: "Hollow Veteran",
+    desc: "Defeat three hollow sentinels still marching through the abandoned kingdom.",
+    type: "kills", target: "hollow sentinel", need: 3,
+    reward: { xp: 780, coin: 460, "oath fragment": 2, "ancient crystal": 2 }, chapterMin: 7,
+  },
+  far_edges: {
+    name: "Where the Map Ends", giver: "Hollow Veteran",
+    desc: "Once the Null, Ash, and Hollow surveys are finished, follow the final chart and challenge the Lost Cartographer.",
+    type: "kills", target: "the lost cartographer", need: 1,
+    requiresQuests: ["star_glass_survey", "ashen_reliquary", "hollow_patrol"], minLevel: 17,
+    reward: { xp: 1250, coin: 850, "cartographer's compass": 1 }, chapterMin: 7,
+  },
   frontier_signal: {
     name: "A Signal for the Frontier", giver: "Frontier Scout",
     desc: "Find the wounded scout's route map while exploring the Broken Frontier.",
@@ -352,6 +377,8 @@ const ACHIEVEMENTS = {
   wealthy: { name: "Heavy Purse", desc: "Hold 1000 coin at once." },
   ng: { name: "Again", desc: "Start New Game+." },
   field_notes: { name: "Field Notes", desc: "Defeat all five newly discovered regional creatures." },
+  three_horizons: { name: "Three Horizons", desc: "Complete the Ash, Null, and Hollow regional surveys." },
+  beyond_the_map: { name: "Beyond the Map", desc: "Find and defeat the Lost Cartographer." },
   supply_scout: { name: "Supply Scout", desc: "Find moon herb, black salt, and a clockwork spring." },
   maker: { name: "Made by Hand", desc: "Craft every new formula added in this content update." },
 };
@@ -698,6 +725,8 @@ function checkAchievements() {
   if (Object.values(trees).some((n) => n >= 4)) unlockAchievement("dedicated");
   if ((inventory.coin || 0) >= 1000) unlockAchievement("wealthy");
   if ((PLAYER.ngPlus || 0) > 0) unlockAchievement("ng");
+  if (["star_glass_survey", "ashen_reliquary", "hollow_patrol"].every((id) => questState(id).status === "done")) unlockAchievement("three_horizons");
+  if (killCount("the lost cartographer") > 0) unlockAchievement("beyond_the_map");
   if (["dust jackal", "frontier marksman", "bellbound acolyte", "null leech", "footnote mimic"].every((n) => killCount(n) > 0)) unlockAchievement("field_notes");
   if (["moon herb", "black salt", "clockwork spring"].every((n) => (WORLD.recipeMaterialsSeen || []).includes(n))) unlockAchievement("supply_scout");
   if (["moonlit poultice", "salt ward", "clockwork charge", "sunfire bomb", "trailbreaker bow", "bellguard", "nullweave coat", "archivist's ring", "margin seal", "last line tonic"].every((n) => (WORLD.recipesCrafted || []).includes(n))) unlockAchievement("maker");
@@ -739,12 +768,18 @@ function questState(id) {
   return WORLD.quests[id] || { status: "locked", progress: 0 };
 }
 
+function questAvailable(id) {
+  const q = SIDE_QUESTS[id];
+  if (!q || STORY.chapter < q.chapterMin || PLAYER.level < (q.minLevel || 1)) return false;
+  return (q.requiresQuests || []).every((required) => questState(required).status === "done");
+}
+
 function offerQuest(id) {
   const q = SIDE_QUESTS[id];
   if (!q) return;
   const st = questState(id);
   if (st.status === "done" || st.status === "active") return false;
-  if (STORY.chapter < q.chapterMin) return false;
+  if (!questAvailable(id)) return false;
   WORLD.quests[id] = { status: "active", progress: 0 };
   if (q.type === "deliver" && q.item) addItem(q.item, 1, true);
   print(`\n📜 QUEST ACCEPTED: ${q.name}`);
@@ -1357,7 +1392,7 @@ async function questGiver() {
   tryTurnInQuests();
   const available = Object.keys(SIDE_QUESTS).filter((id) => {
     const st = questState(id);
-    return st.status !== "done" && st.status !== "active" && STORY.chapter >= SIDE_QUESTS[id].chapterMin;
+    return st.status !== "done" && st.status !== "active" && questAvailable(id);
   });
   if (!available.length) {
     print("No new work right now. Check 'quests' for progress.");
@@ -1458,6 +1493,9 @@ async function maybeExploreEvent(areaName, selectedKind = null, availableEncount
   const table = ["chest", "trap", "merchant", "camp", "npc", "riddle", "cache", "scrap", "forage", "shrine", "echo"];
   if (STORY.chapter >= 1) table.push("townhint");
   if (availableEncounters.includes("index hound") && questState("unwritten_index").status === "active" && !WORLD.flags.archive_index_resolved) table.push("index_hound");
+  if (availableEncounters.includes("glasswing moth") && !WORLD.flags.starfall_cache_opened) table.push("starfall");
+  if (availableEncounters.includes("ashbound sentinel") && !WORLD.flags.ash_reliquary_opened) table.push("ash_reliquary");
+  if (availableEncounters.includes("hollow sentinel") && questState("far_edges").status === "active" && PLAYER.level >= enemyRequiredLevel("the lost cartographer")) table.push("lost_atlas");
   if (availableEncounters.length >= 2) table.push("raid");
   const kind = selectedKind || table[randint(0, table.length - 1)];
   print("\n👣");
@@ -1567,7 +1605,7 @@ async function maybeExploreEvent(areaName, selectedKind = null, availableEncount
   }
   if (kind === "npc") {
     print("Someone on the road: they have a job if you want one.");
-    const ids = Object.keys(SIDE_QUESTS).filter((id) => questState(id).status !== "done" && STORY.chapter >= SIDE_QUESTS[id].chapterMin);
+    const ids = Object.keys(SIDE_QUESTS).filter((id) => !["done", "active"].includes(questState(id).status) && questAvailable(id));
     if (ids.length) offerQuest(ids[randint(0, ids.length - 1)]);
     else print("They were hoping you were someone else.");
     return true;
@@ -1636,6 +1674,82 @@ async function maybeExploreEvent(areaName, selectedKind = null, availableEncount
       addItem("coin", 15);
     }
     return true;
+  }
+  if (kind === "starfall") {
+    if (WORLD.flags.starfall_cache_opened) {
+      print("Only a dark crater remains. You gather a little moon herb from its rim.");
+      addItem("moon herb", 1);
+      return true;
+    }
+    print("A fallen star rests in a crater, its glassy shell still humming with the Null Expanse.");
+    print("1. Break off two pieces of star glass.");
+    print("2. Take one piece carefully and rest in the crater's warmth.");
+    print("0. Leave the strange stone untouched.");
+    while (true) {
+      const choice = (await input("What do you do? [1/2/0]: ")).trim().toLowerCase();
+      if (["0", "leave", "back"].includes(choice)) return true;
+      if (["1", "glass", "take", "break"].includes(choice)) {
+        WORLD.flags.starfall_cache_opened = true;
+        addItem("star glass", 2);
+        tryTurnInQuests();
+        print("The remaining light fades, but the fragments fit together like part of a map.");
+        return true;
+      }
+      if (["2", "rest", "careful", "warmth"].includes(choice)) {
+        WORLD.flags.starfall_cache_opened = true;
+        addItem("star glass", 1);
+        WORLD.rested = 1;
+        tryTurnInQuests();
+        print("You leave the rest of the star intact and recover beside its fading warmth.");
+        return true;
+      }
+      print("Choose 1 for more glass, 2 to rest, or 0 to leave.");
+    }
+  }
+  if (kind === "ash_reliquary") {
+    if (WORLD.flags.ash_reliquary_opened) return true;
+    print("Under the Cathedral's collapsed altar, a reliquary rings once when you approach.");
+    print("1. Open it and take the ashen sigils.");
+    print("2. Leave an offering and accept the Bellkeeper's blessing.");
+    print("0. Leave the altar undisturbed.");
+    while (true) {
+      const choice = (await input("What do you do? [1/2/0]: ")).trim().toLowerCase();
+      if (["0", "leave", "back"].includes(choice)) return true;
+      if (["1", "open", "sigils", "take"].includes(choice)) {
+        WORLD.flags.ash_reliquary_opened = true;
+        addItem("ashen sigil", 2);
+        addItem("ember core", 1);
+        tryTurnInQuests();
+        print("The bell falls silent. The sigils are warm against your palm.");
+        return true;
+      }
+      if (["2", "offering", "blessing", "rest"].includes(choice)) {
+        WORLD.flags.ash_reliquary_opened = true;
+        addItem("black salt", 2);
+        WORLD.rested = 1;
+        print("You leave the treasure where it lies. The bellkeeper's blessing steadies you for the next battle.");
+        return true;
+      }
+      print("Choose 1 to open the reliquary, 2 to leave an offering, or 0 to go.");
+    }
+  }
+  if (kind === "lost_atlas") {
+    if (questState("far_edges").status !== "active") return true;
+    print("The old atlas opens by itself. A route appears where the Hollow Kingdom ends.");
+    print("1. Follow the route and challenge the Lost Cartographer.");
+    print("0. Fold the map and return when you are ready.");
+    while (true) {
+      const choice = (await input("Do you follow the final route? [1/0]: ")).trim().toLowerCase();
+      if (["0", "leave", "back", "later"].includes(choice)) return true;
+      if (["1", "yes", "fight", "challenge", "follow"].includes(choice)) {
+        STORY.flags.add("secret_cartographer_found");
+        print("The ink peels away from the page. A figure steps out of the blank space beyond the map.");
+        await fightMonster("the lost cartographer");
+        tryTurnInQuests();
+        return true;
+      }
+      print("Choose 1 to follow the route or 0 to leave it for later.");
+    }
   }
   if (kind === "index_hound") {
     if (questState("unwritten_index").status !== "active" || WORLD.flags.archive_index_resolved) {
@@ -1721,6 +1835,10 @@ function rollExploreDiscovery(availableEncounters) {
     table.push("lost_scout", "lost_scout");
   if (availableEncounters.includes("index hound") && questState("unwritten_index").status === "active" && !WORLD.flags.archive_index_resolved)
     table.push("index_hound", "index_hound");
+  if (availableEncounters.includes("glasswing moth") && !WORLD.flags.starfall_cache_opened) table.push("starfall", "starfall");
+  if (availableEncounters.includes("ashbound sentinel") && !WORLD.flags.ash_reliquary_opened) table.push("ash_reliquary", "ash_reliquary");
+  if (availableEncounters.includes("hollow sentinel") && questState("far_edges").status === "active" && PLAYER.level >= enemyRequiredLevel("the lost cartographer"))
+    table.push("lost_atlas", "lost_atlas");
   if (availableEncounters.length >= 2) table.push("raid");
   return table[randint(0, table.length - 1)];
 }
@@ -1734,6 +1852,9 @@ function exploreDiscoveryLabel(kind) {
     raid: "intercept the discovered raiding party",
     lost_scout: "follow the scout's signal flare",
     index_hound: "follow the Index Hound's trail",
+    starfall: "investigate the fallen star",
+    ash_reliquary: "search beneath the Cathedral altar",
+    lost_atlas: "follow the atlas to the edge of the kingdom",
   })[kind] || "investigate the discovery";
 }
 
