@@ -30,7 +30,7 @@ const EQUIPMENT_SETS = {
     bonuses: [{ pieces: 2, stats: { damage: 4, crit: 6 }, text: "+4 damage, +6% critical chance" }],
   },
   archive: {
-    pieces: ["archive blade", "hollow plate", "archivist's ring"],
+    pieces: ["archive blade", "hollow plate", "archivist's ring", "indexer's lens"],
     bonuses: [
       { pieces: 2, stats: { max_hp: 25, defense: 2 }, text: "+25 max HP, +2 defense" },
       { pieces: 3, stats: { damage: 4, crit: 5 }, text: "+4 damage, +5% critical chance" },
