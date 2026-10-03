@@ -632,7 +632,7 @@ const FX = (() => {
       if (audio) play("yes");
     }
     if (musicBus && audio) {
-      musicBus.gain.setTargetAtTime(on && activeBattleMusic && !activeBattleMusic.musicFile ? 0.55 : 0, audio.currentTime, 0.18);
+      musicBus.gain.setTargetAtTime(on && activeBattleMusic && (!battleTrackPath || battleTrackFailed) ? 0.55 : 0, audio.currentTime, 0.18);
     }
     soundFilePlayers.forEach((state) => {
       state.player.volume = on ? 0.72 : 0;
@@ -763,7 +763,8 @@ const FX = (() => {
     battleAudio = null;
     const label = (Array.isArray(enemyNames) ? enemyNames[0] : enemyNames) || "";
     const slug = String(label).toLowerCase().normalize("NFKD").replace(/[\\u0300-\\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    battleTrackPath = musicFile || (slug ? `audio/music/enemies/${slug}.wav` : boss ? "audio/music/boss-default.wav" : "audio/music/battle-default.wav");
+    const solo = !Array.isArray(enemyNames) || enemyNames.length === 1;
+    battleTrackPath = musicFile || (solo && slug ? `audio/music/enemies/${slug}.wav` : boss ? "audio/music/boss-default.wav" : "audio/music/battle-default.wav");
     battleTrackFailed = false;
     activeBattleMusic = { theme: battleTheme(enemyNames, boss, musicProfile), bar: 0, boss };
     resumeBattleMusic();
