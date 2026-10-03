@@ -1237,7 +1237,9 @@ async function playBossOpening(f) {
   const scene = monsters[enemy?.name]?.opening;
   if (!scene) return;
   print("\n\n╔══ " + scene.title + " ══╗");
-  if (scene.effect && typeof FX !== "undefined" && typeof FX.corrupt === "function")
+  if (scene.terminal_cut && typeof FX !== "undefined" && typeof FX.realityCut === "function")
+    FX.realityCut(2600);
+  else if (scene.effect && typeof FX !== "undefined" && typeof FX.corrupt === "function")
     FX.corrupt(scene.effect, 1300);
   for (const line of scene.lines) {
     print("   " + line);
