@@ -535,6 +535,9 @@ const RECIPE_DISCOVERY = {
   "wraith ward scroll": { wraith: 18, lich: 10, "the watcher": 100 },
   "archivist seal": { "archive stalker": 20, "the archivist": 100 },
   "indexer's lens": { "index hound": 100 },
+  "starfall aegis": { "glasswing moth": 100 },
+  ashglass: { "ashbound sentinel": 100 },
+  "oathkeeper mail": { "hollow sentinel": 100 },
   "hero's gambit tonic": { berserker: 12, "the first hero": 100 },
   "margin seal": { "margin warden": 20, "the editor": 100 },
   "last line tonic": { "the author": 100, "the last save": 100 },
@@ -692,6 +695,10 @@ Object.assign(ITEMS, {
   "nullweave coat": { id: "armor", max_hp: 82, defense: 7, dodge: 4, parry: 3, description: "Cloth woven from a place the world tried to forget." },
   "archivist's ring": { id: "trinket", max_hp: 42, crit: 6, damage: 5, description: "A catalog mark that helps its wearer find the opening." },
   "indexer's lens": { id: "trinket", max_hp: 28, crit: 9, damage: 7, description: "A brass lens that brings the weak points in a story into focus." },
+  "starfall aegis": { id: "offhand", max_hp: 38, defense: 6, guard: 0.08, description: "A shield cut from the glass shell of a fallen star." },
+  ashglass: { id: "weapon", damage: 21, crit: 10, skills: ["precision cut", "rending slash"], description: "A dark blade with a bright ember caught inside." },
+  "oathkeeper mail": { id: "armor", max_hp: 115, defense: 9, parry: 3, description: "The last guard's oath, hammered into a coat of black iron." },
+  "cartographer's compass": { id: "trinket", max_hp: 58, damage: 10, crit: 8, dodge: 5, description: "It points toward the next choice, never the easiest one." },
 });
 Object.assign(recipes, {
   "moonlit poultice": { "moon herb": 2, meat: 1 },
@@ -705,6 +712,9 @@ Object.assign(recipes, {
   "margin seal": { "void crystal": 2, "ancient crystal": 2, "black salt": 3 },
   "last line tonic": { "ancient heart": 1, "moon herb": 4, "soul shard": 2 },
   "indexer's lens": { "ink fragment": 4, "soul shard": 3, "ancient crystal": 3 },
+  "starfall aegis": { "star glass": 5, "glimmer wing": 2, "ancient crystal": 3 },
+  ashglass: { "ashen sigil": 4, "ember core": 2, iron: 8 },
+  "oathkeeper mail": { "oath fragment": 5, "ancient crystal": 4, "black salt": 3 },
 });
 Object.assign(SHOP_BUY, {
   "moon herb": 18, "black salt": 28, "clockwork spring": 32,
