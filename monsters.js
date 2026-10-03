@@ -24,6 +24,7 @@ const EFFECT_STYLE = {
   shield: ["🔰", "shielded"],
   fortified: ["🛡️", "fortified"],
   warded: ["✨", "warded"],
+  exposed: ["🎯", "exposed"],
 };
 
 const IDLE_LINES = [
@@ -1529,3 +1530,126 @@ Object.assign(monsters, {
     dodge_rate: 75,
   },
 });
+
+// Multi-form bosses. Each later form is its own combat sheet: HP, defenses, attacks,
+// resistances, and a separate procedural music profile. Phase one is captured from the
+// existing boss entry below, so existing drops, story gates, and encounter identity remain intact.
+const BOSS_PHASE_TWO = {
+  "goblin king": { name: "Blood-Crowned King", hp: 230, icon: "🩸👑", block_chance: 6, block_reduction: 0.3, basic_attack: { damage: [26, 38], type: "fast" }, abilities: { "bloodied barrage": { chance: 30, damage: [12, 18], hits: 3, type: "fast", special_effect: { type: "bleed", chance: 35, damage: 3, turns: 2 } }, "crown cleaver": { chance: 22, damage: [42, 58], type: "heavy", warning: true, telegraph: "sweeps its broken crown into" } }, parry_chance: 10, dodge_chance: 32, parry_rate: 40, dodge_rate: 72, resist: { fire: 15, frost: 0 }, music: { root: 103.83, scale: [0, 3, 5, 8, 10], wave: "sawtooth", tempo: 118 } },
+  "alpha wolf": { name: "Moonfang Alpha", hp: 215, icon: "🌙🐺", block_chance: 0, block_reduction: 0.3, basic_attack: { damage: [25, 37], type: "fast" }, abilities: { "lunar pounce": { chance: 30, damage: [34, 48], type: "heavy", special_effect: { type: "bleed", chance: 35, damage: 4, turns: 2 } }, "rending flurry": { chance: 25, damage: [13, 19], hits: 3, type: "fast" } }, parry_chance: 8, dodge_chance: 48, parry_rate: 45, dodge_rate: 82, resist: { fire: 0, frost: 35 }, music: { root: 155.56, scale: [0, 2, 5, 7, 10], wave: "triangle", tempo: 128 } },
+  "orc warlord": { name: "Ironblood Tyrant", hp: 365, icon: "🪓🔥", block_chance: 22, block_reduction: 0.58, basic_attack: { damage: [36, 50], type: "heavy" }, abilities: { "crushing march": { chance: 24, damage: [22, 32], hits: 2, type: "heavy", stun: 25, stun_turns: 1 }, "blood warcry": { chance: 18, heal: [45, 65], special_effect: { type: "empowered", chance: 100, damage: 0, turns: 2 } } }, parry_chance: 25, dodge_chance: 0, parry_rate: 62, dodge_rate: 0, resist: { fire: 15, frost: 0 }, music: { root: 87.31, scale: [0, 3, 5, 7, 10], wave: "sawtooth", tempo: 92 } },
+  "ancient golem": { name: "Core Unbound", hp: 470, icon: "🌋🗿", block_chance: 48, block_reduction: 0.68, basic_attack: { damage: [40, 56], element: "fire" }, abilities: { "molten fist": { chance: 28, damage: [52, 70], element: "fire", type: "heavy", warning: true, telegraph: "slams its molten core down with" }, "faultline": { chance: 22, damage: [28, 40], hits: 2, special_effect: { type: "slow", chance: 40, damage: 0, turns: 2 } } }, parry_chance: 10, dodge_chance: 0, parry_rate: 30, dodge_rate: 0, resist: { fire: 45, frost: 10 }, music: { root: 73.42, scale: [0, 2, 3, 7, 9], wave: "triangle", tempo: 78 } },
+  "frost giant king": { name: "Rimeheart Sovereign", hp: 560, icon: "🌨️👑", block_chance: 3, block_reduction: 0.3, basic_attack: { damage: [44, 62], element: "frost" }, abilities: { "whiteout": { chance: 24, damage: [34, 48], element: "frost", special_effect: { type: "slow", chance: 80, damage: 0, turns: 2 }, warning: true, telegraph: "bursts into a blinding" }, "glacier crush": { chance: 22, damage: [64, 86], type: "heavy" } }, parry_chance: 15, dodge_chance: 18, parry_rate: 48, dodge_rate: 58, resist: { fire: 35, frost: 70 }, music: { root: 123.47, scale: [0, 2, 5, 7, 11], wave: "sine", tempo: 88 } },
+  "ash demon": { name: "Cinderheart Devourer", hp: 650, icon: "🔥👹", block_chance: 4, block_reduction: 0.25, basic_attack: { damage: [50, 70], element: "fire" }, abilities: { "inferno spiral": { chance: 28, damage: [24, 34], hits: 2, element: "fire", special_effect: { type: "burn", chance: 70, damage: 7, turns: 3 } }, "cinder eruption": { chance: 20, damage: [72, 96], element: "fire", warning: true, telegraph: "erupts beneath you with" } }, parry_chance: 30, dodge_chance: 25, parry_rate: 60, dodge_rate: 55, resist: { fire: 70, frost: 0 }, music: { root: 92.5, scale: [0, 1, 4, 5, 8], wave: "sawtooth", tempo: 124 } },
+  "the unnamed king": { name: "The King Without a World", hp: 360, icon: "🕳️👑", block_chance: 0, block_reduction: 0.2, basic_attack: { damage: [40, 58], type: "fast" }, abilities: { "world fracture": { chance: 24, damage: [55, 76], blockable: false, special_effect: { type: "weakened", chance: 45, damage: 0, turns: 2 } }, "empty throne": { chance: 16, heal: [55, 85], special_effect: { type: "empowered", chance: 100, damage: 0, turns: 2 } } }, parry_chance: 32, dodge_chance: 36, parry_rate: 66, dodge_rate: 74, resist: { fire: 20, frost: 20 }, music: { root: 98, scale: [0, 1, 5, 6, 10], wave: "sine", tempo: 112 } },
+  "the leftover": { name: "The Unfinished Remnant", hp: 510, icon: "🧩💀", block_chance: 0, block_reduction: 0, basic_attack: { damage: [46, 66], type: "fast" }, abilities: { "discarded memories": { chance: 25, damage: [30, 42], hits: 2, special_effect: { type: "weakened", chance: 55, damage: 0, turns: 2 } }, "borrowed ending": { chance: 18, heal: [65, 95] } }, parry_chance: 20, dodge_chance: 40, parry_rate: 50, dodge_rate: 78, resist: { fire: 10, frost: 25 }, music: { root: 110, scale: [0, 3, 6, 7, 10], wave: "triangle", tempo: 102 } },
+  "the watcher": { name: "The Unblinking Eye", hp: 700, icon: "👁️🌑", block_chance: 0, block_reduction: 0, basic_attack: { damage: [50, 72], parryable: false }, abilities: { "judgment ray": { chance: 26, damage: [72, 96], element: "fire", dodgeable: false, warning: true, telegraph: "focuses its gaze into" }, "blink between frames": { chance: 18, heal: [70, 105], special_effect: { type: "shield", chance: 100, absorb: 30, turns: 1 } } }, parry_chance: 0, dodge_chance: 45, parry_rate: 0, dodge_rate: 80, resist: { fire: 45, frost: 25 }, music: { root: 82.41, scale: [0, 1, 4, 6, 9], wave: "sine", tempo: 108 } },
+  "the witness": { name: "The Witness Unbound", hp: 980, icon: "📜🔥", block_chance: 5, block_reduction: 0.25, basic_attack: { damage: [58, 82], element: "fire" }, abilities: { "testimony storm": { chance: 24, damage: [36, 50], hits: 2, element: "fire", special_effect: { type: "burn", chance: 60, damage: 6, turns: 3 } }, "cross-examination": { chance: 20, damage: [76, 102], special_effect: { type: "weakened", chance: 55, damage: 0, turns: 2 } } }, parry_chance: 25, dodge_chance: 30, parry_rate: 55, dodge_rate: 65, resist: { fire: 35, frost: 20 }, music: { root: 123.47, scale: [0, 3, 5, 6, 10], wave: "sawtooth", tempo: 116 } },
+  "the archivist": { name: "The Living Index", hp: 1190, icon: "📚✨", block_chance: 22, block_reduction: 0.4, basic_attack: { damage: [62, 86], type: "slow" }, abilities: { "catalogue of pain": { chance: 25, damage: [52, 72], hits: 2, special_effect: { type: "bleed", chance: 45, damage: 5, turns: 3 } }, "reorder the page": { chance: 18, heal: [90, 130], special_effect: { type: "shield", chance: 100, absorb: 38, turns: 2 } } }, parry_chance: 28, dodge_chance: 24, parry_rate: 62, dodge_rate: 58, resist: { fire: 30, frost: 30 }, music: { root: 103.83, scale: [0, 2, 3, 7, 8], wave: "triangle", tempo: 94 } },
+  "the first hero": { name: "The Hero's Last Trial", hp: 1400, icon: "🗡️🌟", block_chance: 18, block_reduction: 0.45, basic_attack: { damage: [68, 94], type: "heavy" }, abilities: { "heroic combination": { chance: 28, damage: [28, 40], hits: 3, type: "fast" }, "last stand": { chance: 18, damage: [105, 140], warning: true, telegraph: "commits everything to" } }, parry_chance: 38, dodge_chance: 28, parry_rate: 72, dodge_rate: 62, resist: { fire: 20, frost: 20 }, music: { root: 130.81, scale: [0, 2, 3, 7, 10], wave: "sawtooth", tempo: 120 } },
+  "the editor": { name: "The Redline", hp: 1660, icon: "🖋️🩸", block_chance: 0, block_reduction: 0, basic_attack: { damage: [72, 100], dodgeable: false }, abilities: { "delete the target": { chance: 25, damage: [92, 124], blockable: false, parryable: false, warning: true, telegraph: "draws a line through you with" }, "undo the wound": { chance: 18, heal: [115, 165] } }, parry_chance: 0, dodge_chance: 45, parry_rate: 0, dodge_rate: 78, resist: { fire: 30, frost: 30 }, music: { root: 116.54, scale: [0, 1, 4, 7, 9], wave: "sawtooth", tempo: 122 } },
+  "the author": { name: "The Author's Draft", hp: 1960, icon: "✒️🌌", block_chance: 0, block_reduction: 0, basic_attack: { damage: [80, 112], element: "frost" }, abilities: { "rewrite reality": { chance: 24, damage: [110, 145], element: "frost", special_effect: { type: "slow", chance: 65, damage: 0, turns: 2 }, warning: true, telegraph: "rewrites the world around you with" }, "plot reversal": { chance: 18, heal: [125, 180], special_effect: { type: "empowered", chance: 100, damage: 0, turns: 2 } } }, parry_chance: 38, dodge_chance: 38, parry_rate: 75, dodge_rate: 75, resist: { fire: 25, frost: 45 }, music: { root: 92.5, scale: [0, 1, 5, 7, 8], wave: "sine", tempo: 100 } },
+  "clockwork hound": { name: "Overclocked Hound", hp: 72, icon: "🐺⚙️", block_chance: 0, block_reduction: 0, basic_attack: { damage: [15, 22], type: "fast" }, abilities: { "overdrive bite": { chance: 28, damage: [12, 18], hits: 2, type: "fast" }, "steam burst": { chance: 20, damage: [24, 34], element: "fire", special_effect: { type: "burn", chance: 40, damage: 3, turns: 2 } } }, parry_chance: 10, dodge_chance: 35, parry_rate: 48, dodge_rate: 72, resist: { fire: 40, frost: 0 }, music: { root: 164.81, scale: [0, 2, 4, 7, 9], wave: "square", tempo: 140 } },
+  "mire witch": { name: "The Drowned Oracle", hp: 112, icon: "🧙‍♀️🌫️", block_chance: 0, block_reduction: 0, basic_attack: { damage: [21, 30], element: "frost" }, abilities: { "blackwater curse": { chance: 28, damage: [17, 24], special_effect: { type: "poison", chance: 80, damage: 5, turns: 3 } }, "suffocating fog": { chance: 22, damage: [13, 19], element: "frost", special_effect: { type: "slow", chance: 70, damage: 0, turns: 2 } } }, parry_chance: 6, dodge_chance: 28, parry_rate: 40, dodge_rate: 68, resist: { fire: 0, frost: 55 }, music: { root: 138.59, scale: [0, 1, 5, 7, 8], wave: "sine", tempo: 90 } },
+  "archive stalker": { name: "The Missing Chapter", hp: 315, icon: "📖👤", block_chance: 0, block_reduction: 0, basic_attack: { damage: [44, 60], parryable: false }, abilities: { "footnote ambush": { chance: 28, damage: [52, 70], dodgeable: false, special_effect: { type: "weakened", chance: 55, damage: 0, turns: 2 } }, "page torn free": { chance: 22, damage: [30, 42], hits: 2, special_effect: { type: "bleed", chance: 40, damage: 4, turns: 2 } } }, parry_chance: 0, dodge_chance: 35, parry_rate: 0, dodge_rate: 70, resist: { fire: 35, frost: 15 }, music: { root: 98, scale: [0, 3, 5, 6, 10], wave: "triangle", tempo: 110 } },
+  "margin warden": { name: "The Final Errata", hp: 645, icon: "✒️⚔️", block_chance: 35, block_reduction: 0.6, basic_attack: { damage: [62, 80], type: "heavy" }, abilities: { "redline sweep": { chance: 26, damage: [78, 102], dodgeable: false, special_effect: { type: "slow", chance: 60, damage: 0, turns: 2 } }, "correct the ending": { chance: 20, heal: [85, 120], special_effect: { type: "fortified", chance: 100, damage: 0, turns: 2 } } }, parry_chance: 30, dodge_chance: 10, parry_rate: 65, dodge_rate: 45, resist: { fire: 35, frost: 35 }, music: { root: 82.41, scale: [0, 2, 3, 6, 9], wave: "sawtooth", tempo: 96 } },
+  "the last save": { name: "The Final Overwrite", hp: 2300, icon: "💾🌑", block_chance: 0, block_reduction: 0, basic_attack: { damage: [92, 126], parryable: false, element: "fire" }, abilities: { "erase the timeline": { chance: 26, damage: [122, 160], blockable: false, special_effect: { type: "burn", chance: 70, damage: 10, turns: 3 }, warning: true, telegraph: "starts erasing the timeline with" }, "restore corrupted data": { chance: 20, heal: [150, 220], special_effect: { type: "shield", chance: 100, absorb: 65, turns: 2 } }, "forced shutdown": { chance: 14, damage: [100, 138], hits: 2, dodgeable: false } }, parry_chance: 0, dodge_chance: 50, parry_rate: 0, dodge_rate: 82, resist: { fire: 50, frost: 35 }, music: { root: 73.42, scale: [0, 1, 4, 6, 8], wave: "sawtooth", tempo: 132 } },
+};
+
+function bossPhaseForm(boss, override, phaseIndex) {
+  return {
+    name: override.name || boss.name,
+    hp: override.hp,
+    icon: override.icon || boss.icon,
+    block_chance: override.block_chance,
+    block_reduction: override.block_reduction,
+    basic_attack: override.basic_attack,
+    abilities: override.abilities,
+    parry_chance: override.parry_chance,
+    dodge_chance: override.dodge_chance,
+    parry_rate: override.parry_rate,
+    dodge_rate: override.dodge_rate,
+    resist: override.resist || {},
+    music: override.music,
+    phaseIndex,
+  };
+}
+
+for (const [name, secondForm] of Object.entries(BOSS_PHASE_TWO)) {
+  const boss = monsters[name];
+  if (!boss) continue;
+  const firstForm = {
+    name: name, hp: boss.hp, icon: boss.icon,
+    block_chance: boss.block_chance || 0, block_reduction: boss.block_reduction || 0,
+    basic_attack: boss.basic_attack, abilities: boss.abilities || {},
+    parry_chance: boss.parry_chance || 0, dodge_chance: boss.dodge_chance || 0,
+    parry_rate: boss.parry_rate || 0, dodge_rate: boss.dodge_rate || 0,
+    resist: boss.resist || {}, music: name,
+  };
+  boss.phases = [bossPhaseForm(boss, firstForm, 0), bossPhaseForm(boss, secondForm, 1)];
+}
+
+// Endgame bosses remember notable player choices for the rest of the encounter.
+const BOSS_EVENT_REACTIONS = {
+  "the watcher": [
+    {
+      player_magic: { flag: "watcher_saw_magic", message: "A spell. I have recorded its shape." },
+      player_heal: { flag: "watcher_saw_healing", message: "You preserve yourself. The pattern is clear." },
+    },
+    {
+      player_guard: { flag: "watcher_saw_guard", message: "Still hiding behind a guard? I can see through it now." },
+      player_counter: { flag: "watcher_was_countered", message: "You turned my opening against me. I will not offer it twice." },
+    },
+  ],
+  "the witness": [
+    {
+      player_skill: { flag: "witness_saw_skill", message: "A practiced technique. I will include it in the record." },
+      player_item: { flag: "witness_saw_item", message: "You reach for a tool when the story turns against you." },
+    },
+    {
+      player_heal: { flag: "witness_saw_healing", message: "You mend the damage. The testimony grows longer." },
+      player_magic: { flag: "witness_saw_magic", message: "Your magic changes the account, but not the ending." },
+    },
+  ],
+  "the archivist": [
+    {
+      player_heavy: { flag: "archivist_saw_heavy", message: "An inefficient use of force. Filed under predictable." },
+      player_counter: { flag: "archivist_saw_counter", message: "An unexpected response. Reclassifying your combat record." },
+    },
+    {
+      player_heal: { flag: "archivist_saw_healing", message: "Restoration noted. I have already indexed that remedy." },
+      player_magic: { flag: "archivist_saw_magic", message: "Arcane output logged. The next page accounts for it." },
+    },
+  ],
+  "the author": [
+    {
+      player_guard: { flag: "author_saw_guard", message: "You choose defense. I can rewrite the scene around it." },
+      player_dodge: { flag: "author_saw_dodge", message: "You evade the line I wrote. I will shorten the next one." },
+    },
+    {
+      player_heal: { flag: "author_saw_healing", message: "You refuse the ending. Then I will write another wound." },
+      player_frost: { flag: "author_saw_frost", message: "Frost against the draft. I have changed the climate." },
+      player_fire: { flag: "author_saw_fire", message: "Fire against the page. I have changed the ink." },
+    },
+  ],
+  "the last save": [
+    {
+      player_magic: { flag: "save_saw_magic", message: "Unusual input detected. Recording your preferred solution." },
+      player_item: { flag: "save_saw_item", message: "Consumable use recorded. Your inventory is part of the pattern." },
+      player_counter: { flag: "save_saw_counter", message: "Counter detected. Updating the enemy response model." },
+    },
+    {
+      player_heal: { flag: "save_saw_healing", message: "Recovery detected. I will overwrite that advantage." },
+      player_skill: { flag: "save_saw_skill", message: "Weapon technique recorded. Your next move is no longer a surprise." },
+      player_heavy: { flag: "save_saw_heavy", message: "Heavy strike recorded. Adjusting the final sequence." },
+    },
+  ],
+};
+for (const [name, phases] of Object.entries(BOSS_EVENT_REACTIONS)) {
+  const boss = monsters[name];
+  if (boss?.phases) phases.forEach((events, index) => {
+    if (boss.phases[index]) boss.phases[index].event_flags = events;
+  });
+}
+
+

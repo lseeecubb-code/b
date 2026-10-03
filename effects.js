@@ -549,6 +549,102 @@ const FX = (() => {
       unlockAudio();
       if (audio) play("yes");
     }
+    if (musicBus && audio) {
+      musicBus.gain.setTargetAtTime(on && activeBattleMusic ? 0.55 : 0, audio.currentTime, 0.18);
+    }
+    if (on && activeBattleMusic) resumeBattleMusic();
+    else if (!on) pauseBattleMusic();
+  }
+
+  // Original procedural battle themes. Enemy families share a musical palette, while a stable
+  // name-based seed changes the melody so repeated encounters aren't all identical.
+  function battleTheme(enemyNames, boss, musicProfile = null) {
+    const label = (Array.isArray(enemyNames) ? enemyNames : [enemyNames]).join(" ").toLowerCase();
+    let theme;
+    if (boss) theme = { root: 110, scale: [0, 3, 5, 7, 10], wave: "sawtooth", tempo: 104 };
+    else if (/frost|ice|snow|winter|glacier/.test(label)) theme = { root: 146.83, scale: [0, 2, 5, 7, 9], wave: "triangle", tempo: 92 };
+    else if (/fire|ash|demon|lava|dragon/.test(label)) theme = { root: 130.81, scale: [0, 3, 4, 7, 10], wave: "sawtooth", tempo: 108 };
+    else if (/stone|golem|earth|rock|orc/.test(label)) theme = { root: 98, scale: [0, 2, 4, 7, 9], wave: "triangle", tempo: 86 };
+    else if (/shadow|wraith|undead|king|watcher|archivist|editor|author/.test(label)) theme = { root: 116.54, scale: [0, 3, 5, 8, 10], wave: "sine", tempo: 96 };
+    else theme = { root: 130.81, scale: [0, 2, 4, 7, 9], wave: "triangle", tempo: 100 };
+    let seed = 0;
+    for (let i = 0; i < label.length; i++) seed = (seed * 31 + label.charCodeAt(i)) >>> 0;
+    if (musicProfile && typeof musicProfile === "object") theme = { ...theme, ...musicProfile };
+    else if (typeof musicProfile === "string") {
+      for (let i = 0; i < musicProfile.length; i++) seed = (seed * 31 + musicProfile.charCodeAt(i)) >>> 0;
+    }
+    return { ...theme, seed };
+  }
+
+  function musicNote(frequency, start, length, volume, wave) {
+    if (!audio || !musicBus) return;
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    osc.type = wave;
+    osc.frequency.setValueAtTime(frequency, start);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.linearRampToValueAtTime(volume, start + 0.025);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + length);
+    osc.connect(gain).connect(musicBus);
+    osc.start(start);
+    osc.stop(start + length + 0.03);
+  }
+
+  function pauseBattleMusic() {
+    if (battleMusicTimer !== null) clearInterval(battleMusicTimer);
+    battleMusicTimer = null;
+  }
+
+  function resumeBattleMusic() {
+    if (!activeBattleMusic || !soundOn) return;
+    unlockAudio();
+    if (!audio) return;
+    const begin = () => {
+      if (!activeBattleMusic || !soundOn || audio.state !== "running" || battleMusicTimer !== null) return;
+      musicBus.gain.setTargetAtTime(0.55, audio.currentTime, 0.25);
+      const theme = activeBattleMusic.theme;
+      const beat = 60 / theme.tempo;
+      const barLength = beat * 4;
+      const melody = [0, 2, 4, 2, 5, 4, 2, 1];
+      const playBar = () => {
+        if (!activeBattleMusic || !soundOn || !audio || audio.state !== "running") return;
+        const now = audio.currentTime + 0.04;
+        const bar = activeBattleMusic.bar++;
+        const scale = theme.scale;
+        const chordRoot = (bar % 4 === 2 ? 3 : bar % 4 === 3 ? 4 : 0);
+        [0, 2, 4].forEach((interval, i) => {
+          const semitone = scale[(chordRoot + interval) % scale.length] + (i === 0 ? -12 : 0);
+          musicNote(theme.root * Math.pow(2, semitone / 12), now, barLength * 0.82, 0.025, "triangle");
+        });
+        [0, 2].forEach((beatIndex) => {
+          const bassStep = scale[(chordRoot + beatIndex * 2) % scale.length] - 24;
+          musicNote(theme.root * Math.pow(2, bassStep / 12), now + beat * beatIndex, beat * 1.3, 0.045, "sine");
+        });
+        for (let i = 0; i < 8; i++) {
+          const step = (melody[(i + (theme.seed % melody.length) + bar) % melody.length] + (bar % 2 ? 1 : 0)) % scale.length;
+          const octave = i === 3 || i === 7 ? 2 : 1;
+          if ((i + theme.seed) % 5 !== 0) {
+            musicNote(theme.root * Math.pow(2, (scale[step] + 12 * octave) / 12), now + i * beat / 2, beat * 0.34, boss ? 0.035 : 0.025, theme.wave);
+          }
+        }
+      };
+      playBar();
+      battleMusicTimer = setInterval(playBar, barLength * 1000);
+    };
+    if (audio.state === "suspended") audio.resume().then(begin).catch(() => {});
+    else begin();
+  }
+
+  function startBattleMusic(enemyNames, boss = false, musicProfile = null) {
+    pauseBattleMusic();
+    activeBattleMusic = { theme: battleTheme(enemyNames, boss, musicProfile), bar: 0 };
+    resumeBattleMusic();
+  }
+
+  function stopBattleMusic() {
+    pauseBattleMusic();
+    activeBattleMusic = null;
+    if (musicBus && audio) musicBus.gain.setTargetAtTime(0, audio.currentTime, 0.16);
   }
 
   // Original procedural battle themes use Web Audio, with no external music files.
@@ -1029,3 +1125,4 @@ const FX = (() => {
 
   return { renderLine, play, blip, startBattleMusic, stopBattleMusic };
 })();
+

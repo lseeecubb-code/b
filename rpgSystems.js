@@ -469,6 +469,14 @@ function scaledMonster(name) {
     if (a.damage) a.damage = scaleRange(a.damage, d.dmg);
     if (a.heal) a.heal = scaleRange(a.heal, d.dmg);
   }
+  for (const form of m.phases || []) {
+    form.hp = Math.max(1, int(form.hp * d.hp));
+    if (form.basic_attack?.damage) form.basic_attack.damage = scaleRange(form.basic_attack.damage, d.dmg);
+    for (const a of Object.values(form.abilities || {})) {
+      if (a.damage) a.damage = scaleRange(a.damage, d.dmg);
+      if (a.heal) a.heal = scaleRange(a.heal, d.dmg);
+    }
+  }
   m._xpMult = d.xp;
   return m;
 }
@@ -533,7 +541,7 @@ function attachEnemyAccessors(f) {
         cur()[field] = v;
       },
     });
-  def("name", "name");
+  def("name", "displayName");
   def("monster", "monster");
   def("monster_hp", "hp");
   def("monster_effects", "effects");
@@ -544,19 +552,28 @@ function attachEnemyAccessors(f) {
   def("staggered", "staggered");
   def("last_move", "last_move");
   def("intent", "intent");
+  def("phase", "phase");
+  def("eventFlags", "eventFlags");
 }
 
 function makeEnemyState(name, elite = false) {
-  const m = scaledMonster(name);
+  const canonicalName = String(name).replace(/^elite /, "");
+  const m = scaledMonster(canonicalName);
   if (elite) {
     m.hp = int(m.hp * 1.35);
     m.icon = m.icon || "👹";
     if (m.basic_attack?.damage) m.basic_attack.damage = scaleRange(m.basic_attack.damage, 1.15);
   }
+  const forms = Array.isArray(m.phases) ? m.phases : [];
+  const activeForm = forms.length ? { ...m, ...forms[0], phases: undefined } : m;
+  const totalBossHp = forms.length ? forms.reduce((sum, form) => sum + form.hp, 0) : m.hp;
   return {
-    name: elite ? `elite ${name}` : name,
-    monster: m,
-    hp: m.hp,
+    name: elite ? `elite ${canonicalName}` : canonicalName,
+    displayName: activeForm.name || (elite ? `elite ${canonicalName}` : canonicalName),
+    monster: activeForm,
+    phases: forms,
+    totalBossHp,
+    hp: activeForm.hp,
     effects: [],
     guarding: false,
     stance: null,
@@ -565,6 +582,8 @@ function makeEnemyState(name, elite = false) {
     staggered: false,
     last_move: null,
     intent: null,
+    phase: 0,
+    eventFlags: {},
     elite: !!elite,
   };
 }
@@ -590,9 +609,10 @@ function effectMods(list) {
     if (e.type === "fortified") m.taken -= 0.15;
     if (e.type === "shield") m.absorb += e.absorb || e.damage || 12;
     if (e.type === "warded") m.elemResist += 25;
+    if (e.type === "exposed") m.taken += 0.35;
   }
   m.damage = Math.max(0.5, m.damage);
-  m.taken = Math.max(0.5, m.taken);
+  m.taken = Math.max(0.5, Math.min(2, m.taken));
   return m;
 }
 
@@ -910,10 +930,10 @@ function applyStatus(list, e, label) {
   if (!e || !e.type) return list;
   list = list || [];
   let chance = e.chance ?? 100;
-  if (hasPerk("lingering hex") && label !== "You") chance += 15;
+  if (e.type !== "exposed" && hasPerk("lingering hex") && label !== "You") chance += 15;
   if (hasPerk("venomous") && (e.type === "bleed" || e.type === "poison")) chance += 15;
   if (!percent(chance)) return list;
-  const turns = (e.turns || 2) + (hasPerk("lingering hex") && label !== "You" ? 1 : 0);
+  const turns = e.type === "exposed" ? 1 : (e.turns || 2) + (hasPerk("lingering hex") && label !== "You" ? 1 : 0);
   let dmg = e.damage || 0;
   if (DOT_TYPES.has(e.type) && hasPerk("venomous") && (e.type === "bleed" || e.type === "poison"))
     dmg = int(dmg * 1.25);
@@ -1502,3 +1522,4 @@ if (typeof document !== "undefined") {
   loadSettings();
   loadMetaAchievements();
 }
+
