@@ -38,6 +38,40 @@ function monsterChoose(m, last) {
     );
   return { kind: p[1], attack: p[2] };
 }
+const BOSS_PHASE_ROMAN = ["I", "II", "III"];
+function updateBossPhase(f) {
+  if (f.monster.chance > 0 || f.phase >= 2) return;
+  const hpRatio = f.monster_hp / Math.max(1, f.monster.hp);
+  const next = f.phase === 0 && hpRatio <= 0.66 ? 1 : f.phase === 1 && hpRatio <= 0.33 ? 2 : f.phase;
+  if (next === f.phase) return;
+  f.phase = next;
+  f.phaseAttackPending = true;
+  const details = f.monster.phases?.[next - 1] || {};
+  const phaseName = details.name || (next === 1 ? "Awakened Form" : "Final Form");
+  const note = next === 1
+    ? "Its attacks grow stronger. It is gathering power for a charged strike!"
+    : "Its final form surges with power. Its attacks are more dangerous now!";
+  print(`\n👑 ${title(f.name)} enters Phase ${BOSS_PHASE_ROMAN[next]}: ${phaseName}!`);
+  print(`   ${details.text || note}`);
+  if (typeof clog === "function") clog(f, `entered boss phase ${BOSS_PHASE_ROMAN[next]}`);
+}
+function bossPhaseAttack(f) {
+  const final = f.phase >= 2;
+  const base = f.monster.basic_attack;
+  const multiplier = final ? 1.6 : 1.35;
+  const details = f.monster.phases?.[f.phase - 1] || {};
+  return Object.assign(
+    makeAttack(details.attack_name || (final ? "final assault" : "awakened strike"), {
+      ...base,
+      damage: (base.damage || [1, 1]).map((value) => Math.max(1, int(value * multiplier))),
+      accuracy: Math.min(base.accuracy ?? 100, final ? 92 : 95),
+      hits: 1,
+      warning: true,
+      telegraph: details.telegraph || (final ? "gathers its remaining strength and unleashes" : "surges forward and unleashes"),
+    }),
+    { phase_attack: true }
+  );
+}
 // Chance (%) that the enemy's parry or dodge stance works against an attack of this type.
 function stanceRate(m, st, type) {
   const base = m[st + "_rate"] || 0;
@@ -69,6 +103,11 @@ const ACTION_ALIASES = {
   item: "item",
   "use item": "item",
   use: "item",
+  0: "run",
+  run: "run",
+  flee: "run",
+  escape: "run",
+  mercy: "run",
   8: "skill",
   skill: "skill",
   skills: "skill",
@@ -78,11 +117,6 @@ const ACTION_ALIASES = {
   spell: "magic",
   spells: "magic",
   cast: "magic",
-  0: "run",
-  run: "run",
-  flee: "run",
-  escape: "run",
-  mercy: "run",
   target: "target",
   t: "target",
   log: "log",
@@ -114,6 +148,7 @@ function showStatus(f) {
   (f.enemies || [{ name: f.name, hp: f.monster_hp, monster: f.monster, effects: f.monster_effects }]).forEach((e, i) => {
     const mark = f.enemies && i === f.target ? " <" : "";
     print(`${pad(cap(e.name), 13)} ${hpBar(e.hp, e.monster.hp)}${mark}`);
+    if (e.monster.chance <= 0 && e.phase > 0) print(`   👑 Boss phase ${BOSS_PHASE_ROMAN[e.phase] || e.phase + 1}`);
     (e.effects || []).forEach(effLine);
   });
   if (f.last_move) print(`   📝 Last move: ${f.last_move}`);
@@ -220,7 +255,7 @@ function showCombatMenu(f) {
   print(`8. ✨ Weapon skill — use a learned technique (${sn}).`);
   const mag = typeof knownSpells === "function" ? knownSpells().length : 0;
   print(`9. 🔮 Ability — cast a learned spell (${mag ? `${mag} available` : "learn spells in town"}).`);
-  print(`0. 🏃 Run away — attempt to flee (${run}% chance).`)
+  print(`0. 🏃 Run away — attempt to flee (${run}% chance).`);
   if (f.enemies && f.enemies.length > 1) print("Switch targets with 'target'; review recent events with 'log'.");
 }
 async function chooseItem() {
@@ -804,11 +839,16 @@ function monsterDealDamage(f, a, inc) {
 }
 // Decides what the enemy will do on the coming turn.
 function rollIntent(f) {
+  updateBossPhase(f);
   let it;
   if (f.stun_turns > 0) {
     f.stun_turns--;
     it = { kind: "stunned", attack: null };
   } else if (f.staggered) it = { kind: "staggered", attack: null };
+  else if (f.phaseAttackPending && f.monster.chance <= 0) {
+    f.phaseAttackPending = false;
+    it = { kind: "attack", attack: bossPhaseAttack(f) };
+  }
   else {
     it = monsterChoose(f.monster, f.choice);
     if (it.kind === "idle") it.text = IDLE_LINES[randint(0, IDLE_LINES.length - 1)];
@@ -868,7 +908,8 @@ function monsterTurn(f) {
         continue;
       }
       attacked = true;
-      const dealt = monsterDealDamage(f, a, randint(...a.damage));
+      const phaseBonus = f.monster.chance <= 0 && !a.phase_attack ? (f.phase >= 2 ? 1.18 : f.phase === 1 ? 1.08 : 1) : 1;
+      const dealt = monsterDealDamage(f, a, Math.max(1, int(randint(...a.damage) * phaseBonus)));
       if (dealt > 0 && "heal" in a && f.monster_hp > 0) {
         const h = randint(...a.heal),
           b = f.monster_hp;
@@ -914,7 +955,7 @@ function newFight(n, extras = []) {
   const s = getStats();
   const f = {
     enemies: names.map((nm) =>
-      typeof makeEnemyState === "function" ? makeEnemyState(nm) : { name: nm, monster: monsters[nm], hp: monsters[nm].hp, effects: [], guarding: false, stance: null, stun_turns: 0, stun_immune: 0, staggered: false, last_move: null, intent: null }
+      typeof makeEnemyState === "function" ? makeEnemyState(nm) : { name: nm, monster: monsters[nm], hp: monsters[nm].hp, effects: [], guarding: false, stance: null, stun_turns: 0, stun_immune: 0, staggered: false, last_move: null, intent: null, phase: 0, phaseAttackPending: false }
     ),
     target: 0,
     stats: s,
@@ -944,6 +985,8 @@ function newFight(n, extras = []) {
     f.stun_immune = 0;
     f.staggered = false;
     f.intent = null;
+    f.phase = 0;
+    f.phaseAttackPending = false;
   }
   return f;
 }
@@ -1260,3 +1303,4 @@ function showBestiary(arg = "") {
     );
   }
 }
+
