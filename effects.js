@@ -8,6 +8,7 @@
 
 const FX = (() => {
   const SOUND_KEY = "the-last-save.sound";
+  const MUSIC_VOLUME_KEY = "the-last-save.music-volume";
 
   const terminal = document.querySelector(".terminal");
   const reduceMotion = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -19,8 +20,13 @@ const FX = (() => {
   // compressor and a little reverb so it sounds fuller than raw beeps.
 
   let soundOn = true;
+  let musicVolume = 55;
   try {
     soundOn = localStorage.getItem(SOUND_KEY) !== "off";
+    const savedMusicVolume = localStorage.getItem(MUSIC_VOLUME_KEY);
+    if (savedMusicVolume !== null && Number.isFinite(Number(savedMusicVolume))) {
+      musicVolume = Math.max(0, Math.min(100, Math.round(Number(savedMusicVolume))));
+    }
   } catch (e) {}
 
   let audio = null; // created on the first key press or click (browsers block it before that)
@@ -80,7 +86,12 @@ const FX = (() => {
     }
     if (audio && audio.state === "suspended") audio.resume();
   }
-  ["keydown", "pointerdown"].forEach((evt) => window.addEventListener(evt, unlockAudio));
+  ["keydown", "pointerdown"].forEach((evt) =>
+    window.addEventListener(evt, () => {
+      unlockAudio();
+      if (!activeBattleMusic) startAmbientMusic();
+    })
+  );
 
   // Sends a node to the speakers, plus `wet` (0-1) of it to the reverb.
   function route(node, wet) {
@@ -557,12 +568,31 @@ const FX = (() => {
     if (on && announce) {
       unlockAudio();
       if (audio) play("yes");
+      if (!activeBattleMusic) startAmbientMusic();
     }
     if (musicBus && audio) {
-      musicBus.gain.setTargetAtTime(on && activeBattleMusic && !activeBattleMusic.musicFile ? 0.55 : 0, audio.currentTime, 0.18);
+      const synthesizedTrack = activeBattleMusic && (!activeBattleMusic.musicFile || activeBattleMusic.fileFailed);
+      musicBus.gain.setTargetAtTime(on && synthesizedTrack ? musicVolume / 100 : 0, audio.currentTime, 0.18);
     }
     if (on && activeBattleMusic) resumeBattleMusic();
     else if (!on) pauseBattleMusic();
+  }
+
+  function setMusicVolume(value) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return;
+    musicVolume = Math.max(0, Math.min(100, Math.round(parsed)));
+    try {
+      localStorage.setItem(MUSIC_VOLUME_KEY, String(musicVolume));
+    } catch (e) {}
+    const slider = document.getElementById("musicVolume");
+    const output = document.getElementById("musicVolumeValue");
+    if (slider) slider.value = String(musicVolume);
+    if (output) output.textContent = `${musicVolume}%`;
+    if (battleAudio) battleAudio.volume = musicVolume / 100;
+    if (musicBus && audio && soundOn && activeBattleMusic && (!activeBattleMusic.musicFile || activeBattleMusic.fileFailed)) {
+      musicBus.gain.setTargetAtTime(musicVolume / 100, audio.currentTime, 0.12);
+    }
   }
 
   // Original procedural battle themes. Enemy families share a musical palette, while a stable
@@ -639,7 +669,7 @@ const FX = (() => {
       battleAudioUrl = url;
       battleAudio.loop = true;
       battleAudio.preload = "auto";
-      battleAudio.volume = 0.55;
+      battleAudio.volume = musicVolume / 100;
       battleAudio.onerror = () => fallbackToSynthesizedMusic(generation, track);
     }
     const player = battleAudio;
@@ -678,7 +708,7 @@ const FX = (() => {
     if (!audio) return;
     const begin = () => {
       if (!activeBattleMusic || !soundOn || audio.state !== "running" || battleMusicTimer !== null) return;
-      musicBus.gain.setTargetAtTime(0.55, audio.currentTime, 0.25);
+      musicBus.gain.setTargetAtTime(musicVolume / 100, audio.currentTime, 0.25);
       const theme = activeBattleMusic.theme;
       const beat = 60 / theme.tempo;
       const barLength = beat * 4;
@@ -725,6 +755,30 @@ const FX = (() => {
     resumeBattleMusic();
   }
 
+  function startAmbientMusic() {
+    if (activeBattleMusic?.ambient) {
+      resumeBattleMusic();
+      return;
+    }
+    pauseBattleMusic();
+    battleMusicGeneration++;
+    if (battleAudio) {
+      battleAudio.onerror = null;
+      battleAudio.pause();
+    }
+    battleAudio = null;
+    battleAudioUrl = null;
+    activeBattleMusic = {
+      theme: battleTheme("the quiet road", false, { root: 110, scale: [0, 2, 4, 7, 9], wave: "sine", tempo: 76 }),
+      boss: false,
+      bar: 0,
+      musicFile: null,
+      fileFailed: true,
+      ambient: true,
+    };
+    resumeBattleMusic();
+  }
+
   function stopBattleMusic() {
     pauseBattleMusic();
     battleMusicGeneration++;
@@ -736,6 +790,7 @@ const FX = (() => {
     battleAudioUrl = null;
     activeBattleMusic = null;
     if (musicBus && audio) musicBus.gain.setTargetAtTime(0, audio.currentTime, 0.16);
+    startAmbientMusic();
   }
 
     // ---------- Screen effects ----------
@@ -1241,6 +1296,8 @@ const FX = (() => {
   }
 
   document.getElementById("soundToggle")?.addEventListener("click", () => setSound(!soundOn, true));
+  document.getElementById("musicVolume")?.addEventListener("input", (event) => setMusicVolume(event.target.value));
+  setMusicVolume(musicVolume);
   setSound(soundOn);
 
   return { renderLine, play, blip, startBattleMusic, stopBattleMusic, corrupt, realityCut, attackCutscene };
