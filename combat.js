@@ -116,7 +116,7 @@ function showStatus(f) {
   }
   (f.enemies || [{ name: f.name, hp: f.monster_hp, monster: f.monster, effects: f.monster_effects }]).forEach((e, i) => {
     const mark = f.enemies && i === f.target ? " <" : "";
-    print(`${pad(cap(e.displayName || e.name), 18)} ${hpBar(e.hp, e.monster.hp)}${mark}`);
+    print(`${pad(cap(e.displayName || e.name), 18)} Lv ${e.monster.level || enemyRequiredLevel(e.name)} ${hpBar(e.hp, e.monster.hp)}${mark}`);
     if (e.phases?.length) print(`   👑 Phase ${BOSS_PHASE_ROMAN[e.phase] || e.phase + 1}/${e.phases.length}`);
     (e.effects || []).forEach(effLine);
   });
@@ -1180,6 +1180,15 @@ function checkGate(req) {
   }
   return true;
 }
+function enemyRequiredLevel(name) {
+  return Math.max(1, parseInt(monsters[name]?.level) || 1);
+}
+function checkEnemyLevel(name) {
+  const required = enemyRequiredLevel(name);
+  if (PLAYER.level >= required) return true;
+  print(`\n🔒 ${title(name)} is level ${required}. Reach player level ${required} before challenging it (you are level ${PLAYER.level}).`);
+  return false;
+}
 // Runs a whole fight, turn by turn, until someone wins or the player runs away.
 async function fightMonster(arg = "", elite = false) {
   const req = arg.trim().toLowerCase();
@@ -1189,12 +1198,18 @@ async function fightMonster(arg = "", elite = false) {
     else if (req.includes(",") && req.split(",").every((x) => monsters[x.trim()]))
       name = req.split(",").map((x) => x.trim());
   else {
-    const pool = Object.keys(monsters).filter((n) => monsters[n].chance > 0);
+    const pool = Object.keys(monsters).filter((n) => monsters[n].chance > 0 && PLAYER.level >= enemyRequiredLevel(n));
+    if (!pool.length) {
+      print("No enemies are available at your current level. Earn XP and try again.");
+      return;
+    }
     name = wchoice(
       pool,
       pool.map((n) => monsters[n].chance)
     );
   }
+  const requested = Array.isArray(name) ? name : [name];
+  if (!requested.every(checkEnemyLevel)) return;
   const f = newFight(name);
   if (elite && f.enemies) f.enemies = f.enemies.map((e) => makeEnemyState(e.name, true));
   const battleEnemies = Array.isArray(name) ? name : [name];
@@ -1205,7 +1220,7 @@ async function fightMonster(arg = "", elite = false) {
   const stopMusic = () => {
     if (typeof FX !== "undefined") FX.stopBattleMusic();
   };
-  print(`\n⚔️ A wild ${Array.isArray(name) ? name.map((n) => n.toUpperCase()).join(" & ") : name.toUpperCase()} appeared!`);
+  print(`\n⚔️ A wild ${Array.isArray(name) ? name.map((n) => `${n.toUpperCase()} · Lv ${enemyRequiredLevel(n)}`).join(" & ") : `${name.toUpperCase()} · Lv ${enemyRequiredLevel(name)}`} appeared!`);
   const eq = Object.values(equipment).filter(Boolean);
   if (eq.length) print("🧰 Equipped: " + eq.join(", "));
   if (typeof applyRested === "function") applyRested(f);
@@ -1319,7 +1334,7 @@ async function pickEnemy() {
     names.forEach((n, i) => {
       const m = monsters[n];
       print(
-        `${rpad(i + 1, 2)}. ${m.icon || "👹"} ${title(n)}${m.chance <= 0 ? "  [boss]" : ""}  (${m.hp} HP, beaten ${killCount(n)}x)`
+        `${rpad(i + 1, 2)}. ${m.icon || "👹"} ${title(n)} · Lv ${enemyRequiredLevel(n)}${m.chance <= 0 ? "  [boss]" : ""}  (${m.hp} HP, beaten ${killCount(n)}x)`
       );
     });
   else print("(No enemies unlocked yet - defeat an enemy once to be able to pick it.)");
@@ -1373,7 +1388,7 @@ function showBestiary(arg = "") {
           : k === "idle"
             ? "idle"
             : a.name;
-    print(`\n${m.icon || "👹"} ${title(n)}  ·  ❤️ ${m.hp} HP`);
+    print(`\n${m.icon || "👹"} ${title(n)}  ·  Lv ${enemyRequiredLevel(n)}  ·  ❤️ ${m.hp} HP`);
     print(
       "   🎯 Tactics (chance each turn): " +
         w.map(([x, k, a]) => `${lab(k, a)} ${Math.round((100 * x) / t)}%`).join(", ")
