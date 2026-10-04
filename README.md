@@ -20,6 +20,10 @@ The game runs in the browser and saves progress automatically. Use the **music v
 - **Shape your character.** Allocate Strength, Agility, Vitality, and Focus; learn spells and perks; preview stat changes before equipping or upgrading weapons, armor, shields, headgear, and trinkets; and craft gear from materials.
 - **Keep a campaign chronicle.** Your major discoveries, choices, companions, and ending are saved in the **chronicle**. Use **replay** or **replay [chapter]** to revisit completed chapters with companion memories and see a what-if ending, without changing campaign progress.
 - **Follow the story.** Progress through 11 chapters, finish side quests, meet companions, uncover secrets, and choose an ending. Completed campaigns unlock New Game+.
+- **Read the world map and pin goals.** See visited and future regions, open side trails, and your chosen routes; pin the main story or an active quest with `track`.
+- **Grow closer to companions.** Build bond through combat, share three personal memories with each ally, and unlock stronger combat support as trust deepens.
+- **Leave a mark on the roads.** Repeated safe routes establish a supply network, while risky shortcuts scar the map and shape the ending epilogue.
+- **Find New Game+ echoes.** Rare chapter discoveries recall your previous ending and let you turn the memory into a reward or share it with an ally.
 - **Take on optional challenges.** Run five-floor dungeons with a rest-or-push decision between floors, climb the endless tower, or discover a five-island raid. Raids have no timer; after an island, continue or leave. Clearing all five islands earns bonus rewards and raid tokens for permanent upgrades.
 - **Explore the Quiet Road in more depth.** Take four linked Wayrest jobs, meet mosslings, burrow rats, and lantern thieves, and choose how to handle an injured courier or fallen waystone. At level 3, finishing the jobs can reveal the optional Mossback Guardian. Those encounters teach early recipes for useful boots, charms, a buckler, and field stew.
 - **Find more stories off the main road.** The Broken Frontier has a scout mission and outrider materials. The Cathedral of Ash has a linked Bellkeeper quest and a hidden bell boss. Later regions hold the Archive's Index Hound, three regional surveys, and the optional Lost Cartographer hunt.
@@ -30,11 +34,14 @@ The game runs in the browser and saves progress automatically. Use the **music v
 | Command | What it does |
 | --- | --- |
 | **explore** | Travel, meet encounters, make choices, and advance the campaign |
-| **map** | Pick a safe road or a risky shortcut once in each chapter |
+| **map** | View campaign regions, active trails, and route history |
+| **route** | Pick a safe road or a risky shortcut once in each chapter |
 | **story** / **guide** | Review the current objective or get progression guidance |
 | **chronicle** | Review recorded campaign moments |
 | **replay** / **replay [chapter]** | Revisit a completed chapter and view an alternate ending preview |
-| **quests** | View and turn in available side quests |
+| **quests** | View active and completed side quests |
+| **track [main\|quest\|none]** | Pin or clear a campaign/side-quest objective |
+| **bond [companion]** | Share an unlocked companion memory |
 | **fight (enemy name)** | Challenge a discovered enemy when it is unlocked |
 | **bestiary (enemy name)** | Review enemy attacks, accuracy, drops, and weaknesses |
 | **stats** / **allocate** | Review your stats or spend stat points |

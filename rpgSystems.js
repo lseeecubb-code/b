@@ -209,6 +209,23 @@ const COMPANION_PERSONAL_QUESTS = {
   kael: { name: "Bells in the Dark", target: "zombie", need: 3, reward: 120 },
   nyx: { name: "A Name for the Shadow", target: "wraith", need: 3, reward: 150 },
 };
+const COMPANION_BOND_LINES = {
+  mira: [
+    [20, "Mira admits she writes down the silences because she fears forgetting the people inside them.", "You promise to keep her pages safe", "You ask her to leave one page unwritten"],
+    [50, "Mira shares the last letter she never sent home. The ink trembles, but her voice does not.", "You read it together", "You help her burn it"],
+    [80, "Mira gives you her first field journal, filled with small victories from your travels.", "Keep it as a record of the road", "Add your own final page"],
+  ],
+  kael: [
+    [20, "Kael confesses he keeps listening for bells from a village that no longer exists.", "Listen with him", "Tell him the silence can be a kind of rest"],
+    [50, "Kael removes the cracked bell from his shield and tells you the name of the friend who gave it to him.", "Carry the bell together", "Help him mend it"],
+    [80, "Kael says he no longer fights to keep the past standing; he fights so others can have a future.", "Stand with him at the next dawn", "Let him choose his own road"],
+  ],
+  nyx: [
+    [20, "Nyx tells you the Null Expanse erased their first name, and asks what you hear in the quiet.", "A name still waiting to be found", "A silence that belongs to you"],
+    [50, "Nyx shows you a scrap of map that survived the Expanse. A single star is marked in the margin.", "Trace the route with them", "Let the star stay a secret"],
+    [80, "Nyx speaks a chosen name aloud and asks you to remember it, even if the world forgets again.", "I will remember", "You can always choose another"],
+  ],
+};
 
 const SIDE_QUESTS = {
   vermin: {
@@ -1217,12 +1234,13 @@ async function companionTurns(f) {
     if (!tgt) return;
     f.target = f.enemies.indexOf(tgt);
     if (d.ai === "healer" && f.player_hp < f.player_max_hp * 0.55) {
-      const h = 12 + PLAYER.level;
+      const bond = WORLD.companions.affinity[id] || 0;
+      const h = 12 + PLAYER.level + (bond >= 80 ? 8 : bond >= 50 ? 4 : 0);
       const b = f.player_hp;
       f.player_hp = Math.min(f.player_max_hp, f.player_hp + h);
       print(`${d.name} binds a page of light around you. You recover ${f.player_hp - b} HP.`);
       clog(f, `${d.name} heals you`);
-    } else if (d.ai === "tank" && Math.random() < 0.35) {
+    } else if (d.ai === "tank" && Math.random() < ((WORLD.companions.affinity[id] || 0) >= 80 ? 0.5 : 0.35)) {
       f.effects = applyStatus(f.effects, { type: "fortified", chance: 100, turns: 2, damage: 0 }, "You") || f.effects;
       print(`${d.name} raises a battered shield in front of you.`);
       clog(f, `${d.name} fortifies you`);
@@ -1233,8 +1251,9 @@ async function companionTurns(f) {
       chargeLimit(f, Math.max(1, int(dmg / 6)));
       print(`${d.name} strikes the ${tgt.name} for ${dmg} damage.`);
       clog(f, `${d.name} hits ${tgt.name} for ${dmg}`);
-      if (d.ai === "dps" && percent(35) && tgt.hp > 0) {
-        tgt.effects = applyStatus(tgt.effects, { type: "bleed", chance: 100, damage: 2, turns: 2 }, `The ${tgt.name}`) || tgt.effects;
+      const bond = WORLD.companions.affinity[id] || 0;
+      if (d.ai === "dps" && percent(bond >= 80 ? 55 : bond >= 50 ? 45 : 35) && tgt.hp > 0) {
+        tgt.effects = applyStatus(tgt.effects, { type: "bleed", chance: 100, damage: bond >= 80 ? 4 : bond >= 50 ? 3 : 2, turns: 2 }, `The ${tgt.name}`) || tgt.effects;
       }
     }
     const bondQuest = WORLD.companions.personal[id];
@@ -1255,7 +1274,7 @@ function hurtCompanions(f, amount) {
   if (!act.length || amount <= 0) return amount;
   const tank = act.find((id) => COMPANION_DEFS[id]?.ai === "tank" && (WORLD.companions.hp[id] || 0) > 0);
   if (!tank) return amount;
-  const share = Math.max(1, int(amount * 0.25));
+    const share = Math.max(1, int(amount * ((WORLD.companions.affinity[tank] || 0) >= 80 ? 0.35 : 0.25)));
   WORLD.companions.hp[tank] = Math.max(0, (WORLD.companions.hp[tank] || 0) - share);
   print(`   ${COMPANION_DEFS[tank].name} intercepts ${share} damage.`);
   if (WORLD.companions.hp[tank] <= 0) print(`   ${COMPANION_DEFS[tank].name} falls! (An inn can revive them.)`);
@@ -1282,6 +1301,9 @@ async function showParty() {
     if (affinity < 10) print("    Personal request: build trust through battles together.");
     else if (!progress.done) print(`    Personal quest: ${quest.name} · ${progress.progress || 0}/${quest.need} ${title(quest.target)} defeated.`);
     else print("    Bonded combo attack: unlocked (once per fight).");
+    const scenes = COMPANION_BOND_LINES[id];
+    const unlocked = scenes.filter((scene) => affinity >= scene[0]).length;
+    print(`    Bond stories: ${unlocked}/${scenes.length} available · type 'bond ${id}'. Combat perk strengthens at 50 and 80 bond.`);
   });
   print("\nUp to 1 companion fights beside you (keeps turns readable).");
   const raw = (await input("Set active companion (name, 'none', or blank): ")).trim().toLowerCase();
@@ -1302,7 +1324,7 @@ async function showParty() {
 
 function showQuestLog() {
   print("\n📜");
-  print("Main campaign objective: type 'story'.");
+  print(`Tracked objective: ${WORLD.flags.trackedQuest || "Main campaign"} · use 'track [main|quest|none]' to change it.`);
   const active = Object.entries(WORLD.quests || {}).filter(([, s]) => s.status === "active");
   const done = Object.entries(WORLD.quests || {}).filter(([, s]) => s.status === "done");
   print("\n🟡");
@@ -1318,6 +1340,72 @@ function showQuestLog() {
   print("\n✅");
   if (!done.length) print("  No completed side quests yet.");
   done.forEach(([id]) => print(`  ✓ ${SIDE_QUESTS[id].name}`));
+}
+
+function trackQuest(arg = "") {
+  const value = String(arg).trim().toLowerCase();
+  if (!value) {
+    print(`Tracked: ${WORLD.flags.trackedQuest || "Main campaign"}. Choose 'main', an active quest name, or 'none'.`);
+    return;
+  }
+  if (["none", "clear", "off"].includes(value)) {
+    WORLD.flags.trackedQuest = "";
+    print("Objective tracking cleared.");
+    return;
+  }
+  if (["main", "story", "campaign"].includes(value)) {
+    WORLD.flags.trackedQuest = "Main campaign";
+    print("Main campaign objective pinned to your map.");
+    return;
+  }
+  const match = Object.entries(WORLD.quests || {}).find(([id, state]) => {
+    const q = SIDE_QUESTS[id];
+    return state.status === "active" && q && (id.includes(value) || q.name.toLowerCase().includes(value));
+  });
+  if (!match) { print("No active quest matches that name. Check 'quests' for your open work."); return; }
+  WORLD.flags.trackedQuest = SIDE_QUESTS[match[0]].name;
+  print(`Pinned ${WORLD.flags.trackedQuest} to your map.`);
+}
+
+function showWorldMap() {
+  print("\n🗺️ CAMPAIGN MAP");
+  STORY_CHAPTERS.forEach((ch) => {
+    const status = ch.id < STORY.chapter ? "✓" : ch.id === STORY.chapter ? "▶" : "🔒";
+    print(` ${status} ${ch.area} — ${ch.title}`);
+  });
+  const open = Object.entries(WORLD.quests || {}).filter(([, state]) => state.status === "active");
+  print(`\nPinned objective: ${WORLD.flags.trackedQuest || "Main campaign"}`);
+  if (open.length) print(`Open side trails: ${open.map(([id]) => SIDE_QUESTS[id]?.name).filter(Boolean).join(" · ")}`);
+  const routes = WORLD.flags.routeChoices || [];
+  print(`Routes chosen: ${routes.filter((r) => r === "safe").length} safe · ${routes.filter((r) => r === "risky").length} risky`);
+  print("Use 'route' to choose this region's road. Discoveries appear as you explore.");
+}
+
+async function showBondStory(arg = "") {
+  const rec = WORLD.companions.recruited || [];
+  if (!rec.length) { print("Your companion stories will begin when someone joins your party."); return; }
+  const raw = String(arg).trim().toLowerCase();
+  const id = raw ? rec.find((x) => x === raw || COMPANION_DEFS[x].name.toLowerCase() === raw) : WORLD.companions.active?.[0] || rec[0];
+  if (!id) { print("That companion is not travelling with you."); return; }
+  const scenes = COMPANION_BOND_LINES[id];
+  const state = WORLD.companions.personal[id] || (WORLD.companions.personal[id] = { progress: 0, done: false, moments: [] });
+  state.moments ||= [];
+  const next = scenes.findIndex((scene, i) => (WORLD.companions.affinity[id] || 0) >= scene[0] && !state.moments.includes(i));
+  if (next < 0) {
+    const pending = scenes.find((scene, i) => !state.moments.includes(i));
+    print(pending ? `${COMPANION_DEFS[id].name} needs a bond of ${pending[0]}/100 before sharing another memory.` : `${COMPANION_DEFS[id].name} has shared every story they can for now.`);
+    return;
+  }
+  const scene = scenes[next];
+  print(`\n💬 ${COMPANION_DEFS[id].name}: ${scene[1]}`);
+  print(`1. ${scene[2]}\n2. ${scene[3]}`);
+  const answer = (await input("Your response [1/2]: ")).trim().toLowerCase();
+  state.moments.push(next);
+  WORLD.companions.affinity[id] = Math.min(100, (WORLD.companions.affinity[id] || 0) + 8);
+  const reply = next === 2 && answer === "2" ? scene[3] : scene[2];
+  WORLD.flags.companionBondChoices ||= {};
+  WORLD.flags.companionBondChoices[id] = reply;
+  print(`${COMPANION_DEFS[id].name} nods. Your bond deepens (+8).`);
 }
 
 function showAchievements() {
@@ -1558,6 +1646,7 @@ async function maybeExploreEvent(areaName, selectedKind = null, availableEncount
       table.push("mossback_lair");
   }
   if (STORY.chapter >= 1) table.push("townhint");
+  if ((PLAYER.ngPlus || 0) > 0 && WORLD.flags.ngEchoChapter !== STORY.chapter) table.push("ng_echo", "ng_echo");
   if (availableEncounters.includes("index hound") && questState("unwritten_index").status === "active" && !WORLD.flags.archive_index_resolved) table.push("index_hound");
   if (availableEncounters.includes("glasswing moth") && !WORLD.flags.starfall_cache_opened) table.push("starfall");
   if (availableEncounters.includes("ashbound sentinel") && !WORLD.flags.ash_reliquary_opened) table.push("ash_reliquary");
@@ -1567,6 +1656,20 @@ async function maybeExploreEvent(areaName, selectedKind = null, availableEncount
   if (availableEncounters.length >= 2) table.push("raid");
   const kind = selectedKind || table[randint(0, table.length - 1)];
   print("\n👣");
+  if (kind === "ng_echo") {
+    WORLD.flags.ngEchoChapter = STORY.chapter;
+    const prior = STORY.ending || PLAYER.ngPlusEnding || "remember";
+    print(`A seam in the road opens onto a memory from your ${prior} ending. It recognizes you, though this world should not.`);
+    print("1. Carry the memory forward (+100 XP and 50 coin).\n2. Share it with your companion (+6 bond and a potion).\n0. Let the echo pass.");
+    const answer = (await input("What do you do? [1/2/0]: ")).trim().toLowerCase();
+    if (["1", "claim", "carry"].includes(answer)) { grantXp(100); addItem("coin", 50); print("The old memory becomes strength for this new road."); }
+    else if (["2", "share", "companion"].includes(answer)) {
+      const id = WORLD.companions.active?.[0] || WORLD.companions.recruited?.[0];
+      if (id) { WORLD.companions.affinity[id] = Math.min(100, (WORLD.companions.affinity[id] || 0) + 6); addItem("potion", 1); print(`${COMPANION_DEFS[id].name} keeps the echo. Your bond deepens (+6).`); }
+      else print("You have no companion to share it with, so the echo fades kindly.");
+    } else print("The echo fades without asking anything of you.");
+    return true;
+  }
   if (kind === "raid") {
     const pool = availableEncounters.filter((name) => monsters[name]?.chance > 0);
     if (!pool.length) {
@@ -2037,6 +2140,7 @@ async function maybeExploreEvent(areaName, selectedKind = null, availableEncount
 function rollExploreDiscovery(availableEncounters) {
   if (Math.random() > 0.38) return null;
   const table = ["chest", "trap", "merchant", "camp", "npc", "riddle", "cache", "scrap", "forage", "shrine", "echo"];
+  if ((PLAYER.ngPlus || 0) > 0 && WORLD.flags.ngEchoChapter !== STORY.chapter) table.push("ng_echo", "ng_echo");
   if (STORY.chapter === 0 && availableEncounters.includes("mossling")) {
     if (!WORLD.flags.quiet_waystone_resolved) table.push("quiet_waystone", "quiet_waystone");
     if (!WORLD.flags.trapped_messenger_resolved) table.push("trapped_messenger", "trapped_messenger");
@@ -2061,7 +2165,7 @@ function rollExploreDiscovery(availableEncounters) {
 
 function exploreDiscoveryLabel(kind) {
   return ({
-    chest: "open the half-buried chest", trap: "cross the unstable ground", merchant: "visit the travelling merchant",
+    chest: "open the half-buried chest", ng_echo: "follow a memory from your previous ending", trap: "cross the unstable ground", merchant: "visit the travelling merchant",
     camp: "rest at the abandoned camp", npc: "talk to the traveller", riddle: "solve the roadside riddle",
     cache: "search the strange crate", scrap: "salvage the wreck", forage: "gather roadside supplies",
     shrine: "approach the roadside shrine", echo: "listen to the memory echo", townhint: "follow the smoke toward town",
@@ -2429,9 +2533,13 @@ async function chooseRoute() {
   while (true) {
     const choice = (await input("Choose safe road or risky shortcut [safe/risky]: ")).trim().toLowerCase();
     if (["safe", "road", "s"].includes(choice)) {
-      const heal = Math.max(1, Math.floor(getStats().max_hp * 0.08));
       WORLD.flags.routeChoices = WORLD.flags.routeChoices || [];
       WORLD.flags.routeChoices.push("safe");
+      if (WORLD.flags.routeChoices.filter((route) => route === "safe").length === 3) {
+        WORLD.flags.safeRoadNetwork = true;
+        print("Your third safe road connects a supply network. Future safe routes will offer stronger recovery.");
+      }
+      const heal = Math.max(1, Math.floor(getStats().max_hp * (WORLD.flags.safeRoadNetwork ? 0.14 : 0.08)));
       WORLD.flags.routeVisitedChapter = STORY.chapter;
       if (typeof recordStoryMoment === "function") recordStoryMoment(`You took the safe road through ${area}.`, "choice", "safe");
       if (WORLD.dungeonRun?.active || WORLD.towerRun?.active) {
@@ -2453,6 +2561,10 @@ async function chooseRoute() {
       const foe = wchoice(pool, pool.map((name) => monsters[name].chance));
       WORLD.flags.routeChoices = WORLD.flags.routeChoices || [];
       WORLD.flags.routeChoices.push("risky");
+      if (WORLD.flags.routeChoices.filter((route) => route === "risky").length === 3) {
+        WORLD.flags.fractureTrail = true;
+        print("Your third shortcut leaves a fracture trail. The map marks these dangerous paths for future journeys.");
+      }
       WORLD.flags.routeVisitedChapter = STORY.chapter;
       if (typeof recordStoryMoment === "function") recordStoryMoment(`You took the risky shortcut through ${area}.`, "choice", "risky");
       print(`You cut through the dangerous shortcut. An elite ${title(foe)} blocks the way!`);
