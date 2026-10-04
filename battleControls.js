@@ -20,7 +20,8 @@
   if (!window.__battleManualPushGateInstalled) {
     window.__battleManualPushGateInstalled = true;
     Array.prototype.push = function (...items) {
-      const isPlayerProjectile = items.some((item) => item && item.style && item.weapon && Object.prototype.hasOwnProperty.call(item, "life"));
+      const active = window.Battle25D?.isActive?.();
+      const isPlayerProjectile = active && items.some((item) => item && item.style && item.weapon && Object.prototype.hasOwnProperty.call(item, "life"));
       if (isPlayerProjectile) {
         if (!attackArmed) return this.length;
         // A volley may call push several times synchronously. Consume the
