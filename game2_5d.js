@@ -8,8 +8,8 @@
 (function () {
   "use strict";
 
-  const TILE_W = 76;
-  const TILE_H = 38;
+  const TILE_W = 54;
+  const TILE_H = 54;
   const MAP_W = 17;
   const MAP_H = 13;
   const DPR = Math.min(2, window.devicePixelRatio || 1);
@@ -180,12 +180,12 @@
 
   function iso(x, y, z = 0) {
     return {
-      x: (x - y) * TILE_W * 0.5 + w * 0.5 - camera.x,
-      y: (x + y) * TILE_H * 0.5 + 90 - z - camera.y,
+      x: x * TILE_W + w * 0.5 - camera.x,
+      y: y * TILE_H + h * 0.5 - z - camera.y,
     };
   }
 
-  function depthOrder(a, b) { return (a.x + a.y) - (b.x + b.y); }
+  function depthOrder(a, b) { return a.y - b.y; }
 
   function tileNoise(x, y) {
     const n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
@@ -195,9 +195,9 @@
   function drawDiamond(p, fill, stroke) {
     ctx.beginPath();
     ctx.moveTo(p.x, p.y);
-    ctx.lineTo(p.x + TILE_W * .5, p.y + TILE_H * .5);
+    ctx.lineTo(p.x + TILE_W, p.y);
+    ctx.lineTo(p.x + TILE_W, p.y + TILE_H);
     ctx.lineTo(p.x, p.y + TILE_H);
-    ctx.lineTo(p.x - TILE_W * .5, p.y + TILE_H * .5);
     ctx.closePath();
     ctx.fillStyle = fill;
     ctx.fill();
@@ -212,7 +212,7 @@
     if (n > .84) {
       ctx.fillStyle = biome.accent + "55";
       ctx.beginPath();
-      ctx.arc(p.x + (n-.5)*18, p.y + TILE_H*.5, 2, 0, Math.PI*2);
+      ctx.arc(p.x + TILE_W*.5 + (n-.5)*18, p.y + TILE_H*.5, 2, 0, Math.PI*2);
       ctx.fill();
     }
     if ((x * 7 + y * 11) % 29 === 0) drawTree(x, y, biome);
@@ -311,8 +311,8 @@
       if(Math.random()<dt*4) spawnParticles();
       if(Math.random()<dt*.8) saveVisualState();
     }
-    camera.x += (((player.x-player.y)*TILE_W*.5)-camera.x)*Math.min(1,dt*4);
-    camera.y += (((player.x+player.y)*TILE_H*.5)-camera.y)*Math.min(1,dt*4);
+    camera.x += ((player.x*TILE_W)-camera.x)*Math.min(1,dt*4);
+    camera.y += ((player.y*TILE_H)-camera.y)*Math.min(1,dt*4);
     camera.shake *= Math.max(0,1-dt*5);
   }
 
