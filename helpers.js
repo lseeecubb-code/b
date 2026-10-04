@@ -45,7 +45,7 @@ const C = {
   LVL_DMG: 1,
   MAX_LEVEL: 25,
 };
-const START_INV = { coin: 100, iron: 5, wood: 5 };
+const START_INV = { coin: 100, iron: 5, wood: 5, "iron fist": 1 };
 const SLOTS = ["weapon", "offhand", "head", "armor", "feet", "trinket"];
 let inventory, equipment, PLAYER, STORY;
 function defaultPlayerExtra(p = {}) {
