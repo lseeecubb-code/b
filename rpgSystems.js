@@ -1423,6 +1423,7 @@ const REGION_KEEPSAKES = [
   ["oath fragment", "A retired Hollow knight leaves you a fragment of their old oath."],
   ["ink fragment", "A struck-out sentence in the Margin refuses to disappear."],
   ["soul shard", "A trace of the Blank Page holds together long enough to collect."],
+  ["last line tonic", "The final autosave leaves a tonic whose label has not been erased."],
 ];
 
 async function revisitRegion(arg = "") {
