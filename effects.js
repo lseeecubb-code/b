@@ -753,7 +753,7 @@ const FX = (() => {
       boss: Boolean(boss),
       bar: 0,
       musicFile: cleanFile,
-      distortionFile: cleanFile?.replace("audio/remastered/", "audio/") || null,
+      distortionFile: cleanFile?.replace("audio/remastered/", "audio/distorted/") || null,
       distorted: false,
       fileFailed: false,
     };
@@ -814,7 +814,7 @@ const FX = (() => {
       boss: false,
       bar: 0,
       musicFile: cleanFile,
-      distortionFile: cleanFile.replace("audio/remastered/", "audio/"),
+      distortionFile: cleanFile.replace("audio/remastered/", "audio/distorted/"),
       distorted: false,
       fileFailed: false,
       ambient: true,

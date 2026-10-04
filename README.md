@@ -75,7 +75,7 @@ To play offline, download or clone this repository and keep the project files to
 
 ## Custom enemy music
 
-See [ENEMY_MUSIC_GUIDE.md](ENEMY_MUSIC_GUIDE.md) for adding audio tracks, assigning boss phase music, and troubleshooting playback. Enemy audio files belong in **audio/enemies/**.
+See [ENEMY_MUSIC_GUIDE.md](ENEMY_MUSIC_GUIDE.md) for the soundtrack layout and playback details. Clean tracks are in **audio/remastered/**; the preserved original distortion tracks are in **audio/distorted/**.
 
 ## Project files
 
@@ -85,7 +85,7 @@ See [ENEMY_MUSIC_GUIDE.md](ENEMY_MUSIC_GUIDE.md) for adding audio tracks, assign
 - **combat.js**, **monsters.js**, **effects.js** — battles, enemy data, and combat effects
 - **items.js**, **playerGear.js**, **crafting.js** — items, stats, equipment, and crafting
 - **saves.js**, **admin.js**, **typewriter.js** — save handling, developer utilities, and text display
-- **audio/** — optional enemy music
+- **audio/** — remastered soundtrack and preserved distortion audio
 - **patches/** — historical patch files kept for reference; the JavaScript files above are the current game source
 
 ## Contributing
