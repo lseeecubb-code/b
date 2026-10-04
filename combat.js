@@ -89,6 +89,9 @@ const ACTION_ALIASES = {
   9: "counter",
   10: "companion",
   z: "companion",
+  b: "combo",
+  combo: "combo",
+  "attack combo": "combo",
   companion: "companion",
   ally: "companion",
   order: "companion",
@@ -270,6 +273,7 @@ function showCombatMenu(f) {
   print(`8. ✨ Skills & abilities — use an equipped technique or learned spell (${sn}).`);
   print("9. 🎯 Counter — exploit an enemy's exposed opening.");
   print("Z. 🗣️ Companion — order your ally to attack, guard, or heal (when available).");
+  print("B. 🥊 Attack combo — chain several strikes in one turn. No timing required.");
   print(`0. 🏃 Run away — attempt to flee (${run}% chance).`);
   print(`X. 🌟 Limit Break — ${f.limitUsed ? "spent this fight" : `${Math.min(100, f.limitGauge || 0)}% charged`}.`);
   print("C. 🎯 Choose target.");
@@ -352,7 +356,7 @@ async function chooseSkill(f) {
 // Asks the player for an action and returns it (numbers or names are accepted).
 async function askAction(f) {
   while (true) {
-    const raw = (await input("Choose an action (1-9, 0, or z/x/c/v/f/q/e): ")).trim().toLowerCase();
+    const raw = (await input("Choose an action (1-9, 0, or z/b/x/c/v/f/q/e): ")).trim().toLowerCase();
     let a = ACTION_ALIASES[raw];
     if (f.controlGlitchTurns > 0) {
       if (["1", "attack", "a"].includes(raw)) a = "guard";
@@ -360,7 +364,7 @@ async function askAction(f) {
       if (a) f.controlGlitchTurns--;
     }
     if (!a) {
-      print("Use a displayed fight key (1-9, 0, z/x/c/v/f/q/e) or type an action name.");
+      print("Use a displayed fight key (1-9, 0, z/b/x/c/v/f/q/e) or type an action name.");
       continue;
     }
     if (a === "heavy" && f.energy < C.HEAVY_COST) {
@@ -383,6 +387,11 @@ async function askAction(f) {
       const n = await chooseItem();
       if (n === null) continue;
       return [a, n];
+    }
+    if (a === "combo") {
+      const combo = await chooseAttackCombo(f);
+      if (!combo) continue;
+      return [a, combo];
     }
     if (a === "skill") {
       const s = await chooseSkill(f);
@@ -722,6 +731,53 @@ function playerAttack(f, heavy = false) {
   if (r.landed && !heavy) f.energy = Math.min(typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY, f.energy + C.ATTACK_GAIN);
   return r.result;
 }
+const ATTACK_COMBOS = [
+  { id: "rapid-flurry", name: "Rapid Flurry", cost: 2, hits: ["quick", "quick", "heavy"], finisher: "poise" },
+  { id: "breaker-string", name: "Breaker String", cost: 4, hits: ["heavy", "quick", "heavy"], finisher: "poise" },
+  { id: "crosscut", name: "Crosscut", cost: 2, hits: ["quick", "heavy", "quick"], finisher: "expose" },
+];
+async function chooseAttackCombo(f) {
+  print("\n🥊 ATTACK COMBOS — choose a chain. The strikes resolve turn by turn; there is no timer.");
+  ATTACK_COMBOS.forEach((combo, i) => print(`${i + 1}. ${combo.name} (${combo.cost} energy) — ${combo.hits.map((hit) => hit === "heavy" ? "heavy" : "quick").join(" → ")}`));
+  print("0. Back");
+  while (true) {
+    const raw = (await input("Choose a combo [1-3/0]: ")).trim().toLowerCase();
+    if (["0", "back", ""].includes(raw)) return null;
+    const index = Number(raw) - 1;
+    const combo = Number.isInteger(index) ? ATTACK_COMBOS[index] : ATTACK_COMBOS.find((entry) => entry.id === raw || entry.name.toLowerCase() === raw);
+    if (!combo) { print("Choose one of the listed combos, or 0 to go back."); continue; }
+    if (f.energy < combo.cost) { print(`${combo.name} needs ${combo.cost} energy; you have ${f.energy}. Choose another combo or 0 to go back.`); continue; }
+    return combo;
+  }
+}
+function performAttackCombo(f, combo) {
+  print(`🥊 ${combo.name.toUpperCase()}! The chain resolves at your pace.`);
+  let landed = 0;
+  for (let i = 0; i < combo.hits.length && f.monster_hp > 0 && f.player_hp > 0; i++) {
+    const heavy = combo.hits[i] === "heavy";
+    if (heavy) f.energy -= C.HEAVY_COST;
+    else f.energy = Math.min(typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY, f.energy + C.ATTACK_GAIN);
+    if (equipment.weapon) f.weaponActions = (f.weaponActions || 0) + 1;
+    print(`   Chain hit ${i + 1}/${combo.hits.length}: ${heavy ? "heavy finisher" : "quick strike"}.`);
+    const result = strike(f, {
+      hit_chance: heavy ? C.HEAVY_HIT : C.ATTACK_HIT + 12,
+      mult: heavy ? 1.45 : 0.78,
+      atk_type: heavy ? "heavy" : "normal",
+      heavy,
+      skill_name: `${combo.name} ${heavy ? "finisher" : "strike"}`,
+    });
+    if (result.landed) landed++;
+  }
+  if (landed === combo.hits.length && f.monster_hp > 0) {
+    if (combo.finisher === "poise") addBreak(f, 28, `from ${combo.name}`);
+    else {
+      applyMonsterEffect(f, { type: "exposed", chance: 100, damage: 0, turns: 1 });
+      print("The last strike leaves the enemy exposed!");
+    }
+  }
+  if (typeof clog === "function") clog(f, `${combo.name} combo (${landed}/${combo.hits.length} hits)`);
+  return landed;
+}
 // Uses one of the equipped weapon's skills.
 function useSkill(f, s) {
   const name = s.name;
@@ -811,6 +867,9 @@ async function playerTurn(f) {
     } else if (action === "skill") {
       if (extra.kind === "spell") useSpell(f, extra.name);
       else useSkill(f, SKILLS[extra.name]);
+    } else if (action === "combo") {
+      performAttackCombo(f, extra);
+      if (f.monster_hp <= 0) break;
     } else if (action === "limit") {
       useLimitBreak(f);
     } else if (action === "companion") {
@@ -839,10 +898,11 @@ async function playerTurn(f) {
         print(`💨 You escaped from the ${f.name}!`);
       } else print("❌ You couldn't get away!");
     } else if (action === "item") useItem(f, extra);
-    if (action !== "attack" && action !== "heavy") {
+    if (action !== "attack" && action !== "heavy" && action !== "combo") {
       const eventAction = action === "skill" && extra?.kind === "spell" ? "magic" : action;
       triggerEnemyEvent(f, eventAction, extra?.kind === "spell" ? extra.name : extra);
     }
+    if (action === "combo") triggerEnemyEvent(f, "combo", extra?.id);
     break;
   }
   f.choice = action;
