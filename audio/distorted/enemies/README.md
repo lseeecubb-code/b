@@ -1,0 +1,1 @@
+Original enemy and boss music, retained as the game's distortion layer. Clean remasters used by default are in audio/remastered/enemies/. During terminal corruption, playback briefly switches to the matching original here.

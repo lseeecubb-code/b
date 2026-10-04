@@ -1686,9 +1686,8 @@ Object.assign(monsters, {
   },
 });
 
-// Optional custom battle music: add music_file: "audio/enemies/name.mp3" to any
-// enemy below, or to a BOSS_PHASE_TWO form for phase-specific tracks. If the file
-// is missing or cannot play, the game automatically uses its synthesized theme.
+// Clean remastered enemy tracks are assigned automatically below; original tracks
+// are kept under audio/distorted and briefly used during terminal corruption.
 // Multi-form bosses. Each later form is its own combat sheet: HP, defenses, attacks,
 // resistances, and a separate procedural music profile. Phase one is captured from the
 // existing boss entry below, so existing drops, story gates, and encounter identity remain intact.
