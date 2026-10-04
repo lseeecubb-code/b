@@ -1,9 +1,9 @@
-/* Straight-on 2.5D camera: tiles run vertically, with a slight top-down side perspective. */
+/* Straight-on top-down camera: the map grid is perfectly horizontal and vertical (no skew or rotation). */
 (function () {
   "use strict";
   const TILE = 54;
-  const COL = { x: 0, y: TILE };
-  const ROW = { x: TILE * 0.28, y: TILE * 0.96 };
+  const COL = { x: 0, y: TILE };   // moving down the map = straight down the screen
+  const ROW = { x: TILE, y: 0 };   // moving along the map = straight across the screen
   const MAP_W = 17, MAP_H = 13;
   const DPR = Math.min(2, window.devicePixelRatio || 1);
   const BIOMES = [
