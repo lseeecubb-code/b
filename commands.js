@@ -11,6 +11,7 @@ function openGitHubRepository() {
   }
 }
 const COMMANDS = {
+  incident: [danmakuCommand, "incident [boss|character|status|help]", "Enter the original danmaku spell-card RPG mode"],
   explore: [exploreStory, "explore", "Travel the current region, find encounters, and advance the campaign"],
   revisit: [revisitRegion, "revisit [region]", "Return to completed regions to find one-time keepsakes"],
   map: [showWorldMap, "map", "View regions, discoveries, and your tracked objective"],
@@ -94,7 +95,7 @@ const COMMANDS = {
 };
 const MENU = [
   ["📖", ["explore", "revisit", "map", "route", "story", "chronicle", "replay", "guide", "tutorial", "ending", "afterstory"]],
-  ["⚔️", ["fight", "practice", "training", "dungeon", "challenge", "tower", "raids", "bestiary", "journal"]],
+  ["⚔️", ["fight", "incident", "practice", "training", "dungeon", "challenge", "tower", "raids", "bestiary", "journal"]],
   ["🧙", ["inventory", "gear", "stats", "origin", "skills", "allocate", "perks", "magic", "info", "equip", "unequip"]],
   ["🔨", ["craft", "recipes", "shop", "buy", "sell"]],
   ["🏕️", ["town", "hideout", "factions", "quests", "track", "party", "order", "bond", "lore", "dialogue", "record", "puzzle", "achievements", "settings", "save", "saves", "completed", "ngplus", "event", "github", "copy", "load", "menu", "quit"]],
