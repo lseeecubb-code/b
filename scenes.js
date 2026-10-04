@@ -554,7 +554,7 @@ const GAME_SCENES = {
     "author-decree": { glyphs: ["WRITE", "GO", "END", "◆"], count: 22, duration: 2100 },
     "save-pulse": { glyphs: ["SAVE", "0%", "50%", "100%"], count: 20, duration: 1750 },
     "corruption-wave": { glyphs: ["ERR", "0x", "#", "∅"], count: 34, duration: 2000 },
-
+  },
 };
 
 function normalizeSceneKey(value) {
