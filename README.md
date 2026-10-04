@@ -2,7 +2,7 @@
 
 **A turn-based story RPG about exploring a fractured world, building a hero, and discovering what the game remembers.**
 
-▶️ **[Play THE LAST SAVE in your browser](https://lseeecubb-code.github.io/rpg-game/)**
+▶️ **[Play THE LAST SAVE in your browser](https://lseeecubb-code.github.io/b/)**
 
 ## Start playing
 
