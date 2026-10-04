@@ -74,7 +74,9 @@ function autosave(manual = false) {
 // The game awaits this wherever the Python version called input().
 // It waits for the typewriter to finish showing everything first, so the prompt never appears
 // in the middle of a battle line.
-async function input(prompt = "") {
+// Pass { timeout, label, onStart } for a timed prompt: a countdown bar shows and the promise resolves
+// with null if time runs out first. The clock starts only once the prompt is actually live.
+async function input(prompt = "", opts = {}) {
   clearLoadingIndicator();
   write(prompt);
   autosave();
@@ -88,7 +90,60 @@ async function input(prompt = "") {
     pendingChoiceIndex = -1;
     termInput.placeholder = pendingChoices.length ? "↑/↓ select an option, or type your own..." : "Type a command...";
     termInput.focus();
+    if (opts.timeout > 0) startInputTimer(opts, resolve);
   });
+}
+
+// ----- timed prompts (combo window) -----
+const timerBox = document.getElementById("comboTimer");
+const timerLabel = document.getElementById("comboTimerLabel");
+const TIMER_SLOTS = 10; // length of the [#####-----] bar
+let inputTimer = null;
+function stopInputTimer() {
+  if (inputTimer) clearInterval(inputTimer);
+  inputTimer = null;
+  if (timerBox) timerBox.hidden = true;
+}
+function startInputTimer(opts, resolve) {
+  stopInputTimer();
+  const total = opts.timeout,
+    began = performance.now();
+  const paint = () => {
+    const left = Math.max(0, total - (performance.now() - began));
+    if (timerBox) {
+      // "Combo x10 [#######---] 3.5s": the #s drain as the window runs out.
+      const filled = Math.ceil((left / total) * TIMER_SLOTS);
+      const part = (text, cls) => {
+        const el = document.createElement("span");
+        el.textContent = text;
+        if (cls) el.className = cls;
+        return el;
+      };
+      timerLabel.replaceChildren(
+        part(`${opts.label || "Hurry"} [`),
+        part("#".repeat(filled), "combo-bar-fill"),
+        part("-".repeat(TIMER_SLOTS - filled), "combo-bar-empty"),
+        part(`] ${(left / 1000).toFixed(1)}s`)
+      );
+      timerBox.classList.toggle("urgent", left < 1500);
+    }
+    return left;
+  };
+  if (timerBox) timerBox.hidden = false;
+  if (typeof opts.onStart === "function") opts.onStart();
+  paint();
+  inputTimer = setInterval(() => {
+    if (paint() > 0) return;
+    stopInputTimer();
+    if (pendingInput !== resolve) return; // already answered
+    pendingInput = null;
+    pendingChoices = [];
+    pendingChoiceIndex = -1;
+    termInput.value = "";
+    termInput.placeholder = "Type a command...";
+    write("\n");
+    resolve(null);
+  }, 100);
 }
 
 termInput.addEventListener("keydown", (e) => {
@@ -106,6 +161,7 @@ termInput.addEventListener("keydown", (e) => {
     const value = termInput.value;
     termInput.value = "";
     if (!pendingInput) return;
+    stopInputTimer();
     termInput.placeholder = "Type a command...";
     write(value + "\n");
     const resolve = pendingInput;
