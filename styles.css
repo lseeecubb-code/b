@@ -49,28 +49,14 @@ body {
   height: 100dvh;
   margin: 0 auto;
   overflow: hidden;
-  background: transparent;
+  background: #000;
   border-left: 1px solid var(--line);
   border-right: 1px solid var(--line);
 }
 
 /* a few distant stars; barely there */
-.terminal::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0.55;
-  background-image:
-    radial-gradient(1px 1px at 12% 18%, #fff8, transparent),
-    radial-gradient(1px 1px at 78% 12%, #fff6, transparent),
-    radial-gradient(1px 1px at 34% 62%, #fff5, transparent),
-    radial-gradient(1.5px 1.5px at 91% 71%, #e9cf8699, transparent),
-    radial-gradient(1px 1px at 55% 88%, #fff5, transparent),
-    radial-gradient(1px 1px at 6% 84%, #a37cff88, transparent),
-    radial-gradient(1px 1px at 66% 40%, #fff4, transparent);
-}
+.terminal::before { display: none; }
+
 
 /* faint scanlines + dark corners */
 .terminal::after {
@@ -96,7 +82,7 @@ body {
   gap: 16px;
   padding: 12px 18px 10px;
   border-bottom: 1px solid var(--line);
-  background: linear-gradient(180deg, #0d0918, transparent);
+  background: #000;
 }
 .brand-copy { display: flex; align-items: baseline; gap: 14px; min-width: 0; }
 .title {
@@ -166,7 +152,7 @@ button:focus-visible { outline: 1px solid var(--gold); outline-offset: 2px; }
   gap: 10px;
   padding: 10px 22px;
   border-top: 1px solid var(--line);
-  background: #07050f;
+  background: #000;
 }
 .prompt { user-select: none; font-weight: 700; color: var(--gold); text-shadow: 0 0 10px #e9cf8688; }
 #command {
@@ -210,7 +196,7 @@ button:focus-visible { outline: 1px solid var(--gold); outline-offset: 2px; }
   gap: 14px;
   padding: 6px 18px 8px;
   border-top: 1px solid var(--line);
-  background: #07050f;
+  background: #000;
 }
 .footer-settings { padding: 2px 8px; font-size: 11px; white-space: nowrap; color: var(--muted); }
 .footer-settings.is-loading { color: var(--gold); }
@@ -550,6 +536,41 @@ body.access-reduced-motion *::after {
   .attack-page-storm .boss-attack-mark{color:#ead9ae;font-size:clamp(22px,4vw,48px);animation:attack-page 1900ms ease-in-out var(--attack-delay,0ms) both}
   .attack-redline-slice .boss-attack-mark{left:-10%;width:120%;height:3px;background:#ff3434;box-shadow:0 0 10px #ff3434,0 0 30px #ff2020;animation:attack-redline 1350ms steps(2,end) var(--attack-delay,0ms) both}
   .attack-void-pulse .boss-attack-mark{color:#d8d9e5;font-size:clamp(16px,3vw,34px);animation:attack-void-glyph 1800ms steps(2,end) var(--attack-delay,0ms) both}
+  .attack-dragon-flame .boss-attack-mark{color:#ff8b4a;font-size:clamp(18px,4vw,52px);animation:attack-flame-rain 2050ms ease-in var(--attack-delay,0ms) both}
+  .attack-ground-rift .boss-attack-mark,.attack-earth-shatter .boss-attack-mark{color:#d6b58a;font-size:clamp(22px,5vw,64px);animation:attack-rift 1850ms ease-out var(--attack-delay,0ms) both}
+  .attack-dragon-roar .boss-attack-mark,.attack-ogre-roar .boss-attack-mark{color:#ffd76a;font-size:clamp(14px,3vw,38px);animation:attack-roar 1650ms ease-out var(--attack-delay,0ms) both}
+  .attack-wing-storm .boss-attack-mark{color:#d7edff;font-size:clamp(20px,4vw,54px);animation:attack-wing 1650ms cubic-bezier(.2,.7,.3,1) var(--attack-delay,0ms) both}
+  .attack-cataclysm .boss-attack-mark,.attack-godfall .boss-attack-mark{color:#fff0a8;font-size:clamp(18px,4vw,54px);animation:attack-cataclysm 2300ms ease-in var(--attack-delay,0ms) both}
+  .attack-soul-bolt .boss-attack-mark,.attack-soul-grip .boss-attack-mark,.attack-soul-drain .boss-attack-mark{color:#b8a0ff;font-size:clamp(18px,4vw,50px);animation:attack-soul 1800ms ease-in-out var(--attack-delay,0ms) both}
+  .attack-plague-cloud .boss-attack-mark,.attack-corruption-wave .boss-attack-mark{color:#8ce59f;font-size:clamp(14px,3vw,40px);animation:attack-cloud 1950ms ease-out var(--attack-delay,0ms) both}
+  .attack-stone-fist .boss-attack-mark{color:#d4c2a6;font-size:clamp(24px,5vw,66px);animation:attack-fist 1600ms cubic-bezier(.2,.9,.2,1) var(--attack-delay,0ms) both}
+  .attack-blood-bite .boss-attack-mark{color:#ff6179;font-size:clamp(18px,4vw,48px);animation:attack-blood 1700ms ease-out var(--attack-delay,0ms) both}
+  .attack-bat-swarm .boss-attack-mark{color:#b7a4df;font-size:clamp(18px,3vw,42px);animation:attack-swarm 1800ms ease-in-out var(--attack-delay,0ms) both}
+  .attack-hellfire .boss-attack-mark{color:#ff754f;font-size:clamp(18px,4vw,50px);animation:attack-flame-rain 2100ms ease-in var(--attack-delay,0ms) both}
+  .attack-void-curse .boss-attack-mark,.attack-name-erasure .boss-attack-mark,.attack-missing-texture .boss-attack-mark,.attack-invalid-state .boss-attack-mark,.attack-out-of-bounds .boss-attack-mark{color:#c7c9d8;font-size:clamp(14px,3vw,38px);animation:attack-glitch-fall 1900ms steps(2,end) var(--attack-delay,0ms) both}
+  .attack-frenzy .boss-attack-mark,.attack-berserker-swing .boss-attack-mark,.attack-hero-slash .boss-attack-mark{color:#ffe08a;font-size:clamp(20px,5vw,60px);animation:attack-slash-storm 1500ms ease-out var(--attack-delay,0ms) both}
+  .attack-royal-decree .boss-attack-mark,.attack-watcher-gaze .boss-attack-mark,.attack-counterfactual .boss-attack-mark,.attack-index-beam .boss-attack-mark,.attack-sealed-vault .boss-attack-mark,.attack-save-pulse .boss-attack-mark{color:#e8dcff;font-size:clamp(14px,3vw,42px);animation:attack-lock 1900ms ease-in-out var(--attack-delay,0ms) both}
+  .attack-memory-flash .boss-attack-mark{color:#9fe8ff;font-size:clamp(14px,3vw,40px);animation:attack-memory 1750ms steps(3,end) var(--attack-delay,0ms) both}
+  .attack-fourth-wall .boss-attack-mark{color:#8ff0e4;font-size:clamp(12px,2vw,30px);animation:attack-fourth 1950ms steps(2,end) var(--attack-delay,0ms) both}
+  .attack-page-erasure .boss-attack-mark,.attack-ink-storm .boss-attack-mark,.attack-author-decree .boss-attack-mark{color:#e7b4ff;font-size:clamp(14px,3vw,42px);animation:attack-page-void 2050ms ease-in-out var(--attack-delay,0ms) both}
+  .attack-hero-finale .boss-attack-mark{color:#fff4bf;font-size:clamp(20px,5vw,64px);animation:attack-finale 2100ms cubic-bezier(.2,.9,.2,1) var(--attack-delay,0ms) both}
+  @keyframes attack-flame-rain{0%{opacity:0;transform:translate(var(--attack-drift,0),-30vh) scale(.4) rotate(0)}20%{opacity:1}100%{opacity:0;transform:translate(calc(var(--attack-drift,0)*-1),115vh) scale(1.4) rotate(220deg)}}
+  @keyframes attack-rift{0%{opacity:0;transform:scaleX(.1) translateY(20vh) rotate(var(--attack-tilt,0deg))}25%,60%{opacity:1;transform:scaleX(1.2) translateY(0) rotate(0)}100%{opacity:0;transform:scaleX(.2) translateY(-15vh) rotate(-10deg)}}
+  @keyframes attack-roar{0%{opacity:0;transform:scale(.15)}25%,55%{opacity:1;transform:scale(1.1)}100%{opacity:0;transform:scale(2.4)}}
+  @keyframes attack-wing{0%{opacity:0;transform:translate(-85vw,25vh) rotate(-25deg) scale(.6)}25%,55%{opacity:1}100%{opacity:0;transform:translate(95vw,-25vh) rotate(20deg) scale(1.35)}}
+  @keyframes attack-cataclysm{0%{opacity:0;transform:translateY(-55vh) scale(.2)}28%{opacity:1}62%{opacity:.9;transform:translateY(5vh) scale(1.15)}100%{opacity:0;transform:translateY(95vh) scale(1.8) rotate(180deg)}}
+  @keyframes attack-soul{0%{opacity:0;transform:translate(0,30vh) scale(.2)}25%,55%{opacity:1}100%{opacity:0;transform:translate(calc(var(--attack-drift,20px)*-1),-45vh) scale(1.5)}}
+  @keyframes attack-cloud{0%{opacity:0;transform:scale(.2)}30%,65%{opacity:.8}100%{opacity:0;transform:scale(3) translateY(-10vh)}}
+  @keyframes attack-fist{0%{opacity:0;transform:translate(0,-50vh) scale(.25) rotate(-20deg)}28%,55%{opacity:1}100%{opacity:0;transform:translate(var(--attack-drift,20px),40vh) scale(1.5) rotate(35deg)}}
+  @keyframes attack-blood{0%{opacity:0;transform:translate(50vw,10vh) scale(.2)}25%,55%{opacity:1}100%{opacity:0;transform:translate(-45vw,-10vh) scale(1.3)}}
+  @keyframes attack-swarm{0%{opacity:0;transform:translate(-20vw,20vh) scale(.2)}25%{opacity:1}100%{opacity:0;transform:translate(25vw,-25vh) rotate(540deg) scale(1.3)}}
+  @keyframes attack-glitch-fall{0%{opacity:0;transform:translateY(-35vh) skewX(15deg) scale(.5)}30%,55%{opacity:.95}100%{opacity:0;transform:translateY(45vh) skewX(-15deg) scale(1.4)}}
+  @keyframes attack-slash-storm{0%{opacity:0;transform:translate(-60vw,20vh) rotate(-35deg) scale(.5)}25%,55%{opacity:1}100%{opacity:0;transform:translate(65vw,-20vh) rotate(40deg) scale(1.5)}}
+  @keyframes attack-lock{0%{opacity:0;transform:scale(.3) rotate(-8deg)}30%,65%{opacity:.95}100%{opacity:0;transform:scale(1.5) rotate(8deg)}}
+  @keyframes attack-memory{0%,100%{opacity:0;transform:translateX(-8px)}30%,60%{opacity:1;transform:translateX(8px)}75%{opacity:.3;transform:translateX(-3px)}}
+  @keyframes attack-fourth{0%{opacity:0;transform:translateX(-30vw)}35%,60%{opacity:1}100%{opacity:0;transform:translateX(35vw)}}
+  @keyframes attack-page-void{0%{opacity:0;transform:translateY(-55vh) rotate(-35deg) scale(.4)}25%,65%{opacity:.95}100%{opacity:0;transform:translateY(60vh) rotate(40deg) scale(1.5)}}
+  @keyframes attack-finale{0%{opacity:0;transform:translateY(-45vh) scale(.4)}25%,60%{opacity:1;transform:scale(1.1)}100%{opacity:0;transform:translateY(55vh) scale(1.7) rotate(45deg)}}
   @keyframes attack-scene-flash{0%{opacity:0}8%,62%{opacity:1}100%{opacity:.12}}
   @keyframes boss-logo-fall{0%,58%{opacity:1;transform:translateY(0) rotate(0) scale(1)}68%{opacity:.95;transform:translateY(8px) rotate(2deg) scale(1.03)}100%{opacity:0;transform:translateY(125vh) rotate(var(--attack-tilt,8deg)) scale(.82)}}
   @keyframes attack-shard-fall{0%{opacity:0;transform:translate(0,-70vh) rotate(0) scale(.5)}22%,50%{opacity:1}100%{opacity:0;transform:translate(var(--attack-drift,30px),120vh) rotate(460deg) scale(1.2)}}
