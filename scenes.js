@@ -496,6 +496,9 @@ const GAME_SCENES = {
       autosave: "save-pulse",
       corrupt: "corruption-wave",
       overwrite: "logo-fall",
+      "erase the timeline": "page-erasure",
+      "restore corrupted data": "corruption-wave",
+      "forced shutdown": "void-pulse",
     },
     "the missing page": {
       "burn the margins": "redline-slice",
