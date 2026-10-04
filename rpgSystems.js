@@ -448,6 +448,18 @@ const ACHIEVEMENTS = {
   supply_scout: { name: "Supply Scout", desc: "Find moon herb, black salt, and a clockwork spring." },
   maker: { name: "Made by Hand", desc: "Craft every new formula added in this content update." },
 };
+const ACHIEVEMENT_REWARDS = {
+  first_blood: { desc: "2 potions", give: () => addItem("potion", 2) },
+  unnamed: { desc: "1 void crystal", give: () => addItem("void crystal", 1) },
+  hunter: { desc: "500 coin", give: () => addItem("coin", 500) },
+  witness: { desc: "2 stat points", give: () => { PLAYER.statPoints += 2; } },
+  last_save: { desc: "3 star glass", give: () => addItem("star glass", 3) },
+  hidden: { desc: "1 ancient crystal", give: () => addItem("ancient crystal", 1) },
+  party: { desc: "1 potion and 100 coin", give: () => { addItem("potion", 1); addItem("coin", 100); } },
+  dedicated: { desc: "2 stat points", give: () => { PLAYER.statPoints += 2; } },
+  wealthy: { desc: "1 iron", give: () => addItem("iron", 1) },
+  ng: { desc: "100 coin", give: () => addItem("coin", 100) },
+};
 
 const DOT_TYPES = new Set(["poison", "burn", "bleed"]);
 const AILMENTS = new Set(["poison", "burn", "bleed", "slow", "weakened"]);
@@ -470,6 +482,8 @@ function defaultSettings() {
     combatLog: true,
     textColor: "default",
     sound: true,
+    largeText: false,
+    reducedMotion: false,
   };
 }
 
@@ -510,6 +524,8 @@ function applyTextColor() {
   document.body.classList.remove("theme-amber", "theme-green", "theme-high");
   const c = map[SETTINGS.textColor];
   if (c) document.body.classList.add(c);
+  document.body.classList.toggle("access-large", !!SETTINGS.largeText);
+  document.body.classList.toggle("access-reduced-motion", !!SETTINGS.reducedMotion);
 }
 
 function hasPerk(id) {
@@ -669,6 +685,9 @@ function attachEnemyAccessors(f) {
   def("intent", "intent");
   def("phase", "phase");
   def("eventFlags", "eventFlags");
+  def("turnCount", "turnCount");
+  def("enraged", "enraged");
+  def("enrageAnnounced", "enrageAnnounced");
 }
 
 function makeEnemyState(name, elite = false) {
@@ -693,6 +712,15 @@ function makeEnemyState(name, elite = false) {
     m.icon = m.icon || "👹";
     if (m.basic_attack?.damage) m.basic_attack.damage = scaleRange(m.basic_attack.damage, 1.15);
   }
+  if (WORLD.challengeRun?.active) {
+    const rule = WORLD.challengeRun.rule;
+    const roundScale = 1 + Math.max(0, (WORLD.challengeRun.round || 1) - 1) * 0.1;
+    const hpBoost = (rule === "iron" ? 1.7 : rule === "glass" ? 1.2 : 1.35) * roundScale;
+    const damageBoost = (rule === "frenzy" ? 1.65 : rule === "glass" ? 1.5 : 1.2) * (1 + Math.max(0, (WORLD.challengeRun.round || 1) - 1) * 0.08);
+    m.hp = int(m.hp * hpBoost);
+    if (m.basic_attack?.damage) m.basic_attack.damage = scaleRange(m.basic_attack.damage, damageBoost);
+    for (const move of Object.values(m.abilities || {})) if (move.damage) move.damage = scaleRange(move.damage, damageBoost);
+  }
   const forms = Array.isArray(m.phases) ? m.phases : [];
   const activeForm = forms.length ? { ...m, ...forms[0], phases: undefined } : m;
   const totalBossHp = forms.length ? forms.reduce((sum, form) => sum + form.hp, 0) : m.hp;
@@ -713,6 +741,9 @@ function makeEnemyState(name, elite = false) {
     intent: null,
     phase: 0,
     eventFlags: {},
+    turnCount: 0,
+    enraged: false,
+    enrageAnnounced: false,
     elite: !!elite,
     poise: 0,
     role: enemyRole(activeForm),
@@ -761,11 +792,14 @@ function tickNonDot(list, ownerLabel) {
 function unlockAchievement(id, quiet = false) {
   if (!ACHIEVEMENTS[id]) return;
   if (META.achievements[id]) return;
-  META.achievements[id] = { at: Date.now() };
+  META.achievements[id] = { at: Date.now(), rewardClaimed: true };
   saveMetaAchievements();
+  const reward = ACHIEVEMENT_REWARDS[id] || { desc: "50 coin", give: () => addItem("coin", 50) };
+  if (reward) reward.give();
   if (!quiet) {
     print(`\n🏆 Achievement unlocked: ${ACHIEVEMENTS[id].name}`);
     print(`   ${ACHIEVEMENTS[id].desc}`);
+    if (reward) print(`   Reward: ${reward.desc}.`);
   }
 }
 
@@ -1217,6 +1251,7 @@ function useSpell(f, name) {
 }
 
 async function companionTurns(f) {
+  if (f.companionOrdered) { f.companionOrdered = false; return; }
   for (const id of WORLD.companions.active || []) {
     if (foesDown(f) || f.player_hp <= 0) return;
     const d = COMPANION_DEFS[id];
@@ -1257,13 +1292,24 @@ async function companionTurns(f) {
       }
     }
     const bondQuest = WORLD.companions.personal[id];
-    if (bondQuest?.done && !f.companionComboUsed?.[id] && tgt.hp > 0) {
+    if (bondQuest?.done && (bondQuest.moments || []).length > 0 && !f.companionComboUsed?.[id] && tgt.hp > 0) {
       if (!f.companionComboUsed) f.companionComboUsed = {};
       f.companionComboUsed[id] = true;
-      const combo = Math.max(1, int((randint(...companionDamage(id)) + PLAYER.level) * 1.5));
+      const bond = WORLD.companions.affinity[id] || 0;
+      const combo = Math.max(1, int((randint(...companionDamage(id)) + PLAYER.level) * (bond >= 50 ? 1.9 : 1.5)));
       tgt.hp -= combo;
-      print(`✨ ${d.name} joins your attack in a bonded combo for ${combo} damage!`);
-      if (tgt.hp > 0) tgt.effects = applyStatus(tgt.effects, { type: "exposed", chance: 100, damage: 0, turns: 1 }, `The ${tgt.name}`) || tgt.effects;
+      const comboLine = { mira: "Mira threads a page of light through your strike", kael: "Kael crashes his shield into your opening", nyx: "Nyx pins the target's shadow to your blade" }[id];
+      print(`✨ ${comboLine} for ${combo} damage!`);
+      if (id === "mira") {
+        const healing = Math.min(f.player_max_hp - f.player_hp, bond >= 80 ? 14 : 8);
+        f.player_hp += healing;
+        if (healing) print(`📖 Mira's follow-through restores ${healing} HP.`);
+      } else if (id === "kael") {
+        f.effects = applyStatus(f.effects, { type: "fortified", chance: 100, turns: 2, damage: 0 }, "You") || f.effects;
+      } else if (id === "nyx" && tgt.hp > 0) {
+        tgt.effects = applyStatus(tgt.effects, { type: "bleed", chance: 100, damage: bond >= 80 ? 5 : 3, turns: 2 }, `The ${tgt.name}`) || tgt.effects;
+      }
+      if (tgt.hp > 0 && id !== "nyx") tgt.effects = applyStatus(tgt.effects, { type: "exposed", chance: 100, damage: 0, turns: 1 }, `The ${tgt.name}`) || tgt.effects;
     }
     WORLD.companions.hp[id] = hp;
   }
@@ -1300,7 +1346,11 @@ async function showParty() {
     print(`    Bond: ${affinity}/100`);
     if (affinity < 10) print("    Personal request: build trust through battles together.");
     else if (!progress.done) print(`    Personal quest: ${quest.name} · ${progress.progress || 0}/${quest.need} ${title(quest.target)} defeated.`);
-    else print("    Bonded combo attack: unlocked (once per fight).");
+    else if (!(progress.moments || []).length) print(`    Personal hunt complete. Share a bond story with 'bond ${id}' to unlock their unique combo.`);
+    else {
+      const comboName = { mira: "Margin of Light (heals you)", kael: "Bellbreak Guard (fortifies you)", nyx: "Pinned Shadow (causes bleed)" }[id];
+      print(`    Bond skill: ${comboName} · once per fight${affinity >= 50 ? " · enhanced at this bond" : ""}.`);
+    }
     const scenes = COMPANION_BOND_LINES[id];
     const unlocked = scenes.filter((scene) => affinity >= scene[0]).length;
     print(`    Bond stories: ${unlocked}/${scenes.length} available · type 'bond ${id}'. Combat perk strengthens at 50 and 80 bond.`);
@@ -1371,14 +1421,325 @@ function showWorldMap() {
   print("\n🗺️ CAMPAIGN MAP");
   STORY_CHAPTERS.forEach((ch) => {
     const status = ch.id < STORY.chapter ? "✓" : ch.id === STORY.chapter ? "▶" : "🔒";
-    print(` ${status} ${ch.area} — ${ch.title}`);
+    const notes = [];
+    if (WORLD.flags.returnedRegions?.[ch.id]) notes.push("keepsake found");
+    if (WORLD.flags[`puzzle_${ch.id}`]) notes.push("cache opened");
+    print(` ${status} ${ch.area} — ${ch.title}${notes.length ? ` · ${notes.join(" · ")}` : ""}`);
   });
   const open = Object.entries(WORLD.quests || {}).filter(([, state]) => state.status === "active");
   print(`\nPinned objective: ${WORLD.flags.trackedQuest || "Main campaign"}`);
   if (open.length) print(`Open side trails: ${open.map(([id]) => SIDE_QUESTS[id]?.name).filter(Boolean).join(" · ")}`);
   const routes = WORLD.flags.routeChoices || [];
   print(`Routes chosen: ${routes.filter((r) => r === "safe").length} safe · ${routes.filter((r) => r === "risky").length} risky`);
-  print("Use 'route' to choose this region's road. Discoveries appear as you explore.");
+  print(`Current safe hub: ${TOWNS[currentTownId()].name}. Use 'route' to choose this region's road; use 'puzzle' to investigate its hidden mechanism.`);
+  if (STORY.chapter > 0) print("Type 'revisit' to return to a completed region and search for a one-time keepsake.");
+}
+
+async function chooseOrigin(arg = "") {
+  const origins = {
+    vanguard: "Vanguard — +12 maximum HP",
+    duelist: "Duelist — +2 damage",
+    scout: "Scout — +5 dodge chance",
+    scholar: "Scholar — +1 maximum energy",
+  };
+  if (PLAYER.origin) { print(`Your ${PLAYER.origin} background is already part of this run. It cannot be changed.`); return; }
+  let choice = String(arg).trim().toLowerCase();
+  if (!origins[choice]) {
+    print("\n🧭 CHOOSE YOUR ORIGIN"); Object.values(origins).forEach((line) => print("• " + line));
+    choice = (await input("Choose vanguard, duelist, scout, or scholar: ")).trim().toLowerCase();
+  }
+  if (!origins[choice]) { print("No origin chosen. You can decide later."); return; }
+  PLAYER.origin = choice;
+  recordStoryMoment(`You began this journey as a ${choice}.`, "choice", `origin:${choice}`);
+  print(`Your ${choice} background is set: ${origins[choice].split(" — ")[1]}.`);
+}
+
+function showTutorial(arg = "") {
+  const section = String(arg).trim().toLowerCase();
+  print("\n🎓 QUICK START");
+  const lessons = {
+    exploration: ["explore — follow a lead, spare or fight an enemy, and advance the story.", "route — pick the safer supply road or risky shortcut once per region.", "map / story / guide — find your location, objective, and next step."],
+    combat: ["Read the enemy intent and incoming damage before acting.", "Attack builds energy; heavy attacks and skills spend it. Guard, parry, or dodge to answer enemy moves.", "Action 10 or 'companion' gives an active ally an attack, guard, or heal order. 'target' switches enemies in a group."],
+    saves: ["Progress autosaves in this browser. 'saves' manages local slots.", "'copy' exports a portable save code; 'load' imports one on another browser.", "Settings include larger text, reduced motion, color themes, and music volume in the title bar."],
+  };
+  const keys = section && lessons[section] ? [section] : Object.keys(lessons);
+  keys.forEach((key) => { print(`\n${title(key)}`); lessons[key].forEach((line) => print("• " + line)); });
+  print("\nUse ↑/↓ to select numbered choices and Enter to confirm. Type 'menu' for every command.");
+}
+
+// Optional meta-systems that give existing campaign discoveries a lasting purpose.
+const FACTIONS = {
+  wayfarers: { name: "Wayfarer Compact", text: "Keep roads open, protect couriers, and share supplies.", reward: "Field kit: 2 potions and 75 coin." },
+  archivists: { name: "Archive Keepers", text: "Preserve memories and record what the fractured world forgets.", reward: "Scholar's mark: 2 stat points and 100 coin." },
+  wardens: { name: "Hollow Wardens", text: "Stand watch at dangerous borders and contain the distortion.", reward: "Warden's cache: 1 iron buckler and 100 coin." },
+};
+function gainFactionStanding(id, amount = 1) {
+  if (!id || WORLD.flags.faction !== id) return;
+  const standing = WORLD.flags.factionStanding || (WORLD.flags.factionStanding = {});
+  const before = Number(standing[id]) || 0;
+  standing[id] = Math.min(3, before + amount);
+  if (before < 3 && standing[id] >= 3 && !WORLD.flags.factionRank3Reward) {
+    WORLD.flags.factionRank3Reward = true;
+    if (id === "wayfarers") { addItem("potion", 2); addItem("coin", 100); }
+    else if (id === "archivists") { PLAYER.statPoints += 2; addItem("coin", 100); }
+    else { addItem("iron", 4); addItem("coin", 100); }
+    print(`🤝 The ${FACTIONS[id].name} recognize your service and send a rank reward.`);
+  }
+}
+function showFactions(arg = "") {
+  const standing = WORLD.flags.factionStanding || (WORLD.flags.factionStanding = {});
+  const query = String(arg).trim().toLowerCase();
+  const join = query.match(/^(?:join|pledge)\s+(.+)$/);
+  if (join) {
+    const id = Object.keys(FACTIONS).find((key) => key === join[1] || FACTIONS[key].name.toLowerCase().includes(join[1]));
+    if (!id) { print("Choose Wayfarer Compact, Archive Keepers, or Hollow Wardens."); return; }
+    if (WORLD.flags.faction) { print(`You have already pledged to ${FACTIONS[WORLD.flags.faction]?.name || "a faction"}. That promise remains part of your story.`); return; }
+    WORLD.flags.faction = id;
+    standing[id] = (standing[id] || 0) + 1;
+    recordStoryMoment(`You pledged to the ${FACTIONS[id].name}.`, "choice", `faction:${id}`);
+    if (id === "wayfarers") { addItem("potion", 2); addItem("coin", 75); }
+    else if (id === "archivists") { PLAYER.statPoints += 2; addItem("coin", 100); }
+    else { addItem("iron buckler", 1); addItem("coin", 100); }
+    print(`\n🤝 You joined the ${FACTIONS[id].name}. ${FACTIONS[id].text}`);
+    print(`Faction reward received: ${FACTIONS[id].reward}`);
+    return;
+  }
+  print("\n🤝 FACTION ALLIANCES");
+  Object.entries(FACTIONS).forEach(([id, faction]) => print(`${WORLD.flags.faction === id ? `★ Pledged · Standing ${standing[id] || 0}/3` : standing[id] ? "✓ Known" : "· Available"} ${faction.name} — ${faction.text}`));
+  print(WORLD.flags.faction ? `\nYour pledge: ${FACTIONS[WORLD.flags.faction]?.name}. Use 'chronicle' to revisit the choice.` : "\nChoose one alliance with 'factions join <wayfarers|archivists|wardens>'. Your pledge and its starting gift are permanent for this run.");
+}
+
+function showHideout(arg = "") {
+  const h = WORLD.hideout || (WORLD.hideout = { level: 0, trophies: [] });
+  h.level = Math.max(0, Math.min(3, Number(h.level) || 0));
+  h.trophies ||= [];
+  const upgrade = /^(?:upgrade|improve)$/i.test(String(arg).trim());
+  if (/^rest$/i.test(String(arg).trim())) {
+    if (h.level < 1) { print("Restore the hideout first with 'hideout upgrade'."); return; }
+    if (WORLD.flags.hideoutRestedChapter === STORY.chapter) { print("You have already rested at the hideout this chapter."); return; }
+    WORLD.flags.hideoutRestedChapter = STORY.chapter;
+    WORLD.rested = 1;
+    for (const id of WORLD.companions.recruited || []) WORLD.companions.hp[id] = companionMaxHp(id);
+    if (h.level >= 2) addItem("potion", 1);
+    print(`You rest at the hideout. Companions recover; your next fight starts rested${h.level >= 2 ? " and you collect a garden potion" : ""}.`);
+    return;
+  }
+  if (upgrade) {
+    if (h.level >= 3) { print("Your hideout is fully restored."); return; }
+    const cost = 150 + h.level * 250;
+    if (!removeItem("coin", cost)) return;
+    h.level++;
+    const names = ["A dry bed and a map table", "A herb garden and a companion bunk", "A memory hall with a safehouse beacon"];
+    print(`🏚️ Hideout improved to level ${h.level}: ${names[h.level - 1]}.`);
+    if (h.level === 1) WORLD.flags.hideoutRest = true;
+    if (h.level === 2) WORLD.flags.hideoutGarden = true;
+    if (h.level === 3) WORLD.flags.hideoutBeacon = true;
+    recordStoryMoment(`Restored hideout upgrade ${h.level}: ${names[h.level - 1]}.`, "discovery", `hideout:${h.level}`);
+    return;
+  }
+  print("\n🏚️ THE WAYFARER'S HIDEOUT");
+  print(`Restoration: ${h.level}/3 · displayed keepsakes: ${(h.trophies || []).length}`);
+  print(h.level ? "Your hideout is a safe place to rest and review the people you have helped." : "An abandoned roadside shelter could become a place for your allies to return to.");
+  if (h.level < 3) print(`Type 'hideout upgrade' to restore the next room (${150 + h.level * 250} coin).`);
+  if (h.level >= 1) print("Type 'hideout rest' once per chapter to restore companions and gain a rested bonus before your next fight.");
+  if (WORLD.flags.hideoutBeacon) print("The memory hall beacon marks every completed region's return route on your map.");
+  if (h.trophies.length) print("Keepsakes: " + h.trophies.map(title).join(" · "));
+}
+
+function showLore(arg = "") {
+  const query = String(arg).trim().toLowerCase();
+  const rows = [];
+  (STORY.journal || []).forEach((e) => rows.push({ label: `Chapter ${e.chapter}: ${e.text}`, key: `${e.text} ${e.value} ${e.kind}` }));
+  Object.entries(WORLD.bestiary || {}).forEach(([name, row]) => {
+    if (row.encounters || row.defeats) rows.push({ label: `Bestiary — ${title(name)}: ${row.encounters} encounter(s), ${row.defeats} defeat(s); ${[...(row.phases || []), ...(row.moves || [])].join(", ") || "details still unknown"}.`, key: name });
+  });
+  const knownQuests = Object.entries(WORLD.quests || {}).filter(([, q]) => q.status === "done").map(([id]) => ({ label: `Quest — ${SIDE_QUESTS[id]?.name || title(id)} completed.`, key: id }));
+  rows.push(...knownQuests);
+  const found = query ? rows.filter((row) => row.key.toLowerCase().includes(query) || row.label.toLowerCase().includes(query)) : rows.slice(-16);
+  print("\n📚 LORE INDEX" + (query ? ` · search: ${query}` : ""));
+  if (!found.length) print("No discovered lore matches. Explore, meet people, and study foes to fill the index.");
+  else found.slice(-30).forEach((row) => print("• " + row.label));
+  print("Search with 'lore <word>' to narrow the index.");
+}
+
+function showDialogueLog(arg = "") {
+  const query = String(arg).trim().toLowerCase();
+  const lines = (WORLD.dialogueLog || []).filter((line) => !query || String(line).toLowerCase().includes(query));
+  print("\n💬 DIALOGUE HISTORY" + (query ? ` · ${query}` : ""));
+  if (!lines.length) print("No saved dialogue matches. Story text is kept in the recent session history.");
+  else lines.slice(-36).forEach((line) => print(line));
+}
+
+function showCampaignRecord() {
+  const kills = Object.values(STORY.kills || {}).reduce((sum, count) => sum + count, 0);
+  const discovered = Object.values(WORLD.bestiary || {}).filter((row) => row.encounters > 0).length;
+  const completed = Object.values(WORLD.quests || {}).filter((q) => q.status === "done").length;
+  const keepsakes = Object.values(WORLD.flags.returnedRegions || {}).filter(Boolean).length;
+  print("\n📊 CAMPAIGN RECORD");
+  print(`Chapter ${STORY.chapter + 1}/${STORY_CHAPTERS.length} · Level ${PLAYER.level} · ${PLAYER.xp} XP · ${inventory.coin || 0} coin`);
+  print(`Enemies defeated: ${kills} · species studied: ${discovered}/${Object.keys(monsters).length} · side quests: ${completed}/${Object.keys(SIDE_QUESTS).length}`);
+  print(`Companions recruited: ${(WORLD.companions.recruited || []).length} · total kills: ${WORLD.totalKills || 0} · keepsakes found: ${keepsakes}/${REGION_KEEPSAKES.length}`);
+  print(`Ending: ${STORY.ending ? title(STORY.ending) : "not chosen"} · New Game+: ${PLAYER.ngPlus || 0} · faction: ${FACTIONS[WORLD.flags.faction]?.name || "none"}`);
+  print(`Routes: ${(WORLD.flags.routeChoices || []).filter((x) => x === "safe").length} safe / ${(WORLD.flags.routeChoices || []).filter((x) => x === "risky").length} risky · hideout level: ${WORLD.hideout?.level || 0}`);
+}
+
+async function trainingMode() {
+  if (WORLD.dungeonRun?.active || WORLD.towerRun?.active || WORLD.raidRun?.active || WORLD.challengeRun?.active) { print("Finish your current expedition before starting practice."); return; }
+  print("\n🎯 TRAINING CONSTRUCT");
+  const s = getStats();
+  print(`Level ${PLAYER.level} · ${s.max_hp} max HP · ${s.damage} bonus damage · ${maxEnergy()} max energy.`);
+  print("Practice the current build against any discovered ordinary foe with 'fight <enemy>'. Training mode applies to the next fight only; it grants no XP, drops, quest credit, or death penalty.");
+  const discovered = Object.keys(STORY.kills || {}).filter((name) => STORY.kills[name] > 0 && monsters[name] && monsters[name].chance > 0);
+  if (!discovered.length) { print("Defeat an ordinary foe first to unlock a safe practice match."); return; }
+  discovered.forEach((name, i) => print(`${i + 1}. ${title(name)}`));
+  const raw = (await input("Choose a training opponent by name or number (blank cancels): ")).trim().toLowerCase();
+  if (!raw) return;
+  const name = /^\d+$/.test(raw) ? discovered[Number(raw) - 1] : discovered.find((item) => item.includes(raw));
+  if (!name) { print("That foe has not been discovered."); return; }
+  await runPracticeFight(name);
+}
+
+async function practiceBoss(arg = "") {
+  if (WORLD.dungeonRun?.active || WORLD.towerRun?.active || WORLD.raidRun?.active || WORLD.challengeRun?.active) { print("Finish your current expedition before starting boss practice."); return; }
+  const bosses = Object.keys(BOSS_CH).filter((name) => (STORY.kills[name] || 0) > 0 && (STORY.chapter >= BOSS_CH[name] || STORY.ending));
+  if (!bosses.length) { print("Defeat a story boss first; then you can rehearse it here safely."); return; }
+  let name = String(arg).trim().toLowerCase();
+  if (!name) {
+    print("\n⚔️ BOSS PRACTICE");
+    bosses.forEach((boss, i) => print(`${i + 1}. ${title(boss)}`));
+    name = (await input("Choose a defeated boss (name or number; blank cancels): ")).trim().toLowerCase();
+  }
+  if (!name) return;
+  const boss = /^\d+$/.test(name) ? bosses[Number(name) - 1] : bosses.find((candidate) => candidate.includes(name));
+  if (!boss || !bosses.includes(boss)) { print("You can only practice story bosses you have already defeated."); return; }
+  await runPracticeFight(boss);
+}
+
+async function runPracticeFight(name) {
+  const saved = {
+    inventory: { ...inventory }, usedCombatItem: WORLD.usedCombatItem, rested: WORLD.rested,
+    companionsHp: { ...(WORLD.companions.hp || {}) }, companionsAffinity: { ...(WORLD.companions.affinity || {}) },
+    companionsPersonal: JSON.parse(JSON.stringify(WORLD.companions.personal || {})),
+    fracture: STORY.fracture, storyFlags: new Set(STORY.flags), storySeen: new Set(STORY.seen),
+    kills: { ...STORY.kills }, journal: [...(STORY.journal || [])], ending: STORY.ending,
+  };
+  WORLD.flags.practiceMode = true;
+  try {
+    await fightMonster(name);
+  } finally {
+    inventory = saved.inventory;
+    WORLD.usedCombatItem = saved.usedCombatItem;
+    WORLD.rested = saved.rested;
+    WORLD.companions.hp = saved.companionsHp;
+    WORLD.companions.affinity = saved.companionsAffinity;
+    WORLD.companions.personal = saved.companionsPersonal;
+    STORY.fracture = saved.fracture; STORY.flags = saved.storyFlags; STORY.seen = saved.storySeen;
+    STORY.kills = saved.kills; STORY.journal = saved.journal; STORY.ending = saved.ending;
+    WORLD.flags.practiceMode = false;
+    autosave();
+  }
+}
+
+async function companionOrder(f) {
+  if (!f || typeof f !== "object") {
+    print("During combat choose action 10 (or type 'companion') to give your ally an attack, guard, or heal order.");
+    return;
+  }
+  const id = WORLD.companions.active?.[0];
+  if (!id) { print("No companion is active. Choose one in 'party'."); return; }
+  const hp = WORLD.companions.hp[id] ?? companionMaxHp(id);
+  if (hp <= 0) { print(`${COMPANION_DEFS[id].name} is down and cannot take an order.`); return; }
+  print(`\n🗣️ ${COMPANION_DEFS[id].name}: 1. Attack · 2. Guard · 3. Heal`);
+  const raw = (await input("Order (attack/guard/heal): ")).trim().toLowerCase();
+  f.companionOrdered = true;
+  const target = livingEnemies(f)[0];
+  if (["1", "attack", "strike"].includes(raw) && target) {
+    const damage = Math.max(1, randint(...companionDamage(id)) + Math.floor(PLAYER.level / 2));
+    target.hp -= damage;
+    print(`${COMPANION_DEFS[id].name} follows your order and hits ${target.name} for ${damage}.`);
+  } else if (["2", "guard", "defend"].includes(raw)) {
+    f.effects = applyStatus(f.effects, { type: "fortified", chance: 100, turns: 2, damage: 0 }, "You") || f.effects;
+    print(`${COMPANION_DEFS[id].name} takes a guarding stance beside you.`);
+  } else if (["3", "heal", "support"].includes(raw)) {
+    const amount = Math.max(1, Math.floor(f.player_max_hp * 0.14) + Math.floor((WORLD.companions.affinity[id] || 0) / 20));
+    const before = f.player_hp;
+    f.player_hp = Math.min(f.player_max_hp, f.player_hp + amount);
+    WORLD.companions.hp[id] = Math.max(0, hp - Math.ceil(amount / 3));
+    print(`${COMPANION_DEFS[id].name} tends your wounds. You recover ${f.player_hp - before} HP; your companion spends ${Math.ceil(amount / 3)} HP.`);
+  } else print("Order cancelled.");
+}
+
+async function worldPuzzle() {
+  const id = `puzzle_${STORY.chapter}`;
+  if (WORLD.flags[id]) { print("This region's old mechanism has already been solved."); return; }
+  const puzzles = [
+    { r: ["east", "2"], clue: "Three stones point west, north, and east. The inscription says: 'I face opposite the western stone.' Choose the direction." },
+    { r: ["north", "1"], clue: "A scout left a compass with one broken arm. The only uncracked mark is north. Choose a direction." },
+    { r: ["3", "third"], clue: "The ash inscription reads: 'First the witness, then the keeper, then the flame.' How many is the flame?" },
+  ];
+  const puzzle = puzzles[STORY.chapter % puzzles.length];
+  print("\n🧩 REGIONAL PUZZLE"); print(puzzle.clue);
+  const answer = (await input("Your answer (or blank to leave it): ")).trim().toLowerCase();
+  if (!answer) return;
+  if (puzzle.r.includes(answer)) {
+    WORLD.flags[id] = true; WORLD.flags.puzzlesSolved = (WORLD.flags.puzzlesSolved || 0) + 1;
+    gainFactionStanding("archivists");
+    const reward = ["coin", "ancient crystal", "star glass"][STORY.chapter % 3];
+    addItem(reward, reward === "coin" ? 60 : 1);
+    print("The mechanism opens. A sealed cache was hidden behind it.");
+    recordStoryMoment(`Solved a regional mechanism in ${curChapter().area}.`, "discovery", id);
+  } else print("The mechanism stays still. You can return after considering the clue.");
+}
+
+const REGION_KEEPSAKES = [
+  ["moon herb", "Mira's first trail marker still hangs from the Wayrest waystone."],
+  ["clockwork spring", "A Frontier signal lantern has kept one small part safe for you."],
+  ["resonant bell", "The Cathedral's lowest bell left a clear shard of its first note."],
+  ["void crystal", "The Null Expanse releases a piece of the road it once erased."],
+  ["signal wire", "A half-built doorway in the Unfinished Room contains useful wire."],
+  ["star glass", "At the world's edge, a fallen star has left a bright splinter."],
+  ["ancient crystal", "The Archive returns a crystal from a life it never indexed."],
+  ["oath fragment", "A retired Hollow knight leaves you a fragment of their old oath."],
+  ["ink fragment", "A struck-out sentence in the Margin refuses to disappear."],
+  ["soul shard", "A trace of the Blank Page holds together long enough to collect."],
+  ["last line tonic", "The final autosave leaves a tonic whose label has not been erased."],
+];
+
+async function revisitRegion(arg = "") {
+  const available = STORY_CHAPTERS.filter((ch) => ch.id < STORY.chapter || (ch.id === STORY.chapter && STORY.flags.has(`chapter_${ch.id}_complete`)));
+  if (!available.length) { print("No region has been completed yet. Advance the story, then return for its keepsake."); return; }
+  let query = String(arg).trim().toLowerCase();
+  if (!query) {
+    print("\n🧭 COMPLETED REGIONS");
+    available.forEach((ch, i) => print(`${i + 1}. ${ch.area} — ${ch.title}`));
+    query = (await input(`Return to which region? [${available.map((_, i) => i + 1).join("/")}/0]: `)).trim().toLowerCase();
+  }
+  if (["0", "back", "cancel"].includes(query)) return;
+  const ch = /^\d+$/.test(query) ? available[Number(query) - 1] : available.find((entry) => entry.area.toLowerCase().includes(query) || entry.title.toLowerCase().includes(query));
+  if (!ch) { print("That region is not unlocked for revisiting."); return; }
+  const keepsake = REGION_KEEPSAKES[ch.id];
+  const visited = WORLD.flags.returnedRegions || (WORLD.flags.returnedRegions = {});
+  print(`\n🗺️ RETURNING TO ${ch.area.toUpperCase()}`);
+  print(keepsake[1]);
+  if (!visited[ch.id]) {
+    visited[ch.id] = true;
+    WORLD.hideout ||= { level: 0, trophies: [] };
+    WORLD.hideout.trophies ||= [];
+    if (!WORLD.hideout.trophies.includes(keepsake[0])) WORLD.hideout.trophies.push(keepsake[0]);
+    if (WORLD.hideout.trophies.length >= REGION_KEEPSAKES.length && !WORLD.flags.keepsakeSetReward) {
+      WORLD.flags.keepsakeSetReward = true;
+      addItem("star glass", 5);
+      addItem("coin", 500);
+      print("🏆 Every regional keepsake is together at the hideout. The complete set earns 5 star glass and 500 coin.");
+    }
+    addItem(keepsake[0], ch.id < 2 ? 2 : 1);
+    print(`You recover a keepsake: ${title(keepsake[0])}. The road feels a little less distant now.`);
+    recordStoryMoment(`Returned to ${ch.area} and recovered ${title(keepsake[0])}.`, "discovery", keepsake[0]);
+  } else {
+    const history = STORY.journal.filter((entry) => entry.chapter === ch.id && entry.kind === "choice").slice(-1)[0];
+    print(history ? `The place remembers your earlier choice: ${history.text}` : "The region is quiet. Your keepsake is safely in your pack.");
+    print("There is nothing else to recover here today.");
+  }
 }
 
 async function showBondStory(arg = "") {
@@ -1412,9 +1773,19 @@ function showAchievements() {
   print("\n🏆");
   loadMetaAchievements();
   Object.entries(ACHIEVEMENTS).forEach(([id, a]) => {
-    const got = META.achievements[id];
-    print(`${got ? "✓" : "·"} ${a.name} — ${a.desc}`);
+    let got = META.achievements[id];
+    const reward = ACHIEVEMENT_REWARDS[id] || { desc: "50 coin" };
+    if (got && !(typeof got === "object" && got.rewardClaimed)) {
+      got = typeof got === "object" ? got : { at: Date.now() };
+      got.rewardClaimed = true;
+      META.achievements[id] = got;
+      if (ACHIEVEMENT_REWARDS[id]) ACHIEVEMENT_REWARDS[id].give();
+      else addItem("coin", 50);
+      print(`🎁 Claimed the ${reward.desc} reward for ${a.name}.`);
+    }
+    print(`${got ? "✓" : "·"} ${a.name} — ${a.desc} · Reward: ${reward.desc}`);
   });
+  saveMetaAchievements();
 }
 
 async function showSettingsMenu() {
@@ -1423,8 +1794,10 @@ async function showSettingsMenu() {
   print(`1. 🎚️ Difficulty: ${SETTINGS.difficulty}`);
   print(`2. 📜 Combat log: ${SETTINGS.combatLog ? "on" : "off"}`);
   print(`3. 🎨 Text colour: ${SETTINGS.textColor}`);
-  print("4. Sound: use the Sound button in the title bar");
-  print("5. Text speed: use the Text button in the title bar");
+  print(`4. 🔎 Large text: ${SETTINGS.largeText ? "on" : "off"}`);
+  print(`5. ✨ Reduced motion: ${SETTINGS.reducedMotion ? "on" : "off"}`);
+  print("6. Sound volume: use the volume slider in the title bar");
+  print("7. Text speed: use the Text button in the title bar");
   print("0. Back");
   const raw = (await input("Change which setting? ")).trim().toLowerCase();
   if (["0", "back", ""].includes(raw)) return;
@@ -1446,6 +1819,12 @@ async function showSettingsMenu() {
       saveSettings();
       print("Colour updated.");
     }
+  } else if (["4", "large", "large text"].includes(raw)) {
+    SETTINGS.largeText = !SETTINGS.largeText; saveSettings();
+    print(`Large text ${SETTINGS.largeText ? "on" : "off"}.`);
+  } else if (["5", "motion", "reduced motion"].includes(raw)) {
+    SETTINGS.reducedMotion = !SETTINGS.reducedMotion; saveSettings();
+    print(`Reduced motion ${SETTINGS.reducedMotion ? "on" : "off"}.`);
   }
 }
 
@@ -1456,6 +1835,14 @@ async function townMenu() {
   print(`🏘️  ${t.name.toUpperCase()}`);
   print("=".repeat(62));
   print(t.blurb);
+  const safeRoutes = (WORLD.flags.routeChoices || []).filter((route) => route === "safe").length;
+  const riskyRoutes = (WORLD.flags.routeChoices || []).filter((route) => route === "risky").length;
+  if (WORLD.flags.safeRoadNetwork) print('A courier from the supply network leaves a note: "The safe roads connect now. We can send more than news."');
+  else if (riskyRoutes >= 3) print('The guard watches the road anxiously: "Those shortcuts are leaving fractures behind. We have posted extra sentries."');
+  else if (safeRoutes > riskyRoutes) print('Travelers trade stories about your safer routes. The innkeeper offers you a warm welcome.');
+  else if (riskyRoutes > safeRoutes) print('Merchants have begun asking what you found beyond the dangerous shortcuts.');
+  if (WORLD.flags.frontier_scout_guided) print("A scout's signal flag hangs above the town gate, marking a safer trail for other travelers.");
+  if (STORY.ending) print(`The people here still tell the story of the ${title(STORY.ending)} ending.`);
   print("\n🛏️ 1. Innkeeper — rest and recover");
   print("🛍️ 2. Merchant — buy and sell supplies");
   print("🔨 3. Blacksmith — upgrade equipment");
@@ -1584,6 +1971,7 @@ async function trainerNpc() {
 }
 
 async function raidBoard() {
+  if (WORLD.challengeRun?.active) { print("Finish or retire from the challenge trial before starting a raid."); return; }
   const upgrades = WORLD.flags.raidUpgrades || {};
   const levels = { vigor: Math.max(0, upgrades.vigor || 0), edge: Math.max(0, upgrades.edge || 0), core: Math.max(0, upgrades.core || 0) };
   const tokens = Math.max(0, WORLD.flags.raidTokens || 0);
@@ -2322,7 +2710,64 @@ async function startNewGamePlus() {
   storyIntro();
 }
 
+async function runChallenge(arg = "") {
+  if (WORLD.dungeonRun?.active || WORLD.towerRun?.active || WORLD.raidRun?.active) {
+    print("Finish your current expedition before entering the challenge trial.");
+    return;
+  }
+  const rules = {
+    glass: { title: "Glass Trial", text: "Your maximum HP is reduced to 65%; opponents hit harder." },
+    iron: { title: "Iron Trial", text: "Opponents have much more HP; your attacks deal 25% less damage." },
+    frenzy: { title: "Frenzy Trial", text: "Opponents grow stronger with every round and hit much harder." },
+  };
+  if (!WORLD.challengeRun?.active) {
+    let rule = String(arg).trim().toLowerCase();
+    if (!rules[rule]) {
+      print("\n🏅 CHALLENGE TRIAL — survive three consecutive fights for a Stormglass Charm.");
+      print("glass. " + rules.glass.text);
+      print("iron. " + rules.iron.text);
+      print("frenzy. " + rules.frenzy.text);
+      rule = (await input("Choose a rule [glass/iron/frenzy]: ")).trim().toLowerCase();
+    }
+    if (!rules[rule]) { print("Choose glass, iron, or frenzy to start the trial."); return; }
+    const pool = Object.keys(monsters).filter((name) => monsters[name].chance > 0 && PLAYER.level >= enemyRequiredLevel(name) && (!monsters[name].secret_flag || STORY.flags.has(monsters[name].secret_flag)));
+    if (!pool.length) { print("No opponents are available at your level yet."); return; }
+    const stats = getStats();
+    WORLD.challengeRun = { active: true, round: 1, hp: rule === "glass" ? Math.max(1, int(stats.max_hp * 0.65)) : stats.max_hp, energy: Math.min(C.START_ENERGY, maxEnergy()), rule, pending: false };
+    print(`\n${rules[rule].title}: ${rules[rule].text}`);
+  }
+  const run = WORLD.challengeRun;
+  const pool = Object.keys(monsters).filter((name) => monsters[name].chance > 0 && PLAYER.level >= enemyRequiredLevel(name) && (!monsters[name].secret_flag || STORY.flags.has(monsters[name].secret_flag)));
+  while (run.round <= 3) {
+    if (run.hp <= 0 || run.abandoned) {
+      WORLD.challengeRun = null;
+      print("The challenge trial ends here. Rest, regroup, and try another rule when you are ready.");
+      return;
+    }
+    const foe = run.pending ? run.pendingFoe : wchoice(pool, pool.map((name) => monsters[name].chance));
+    run.pending = true;
+    run.pendingFoe = foe;
+    print(`\n⚔️ TRIAL ROUND ${run.round}/3 · ${title(run.rule)}`);
+    await fightMonster(foe);
+    if (run.hp <= 0 || run.abandoned) continue;
+    run.round++;
+    run.pending = false;
+    delete run.pendingFoe;
+    if (run.round <= 3) print(`The next challenger approaches. You carry ${run.hp} HP and ${run.energy} energy forward.`);
+  }
+  WORLD.challengeRun = null;
+  WORLD.flags.challengeClears = (WORLD.flags.challengeClears || 0) + 1;
+  const coins = 150 + PLAYER.level * 20;
+  addItem("coin", coins);
+  grantXp(150 + PLAYER.level * 25);
+  const charmPrize = !inventory["stormglass charm"];
+  if (charmPrize) addItem("stormglass charm", 1);
+  else addItem("star glass", 3);
+  print(`🏆 Trial cleared! Your prize: ${coins} coin and ${charmPrize ? "a Stormglass Charm" : "3 star glass"}.`);
+}
+
 async function runDungeon() {
+  if (WORLD.challengeRun?.active) { print("Finish or retire from the challenge trial before entering the dungeon."); return; }
   if (WORLD.towerRun?.active) {
     print("Finish or retire from your current tower run before entering the dungeon.");
     return;
@@ -2431,6 +2876,7 @@ async function runDungeon() {
 }
 
 async function runTower() {
+  if (WORLD.challengeRun?.active) { print("Finish or retire from the challenge trial before entering the tower."); return; }
   if (WORLD.dungeonRun?.active) {
     print("Finish the current dungeon run before entering the tower.");
     return;
@@ -2535,6 +2981,7 @@ async function chooseRoute() {
     if (["safe", "road", "s"].includes(choice)) {
       WORLD.flags.routeChoices = WORLD.flags.routeChoices || [];
       WORLD.flags.routeChoices.push("safe");
+      gainFactionStanding("wayfarers");
       if (WORLD.flags.routeChoices.filter((route) => route === "safe").length === 3) {
         WORLD.flags.safeRoadNetwork = true;
         print("Your third safe road connects a supply network. Future safe routes will offer stronger recovery.");
@@ -2561,6 +3008,7 @@ async function chooseRoute() {
       const foe = wchoice(pool, pool.map((name) => monsters[name].chance));
       WORLD.flags.routeChoices = WORLD.flags.routeChoices || [];
       WORLD.flags.routeChoices.push("risky");
+      gainFactionStanding("wardens");
       if (WORLD.flags.routeChoices.filter((route) => route === "risky").length === 3) {
         WORLD.flags.fractureTrail = true;
         print("Your third shortcut leaves a fracture trail. The map marks these dangerous paths for future journeys.");

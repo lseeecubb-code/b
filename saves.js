@@ -113,6 +113,14 @@ function applySave({ inv, eq, pl, st, world }) {
         personal: { ...base.companions.personal, ...(world.companions?.personal || {}) },
       },
       flags: { ...base.flags, ...(world.flags || {}) },
+      hideout: {
+        level: Math.max(0, Math.min(3, parseInt(world.hideout?.level) || 0)),
+        trophies: Array.isArray(world.hideout?.trophies) ? [...new Set(world.hideout.trophies.filter((name) => typeof name === "string").map((name) => name.slice(0, 60)))].slice(0, 40) : [],
+      },
+      dialogueLog: Array.isArray(world.dialogueLog) ? world.dialogueLog.filter((line) => typeof line === "string").slice(-240).map((line) => line.slice(0, 240)) : [],
+      weaponMastery: world.weaponMastery && typeof world.weaponMastery === "object"
+        ? Object.fromEntries(Object.entries(world.weaponMastery).filter(([name]) => ITEMS[name]).map(([name, uses]) => [name, Math.max(0, Math.min(100000, parseInt(uses) || 0))]))
+        : {},
       quests: world.quests && typeof world.quests === "object" ? world.quests : {},
       upgrades: world.upgrades && typeof world.upgrades === "object" ? world.upgrades : {},
       rarity: world.rarity && typeof world.rarity === "object" ? world.rarity : {},
@@ -175,6 +183,14 @@ function applySave({ inv, eq, pl, st, world }) {
       : null;
   }
   if (typeof WORLD !== "undefined") {
+    WORLD.flags.practiceMode = false;
+    const factionIds = ["wayfarers", "archivists", "wardens"];
+    WORLD.flags.faction = factionIds.includes(WORLD.flags.faction) ? WORLD.flags.faction : null;
+    const factionStanding = WORLD.flags.factionStanding && typeof WORLD.flags.factionStanding === "object" ? WORLD.flags.factionStanding : {};
+    WORLD.flags.factionStanding = Object.fromEntries(factionIds.map((id) => [id, Math.max(0, Math.min(3, parseInt(factionStanding[id]) || 0))]));
+    WORLD.flags.afterstoryStep = Math.max(0, Math.min(3, parseInt(WORLD.flags.afterstoryStep) || 0));
+    WORLD.flags.afterstoryChoice = ["share", "keep"].includes(WORLD.flags.afterstoryChoice) ? WORLD.flags.afterstoryChoice : null;
+    WORLD.flags.afterstoryShelter = ["welcome", "quiet"].includes(WORLD.flags.afterstoryShelter) ? WORLD.flags.afterstoryShelter : null;
     WORLD.flags.raidTokens = Math.max(0, parseInt(WORLD.flags.raidTokens) || 0);
     WORLD.flags.raidUpgrades = {
       vigor: Math.max(0, Math.min(5, parseInt(WORLD.flags.raidUpgrades?.vigor) || 0)),

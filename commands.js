@@ -12,30 +12,45 @@ function openGitHubRepository() {
 }
 const COMMANDS = {
   explore: [exploreStory, "explore", "Travel the current region, find encounters, and advance the campaign"],
+  revisit: [revisitRegion, "revisit [region]", "Return to completed regions to find one-time keepsakes"],
   map: [showWorldMap, "map", "View regions, discoveries, and your tracked objective"],
   route: [chooseRoute, "route", "Choose a safe road or a risky shortcut through the current region"],
   story: [showStory, "story", "Review your chapter, objective, and progress"],
   chronicle: [showCampaignChronicle, "chronicle", "Read story memories and major choices from this run"],
   replay: [replayChapter, "replay [chapter]", "Revisit an unlocked chapter memory without changing progress"],
   guide: [showProgressionGuide, "guide", "See your current objective, level targets, and campaign route"],
+  tutorial: [showTutorial, "tutorial [combat|exploration|saves]", "Learn the basic controls and game systems"],
   ending: [showEnding, "ending", "Choose the fate of the world after the final boss"],
+  afterstory: [showAfterstory, "afterstory", "Play a short postgame chapter unlocked by completing an ending"],
   fight: [fightCommand, "fight [enemy]", "Challenge a discovered foe or enter a random battle"],
   dungeon: [runDungeon, "dungeon", "Enter a five-floor gauntlet with a rest-or-push choice between floors"],
+  challenge: [runChallenge, "challenge [glass|iron|frenzy]", "Survive three fights under a custom rule for a special reward"],
   tower: [runTower, "tower", "Fight endless scaling waves, bank rewards, and set a browser leaderboard score"],
   raids: [raidBoard, "raids", "Choose a regional raid and spend raid tokens on permanent upgrades"],
   bestiary: [showBestiary, "bestiary [enemy]", "Study enemy moves, resistances, drops, and encounter odds"],
   journal: [showBestiaryJournal, "journal [enemy]", "Review enemy encounters, forms, and moves you have discovered"],
   inventory: [showInventory, "inventory [category]", "Browse your carried gear, supplies, and materials"],
+  gear: [showGearScreen, "gear", "View an equipment layout with your equipped items and set progress"],
+  dialogue: [showDialogueLog, "dialogue [search]", "Review recent story text and search the dialogue history"],
   stats: [showStats, "stats", "Review attributes, combat values, and equipped gear"],
+  origin: [chooseOrigin, "origin [vanguard|duelist|scout|scholar]", "Choose a permanent character background with a small starting trait"],
+  puzzle: [worldPuzzle, "puzzle", "Investigate the current region's optional riddle and hidden cache"],
   skills: [showSkills, "skills", "Review weapon techniques, perks, and known spells"],
   allocate: [allocateStats, "allocate [1-4|stat] [points]", "Allocate stat points by number or name; optionally spend several at once"],
   perks: [showPerks, "perks", "Browse the Warrior, Rogue, and Mage perk paths"],
   magic: [showMagic, "magic", "Review spells that spend Energy in combat"],
   party: [showParty, "party", "Review your companions and choose who fights beside you"],
+  order: [companionOrder, "order [attack|guard|heal]", "Give your active companion a tactical order in battle"],
   bond: [showBondStory, "bond [companion]", "Share a personal story with a companion as your bond grows"],
   track: [trackQuest, "track [main|quest|none]", "Pin an objective to your map and story log"],
   quests: [showQuestLog, "quests", "Track side quests, objectives, and rewards"],
   achievements: [showAchievements, "achievements", "Celebrate milestones earned along the way"],
+  factions: [showFactions, "factions [join <name>]", "Build alliances with the people shaping the fractured world"],
+  hideout: [showHideout, "hideout [upgrade]", "Improve your safehouse and display recovered trophies"],
+  lore: [showLore, "lore [search]", "Search discovered campaign memories and enemy knowledge"],
+  record: [showCampaignRecord, "record", "Review a detailed record of this campaign"],
+  practice: [practiceBoss, "practice [boss]", "Rehearse a previously defeated story boss without rewards or risk"],
+  training: [trainingMode, "training", "Practice your build against a training construct"],
   settings: [showSettingsMenu, "settings", "Adjust difficulty, combat log, and display preferences"],
   save: [() => autosave(true), "save", "Save your adventure immediately"],
   saves: [saveSlotsMenu, "saves", "Manage your three local save slots"],
@@ -77,11 +92,11 @@ const COMMANDS = {
   ],
 };
 const MENU = [
-  ["📖", ["explore", "map", "route", "story", "chronicle", "replay", "guide", "ending"]],
-  ["⚔️", ["fight", "dungeon", "tower", "raids", "bestiary", "journal"]],
-  ["🧙", ["inventory", "stats", "skills", "allocate", "perks", "magic", "info", "equip", "unequip"]],
+  ["📖", ["explore", "revisit", "map", "route", "story", "chronicle", "replay", "guide", "tutorial", "ending", "afterstory"]],
+  ["⚔️", ["fight", "practice", "training", "dungeon", "challenge", "tower", "raids", "bestiary", "journal"]],
+  ["🧙", ["inventory", "gear", "stats", "origin", "skills", "allocate", "perks", "magic", "info", "equip", "unequip"]],
   ["🔨", ["craft", "recipes", "shop", "buy", "sell"]],
-  ["🏕️", ["town", "quests", "track", "party", "bond", "achievements", "settings", "save", "saves", "completed", "ngplus", "event", "github", "copy", "load", "menu", "quit"]],
+  ["🏕️", ["town", "hideout", "factions", "quests", "track", "party", "order", "bond", "lore", "dialogue", "record", "puzzle", "achievements", "settings", "save", "saves", "completed", "ngplus", "event", "github", "copy", "load", "menu", "quit"]],
 ];
 const ORDER = MENU.flatMap((x) => x[1]),
   cnum = (n) => ORDER.indexOf(n) + 1;
@@ -157,6 +172,10 @@ async function doFunction(line) {
   const n = resolveCommand(m[1]);
   if (!n) {
     print("🤔 I don't recognize that command. Type 'menu' to browse your options.");
+    return;
+  }
+  if (WORLD.challengeRun?.active && !["challenge", "quit"].includes(n)) {
+    print("You are in a challenge trial. Resume with 'challenge' or leave with 'quit'.");
     return;
   }
   await COMMANDS[n][0](m[2]);

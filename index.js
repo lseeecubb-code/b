@@ -49,11 +49,18 @@ function write(text) {
 // The game's print(): every line goes through the typewriter, which paces it (during battle)
 // and sends it to the effects system for colors, shakes and sounds.
 function print(...args) {
-  for (const line of args.join(" ").split("\n")) Typewriter.print(line);
+  const lines = args.join(" ").split("\n");
+  if (typeof WORLD !== "undefined") {
+    if (!Array.isArray(WORLD.dialogueLog)) WORLD.dialogueLog = [];
+    WORLD.dialogueLog.push(...lines.map((line) => String(line).slice(0, 240)));
+    if (WORLD.dialogueLog.length > 240) WORLD.dialogueLog.splice(0, WORLD.dialogueLog.length - 240);
+  }
+  for (const line of lines) Typewriter.print(line);
 }
 
 function autosave(manual = false) {
   try {
+    if (WORLD?.flags?.practiceMode && !manual) return;
     if (typeof WORLD !== "undefined" && WORLD.memories) WORLD.memories.lastSeenAt = Date.now();
     localStorage.setItem(SAVE_KEY, saveCode());
     termStatus.title = "Your adventure is saved automatically.";
