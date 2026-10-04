@@ -1,16 +1,14 @@
-<script src="errorlog.js"></script>
-
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <meta name="theme-color" content="#05050a" />
-    <meta name="description" content="THE LAST SAVE: a terminal story RPG with 2.5D key-driven battles, crafting and a fourth-wall campaign." />
+    <meta name="description" content="THE LAST SAVE: a terminal story RPG with real-time 2.5D battles, crafting and a fourth-wall campaign." />
     <title>THE LAST SAVE</title>
     <link rel="icon" href="icon-image.png" />
     <link rel="stylesheet" href="styles.css?v=20261004-35" />
-    <link rel="stylesheet" href="battle25d.css?v=20261004-02" />
+    <script src="errorlog.js?v=20261005-01"></script>
   </head>
   <body>
     <div class="terminal">
@@ -18,7 +16,7 @@
       <header class="bar">
         <div class="brand-copy">
           <div class="title">THE LAST SAVE</div>
-          <div class="edition">terminal RPG · 2.5D battles</div>
+          <div class="edition">terminal RPG · real-time 2.5D battles</div>
         </div>
         <nav class="toolbar" aria-label="Game settings">
           <button id="speedToggle" type="button">⌨️ Text: Normal</button>
@@ -27,7 +25,6 @@
             <input id="musicVolume" type="range" min="0" max="100" step="1" value="55" aria-label="Music volume" />
             <output id="musicVolumeValue" for="musicVolume">55%</output>
           </label>
-          <button id="controlsButton" type="button">🎮 Controls</button>
           <button id="newGame" type="button">↻ New Game</button>
         </nav>
       </header>
@@ -49,17 +46,16 @@
     <script src="helpers.js?v=20261004-31"></script>
     <script src="playerGear.js?v=20261004-30"></script>
     <script src="crafting.js?v=20261004-30"></script>
-    <script src="combat.js?v=20261004-34"></script>
+    <script src="combat.js?v=20261005-01"></script>
     <script src="story.js?v=20261004-30"></script>
     <script src="saves.js?v=20261004-30"></script>
     <script src="rpgSystems.js?v=20261004-30"></script>
     <script src="commands.js?v=20261004-30"></script>
     <script src="effects.js?v=20261004-34"></script>
     <script src="typewriter.js?v=20261004-30"></script>
-    <script src="index.js?v=20261004-31"></script>
+    <script src="index.js?v=20261005-01"></script>
     <script src="admin.js?v=20261004-30"></script>
-    <!-- 2.5D battle stage (fights only) -->
-    <script src="battle25d.js?v=20261004-02"></script>
-    <script src="battle_controls.js?v=20261004-01"></script>
+    <!-- real-time 2.5D battle stage (exists only during fights) -->
+    <script src="battle25d.js?v=20261005-01"></script>
   </body>
 </html>
