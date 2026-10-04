@@ -1,5 +1,5 @@
 diff --git a/combat.js b/combat.js
-index 83410f6..cfa95d0 100644
+index 83410f6..fa8927d 100644
 --- a/combat.js
 +++ b/combat.js
 @@ -131,6 +131,8 @@ function effLine(e) {
@@ -20,7 +20,20 @@ index 83410f6..cfa95d0 100644
    print(`2. 💥 Heavy attack — deal increased damage; costs ${cn}.`);
    print("3. 🛡️ Guard — reduce damage from the next attack.");
    print("4. 🤺 Parry — deflect a parryable attack and counter.");
-@@ -348,7 +350,7 @@ async function chooseSkill(f) {
+@@ -272,7 +274,11 @@ function showCombatMenu(f) {
+   print("Z. 🗣️ Companion — order your ally to attack, guard, or heal (when available).");
+   print(`0. 🏃 Run away — attempt to flee (${run}% chance).`);
+   print(`X. 🌟 Limit Break — ${f.limitUsed ? "spent this fight" : `${Math.min(100, f.limitGauge || 0)}% charged`}.`);
+-  print("C. 🎯 Choose target · V. 📜 Combat log · F. 🔎 Inspect target · Q/E. Cycle target.");
++  print("C. 🎯 Choose target");
++  print("V. 📜 Combat log");
++  print("F. 🔎 Inspect target");
++  print("Q. ⬅️ Previous target");
++  print("E. ➡️ Next target");
+ }
+ async function chooseItem() {
+   const owned = Object.keys(USABLE_ITEMS).filter((n) => (inventory[n] || 0) > 0);
+@@ -348,7 +354,7 @@ async function chooseSkill(f) {
  // Asks the player for an action and returns it (numbers or names are accepted).
  async function askAction(f) {
    while (true) {
@@ -29,7 +42,7 @@ index 83410f6..cfa95d0 100644
      let a = ACTION_ALIASES[raw];
      if (f.controlGlitchTurns > 0) {
        if (["1", "attack", "a"].includes(raw)) a = "guard";
-@@ -635,6 +637,105 @@ function useLimitBreak(f) {
+@@ -635,6 +641,105 @@ function useLimitBreak(f) {
    }
    if (typeof clog === "function") clog(f, "used Limit Break: World Splitter");
  }
@@ -135,7 +148,7 @@ index 83410f6..cfa95d0 100644
  // Resolves one player strike: hit chance, crits, enemy guard/parry/dodge and the damage dealt.
  function strike(f, o) {
    const name = f.name;
-@@ -674,6 +775,7 @@ function strike(f, o) {
+@@ -674,6 +779,7 @@ function strike(f, o) {
    }
    let dmg = randint(...C.PLAYER_DAMAGE) + f.stats.damage + f.temporary_damage;
    dmg = int(dmg * mult);
@@ -143,7 +156,7 @@ index 83410f6..cfa95d0 100644
    dmg = int(dmg * (f.stats.damage_mult || 1));
    if (WORLD.challengeRun?.active && WORLD.challengeRun.rule === "iron") dmg = int(dmg * 0.75);
    const pmod = typeof effectMods === "function" ? effectMods(f.effects) : { damage: 1 };
-@@ -700,6 +802,7 @@ function strike(f, o) {
+@@ -700,6 +806,7 @@ function strike(f, o) {
    print(`${label} ${ht}`);
    if (typeof clog === "function") clog(f, `${crit ? "CRIT " : ""}${dmg} to ${name}`);
    f.monster_hp -= dmg;
@@ -151,7 +164,7 @@ index 83410f6..cfa95d0 100644
    chargeLimit(f, Math.max(1, int(dmg / 4)));
    const weakness = o.element
      ? Math.max(f.monster.weak?.[o.element] || 0, -(f.monster.resist?.[o.element] || 0))
-@@ -711,7 +814,7 @@ function strike(f, o) {
+@@ -711,7 +818,7 @@ function strike(f, o) {
  function playerAttack(f, heavy = false) {
    const r = strike(f, {
      hit_chance: heavy ? C.HEAVY_HIT : C.ATTACK_HIT,
@@ -160,7 +173,7 @@ index 83410f6..cfa95d0 100644
      atk_type: heavy ? "heavy" : "normal",
      heavy,
    });
-@@ -767,6 +870,7 @@ function useSkill(f, s) {
+@@ -767,6 +874,7 @@ function useSkill(f, s) {
      if (stunChance && percent(stunChance))
        stunEnemy(f, skillStunTurns(s), `   💫 The ${f.name} is stunned and loses its turn!`);
    }
@@ -168,7 +181,7 @@ index 83410f6..cfa95d0 100644
  }
  // Runs the player's turn: asks for an action and carries it out.
  async function playerTurn(f) {
-@@ -778,10 +882,20 @@ async function playerTurn(f) {
+@@ -778,10 +886,20 @@ async function playerTurn(f) {
      let extra;
      [action, extra] = await askAction(f);
      print();
@@ -189,7 +202,7 @@ index 83410f6..cfa95d0 100644
        triggerEnemyEvent(f, action, extra);
        if (f.monster_hp <= 0) break;
        if (r === "crit") {
-@@ -792,7 +906,7 @@ async function playerTurn(f) {
+@@ -792,7 +910,7 @@ async function playerTurn(f) {
          continue;
        }
      } else if (action === "counter") {
@@ -198,7 +211,7 @@ index 83410f6..cfa95d0 100644
          hit_chance: 100,
          mult: 1,
          atk_type: "heavy",
-@@ -801,14 +915,35 @@ async function playerTurn(f) {
+@@ -801,14 +919,35 @@ async function playerTurn(f) {
          ignore_dodge: true,
          skill_name: "counter",
        });
@@ -268,7 +281,7 @@ index 66737e0..1a7d904 100644
      if (hp) {
        const ratio = +hp[5] > 0 ? +hp[4] / +hp[5] : 0;
 diff --git a/index.html b/index.html
-index 1958990..2b7d885 100644
+index 1958990..a71137a 100644
 --- a/index.html
 +++ b/index.html
 @@ -248,6 +248,32 @@
@@ -319,16 +332,17 @@ index 1958990..2b7d885 100644
      <script src="playerGear.js?v=20261004-10"></script>
      <script src="crafting.js?v=20261004-10"></script>
 -    <script src="combat.js?v=20261004-14"></script>
-+    <script src="combat.js?v=20261004-17"></script>
++    <script src="combat.js?v=20261004-18"></script>
      <script src="story.js?v=20261004-13"></script>
      <script src="saves.js?v=20261004-13"></script>
      <script src="rpgSystems.js?v=20261004-13"></script>
      <script src="commands.js?v=20261004-13"></script>
      <!-- terminal UI + start -->
 -    <script src="effects.js?v=20261004-16"></script>
-+    <script src="effects.js?v=20261004-18"></script>
-     <script src="typewriter.js?v=20261003-8"></script>
+-    <script src="typewriter.js?v=20261003-8"></script>
 -    <script src="index.js?v=20261004-12"></script>
++    <script src="effects.js?v=20261004-18"></script>
++    <script src="typewriter.js?v=20261004-9"></script>
 +    <script src="index.js?v=20261004-15"></script>
      <script src="admin.js?v=20261003-8"></script>
    </body>
@@ -419,3 +433,29 @@ index 3fca565..0f2ece4 100644
      termInput.placeholder = "Type a command...";
      write(value + "\n");
      const resolve = pendingInput;
+diff --git a/typewriter.js b/typewriter.js
+index cae57af..b29f053 100644
+--- a/typewriter.js
++++ b/typewriter.js
+@@ -25,6 +25,9 @@ const Typewriter = (() => {
+     // Extra info during battle (HP/energy bars, last move, stance notes, the action menu...):
+     // not instant, but much quicker than the intent text, with a tiny pause between lines.
+     extra: { msPerChar: 6, pause: 50 },
++    // The combat action menu (and other numbered/keyed option lists): near-instant, so the options
++    // pop in almost at once and you can act without waiting for them to type out.
++    menu: { msPerChar: 0, pause: 14 },
+   };
+ 
+   // Lines inside the intent block that are plain numbers/checks rather than story text.
+@@ -34,6 +37,11 @@ const Typewriter = (() => {
+ 
+   // First match wins. Lines that match nothing stay instant.
+   const PACING_RULES = [
++    {
++      // "📋 COMBAT ACTIONS", "1. ⚔️ Attack — ...", "C. 🎯 Choose target", "Q/E. ..." and similar keyed options.
++      tier: "menu",
++      match: /^(📋 COMBAT ACTIONS|(?:[0-9]|[A-Z](?:\/[A-Z])?)\. )/,
++    },
+     {
+       tier: "reaction",
+       match:
