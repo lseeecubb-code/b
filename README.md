@@ -19,6 +19,7 @@ The game runs in the browser and saves progress automatically. Use the **music v
 - **Watch enemies adapt.** Foes build pressure as a fight drags on and enter a stronger last stand below half health. Rare Glimmer-Touched enemies can appear with extra health and a guaranteed special drop.
 - **Hear a dedicated battle soundtrack for every enemy.** Each enemy has its own original looping WAV theme; the game also includes separate tracks for many boss phases.
 - **Shape your character.** Allocate Strength, Agility, Vitality, and Focus; learn spells and perks; preview stat changes before equipping or upgrading weapons, armor, shields, headgear, and trinkets; and craft gear from materials.
+- **Choose a background and master your weapon.** Pick one permanent origin with a small stat bonus. Repeatedly use an equipped weapon to earn up to three mastery ranks and bonus damage while it is equipped.
 - **Keep a campaign chronicle.** Your major discoveries, choices, companions, and ending are saved in the **chronicle**. Use **replay** or **replay [chapter]** to revisit completed chapters with companion memories and see a what-if ending, without changing campaign progress.
 - **Follow the story.** Progress through 11 chapters, finish side quests, meet companions, uncover secrets, and choose an ending. Completed campaigns unlock New Game+.
 - **Read the world map and pin goals.** See visited and future regions, open side trails, and your chosen routes; pin the main story or an active quest with `track`.
@@ -28,6 +29,13 @@ The game runs in the browser and saves progress automatically. Use the **music v
 - **Return for keepsakes.** Revisit completed regions to find one-time collectibles and read how the place remembers your earlier choices. Towns and merchants react to your supply routes and rescue work.
 - **Find New Game+ echoes.** Rare chapter discoveries recall your previous ending and let you turn the memory into a reward or share it with an ally.
 - **Try challenge trials.** Pick Glass, Iron, or Frenzy rules and survive three consecutive fights for a Stormglass Charm or star glass.
+- **Build a home and alliances.** Restore a three-stage hideout, recover keepsakes for its trophy display, rest there once per chapter, and pledge to one faction. Safe roads, risky shortcuts, and solved puzzles build that faction's standing and can unlock a rank reward.
+- **Explore secrets and puzzles.** Use `puzzle` in each region to investigate a one-time riddle and hidden cache. `map` tracks campaign routes and discoveries.
+- **Practice and prepare.** Use `training` against discovered ordinary enemies or `practice` to rehearse defeated story bosses. These fights do not grant rewards or campaign credit. During combat, action 10 lets you order an active companion to attack, guard, or heal.
+- **Review the adventure.** `lore` searches discovered memories and bestiary notes, `dialogue` searches recent on-screen text, `record` summarizes campaign progress, and `gear` shows your equipped loadout.
+- **Finish the story after the ending.** `afterstory` unlocks a short three-part postgame chapter with choices shaped by your ending, faction, hideout, and campaign memories.
+- **Adjust accessibility.** Settings include larger text, reduced motion, color themes, and combat-log preferences.
+- **Earn achievement rewards.** Achievements grant supplies, coin, stat points, or a small default coin reward when first unlocked in the browser.
 - **Take on optional challenges.** Run five-floor dungeons with a rest-or-push decision between floors, climb the endless tower, or discover a five-island raid. Raids have no timer; after an island, continue or leave. Clearing all five islands earns bonus rewards and raid tokens for permanent upgrades.
 - **Explore the Quiet Road in more depth.** Take four linked Wayrest jobs, meet mosslings, burrow rats, and lantern thieves, and choose how to handle an injured courier or fallen waystone. At level 3, finishing the jobs can reveal the optional Mossback Guardian. Those encounters teach early recipes for useful boots, charms, a buckler, and field stew.
 - **Find more stories off the main road.** The Broken Frontier has a scout mission and outrider materials. The Cathedral of Ash has a linked Bellkeeper quest and a hidden bell boss. Later regions hold the Archive's Index Hound, three regional surveys, and the optional Lost Cartographer hunt.
@@ -42,17 +50,26 @@ The game runs in the browser and saves progress automatically. Use the **music v
 | **map** | View campaign regions, active trails, and route history |
 | **route** | Pick a safe road or a risky shortcut once in each chapter |
 | **story** / **guide** | Review the current objective or get progression guidance |
+| **tutorial** | Learn the basics of exploration, combat, and saves |
 | **chronicle** | Review recorded campaign moments |
 | **replay** / **replay [chapter]** | Revisit a completed chapter and view an alternate ending preview |
+| **afterstory** | Play the postgame chapter after choosing an ending |
 | **quests** | View active and completed side quests |
 | **track [main\|quest\|none]** | Pin or clear a campaign/side-quest objective |
 | **bond [companion]** | Share an unlocked companion memory |
 | **fight (enemy name)** | Challenge a discovered enemy when it is unlocked |
 | **bestiary (enemy name)** | Review enemy attacks, accuracy, drops, and weaknesses |
 | **stats** / **allocate** | Review your stats or spend stat points |
+| **origin** / **gear** | Choose a permanent background or inspect your loadout |
 | **inventory** / **equip (item name)** | Manage supplies and gear |
 | **craft (item name) (amount)** / **recipes** | Craft items or browse and track recipes |
 | **party** | Review companions and choose your active ally |
+| **order** | See how to command a companion during combat; action 10 issues the order |
+| **factions** | Review or join one of the three alliances |
+| **hideout [upgrade\|rest]** | Restore the hideout, rest, and display keepsakes |
+| **puzzle** | Try the current region's one-time puzzle |
+| **training** / **practice** | Safely rehearse a discovered foe or defeated boss |
+| **lore** / **dialogue** / **record** | Search discoveries, review recent text, or summarize the campaign |
 | **challenge [glass\|iron\|frenzy]** | Fight three opponents under a custom rule for a special reward |
 | **dungeon** / **tower** / **raids** | Enter an optional combat challenge |
 | **town** | Rest, trade, upgrade equipment, or train |
@@ -82,7 +99,7 @@ Type **story** for your current objective or **guide** for level targets and the
 
 ## Saves and offline play
 
-Progress autosaves in the browser. Use **saves** to manage local slots, or **copy** and **load** to move a save with its code. The tower leaderboard is stored separately in the current browser.
+Progress autosaves in the browser. Use **saves** to manage local slots, or **copy** and **load** to move a save with its code. The tower leaderboard is stored separately in the current browser; scores are not shared online because this game has no server backend.
 
 To play offline, download or clone this repository and keep the project files together. Open **index.html** in a modern browser. The live site is the easiest way to keep browser saves and the tower leaderboard available.
 

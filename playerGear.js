@@ -74,6 +74,27 @@ function equipmentSetProgress() {
   });
 }
 
+function showGearScreen() {
+  print("\n🧍 EQUIPMENT LOADOUT");
+  const row = (slot) => `${SLOT_TITLES[slot].padEnd(15)} ${equipment[slot] ? title(equipment[slot]) : "— empty —"}`;
+  print("                 [ " + (equipment.head ? title(equipment.head) : "Head") + " ]");
+  print("                 /|\\");
+  print("  " + row("offhand") + "   " + row("weapon"));
+  print("                 / \\");
+  print("  " + row("armor"));
+  print("  " + row("feet") + "   " + row("trinket"));
+  const stats = getStats();
+  print(`\nHP ${stats.max_hp} · damage +${stats.damage} · defense ${stats.defense} · guard ${Math.round(stats.guard * 100)}% · energy ${maxEnergy()}`);
+  if (equipment.weapon) {
+    const uses = WORLD.weaponMastery?.[equipment.weapon] || 0;
+    const rank = uses >= 50 ? 3 : uses >= 25 ? 2 : uses >= 10 ? 1 : 0;
+    print(`Weapon mastery: ${title(equipment.weapon)} · rank ${rank}/3 · ${uses} uses`);
+  }
+  const sets = equipmentSetProgress().filter((set) => set.count > 0);
+  if (sets.length) print("Set progress: " + sets.map((set) => `${title(set.name)} ${set.count}/${set.target}${set.active.length ? " (bonus active)" : ""}`).join(" · "));
+  else print("No equipment set bonuses active yet.");
+}
+
 function equipmentSetFor(item) {
   return Object.entries(EQUIPMENT_SETS).find(([, set]) => set.pieces.includes(item)) || null;
 }
@@ -133,6 +154,12 @@ function getStats() {
       }
     });
   }
+  const originBonus = {
+    vanguard: { max_hp: 12 }, duelist: { damage: 2 }, scout: { dodge: 5 }, scholar: { max_energy: 1 },
+  }[PLAYER.origin] || {};
+  for (const [stat, amount] of Object.entries(originBonus)) s[stat] += amount;
+  const weaponUses = WORLD.weaponMastery?.[equipment.weapon] || 0;
+  s.damage += weaponUses >= 50 ? 3 : weaponUses >= 25 ? 2 : weaponUses >= 10 ? 1 : 0;
   const raidUpgrades = typeof WORLD !== "undefined" ? (WORLD.flags?.raidUpgrades || {}) : {};
   s.max_hp += Math.max(0, raidUpgrades.vigor || 0) * 6;
   s.damage += Math.max(0, raidUpgrades.edge || 0) * 2;

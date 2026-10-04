@@ -86,6 +86,10 @@ const ACTION_ALIASES = {
   skills: "skill",
   s: "skill",
   9: "counter",
+  10: "companion",
+  companion: "companion",
+  ally: "companion",
+  order: "companion",
   counter: "counter",
   c: "counter",
   limit: "limit",
@@ -252,6 +256,7 @@ function showCombatMenu(f) {
   print("7. 🧪 Item — use a potion, bomb, or combat aid.");
   print(`8. ✨ Skills & abilities — use an equipped technique or learned spell (${sn}).`);
   print("9. 🎯 Counter — exploit an enemy's exposed opening.");
+  if (WORLD.companions.active?.length) print("10. 🗣️ Companion — order your ally to attack, guard, or heal.");
   print(`0. 🏃 Run away — attempt to flee (${run}% chance).`);
   print(`L. 🌟 Limit Break — ${f.limitUsed ? "spent this fight" : `${Math.min(100, f.limitGauge || 0)}% charged`}.`);
   if (f.enemies && f.enemies.length > 1) print("Switch targets with 'target'; review recent events with 'log'.");
@@ -328,7 +333,7 @@ async function chooseSkill(f) {
 // Asks the player for an action and returns it (numbers or names are accepted).
 async function askAction(f) {
   while (true) {
-    const raw = (await input("Choose an action (1-9, or 0 to run away): ")).trim().toLowerCase();
+    const raw = (await input("Choose an action (1-10, or 0 to run away): ")).trim().toLowerCase();
     let a = ACTION_ALIASES[raw];
     if (f.controlGlitchTurns > 0) {
       if (["1", "attack", "a"].includes(raw)) a = "guard";
@@ -336,7 +341,7 @@ async function askAction(f) {
       if (a) f.controlGlitchTurns--;
     }
     if (!a) {
-      print("Pick 1-9, 0 to run away, or type an action like 'parry', 'magic', 'log'.");
+      print("Pick 1-10, 0 to run away, or type an action like 'parry', 'magic', or 'companion'.");
       continue;
     }
     if (a === "heavy" && f.energy < C.HEAVY_COST) {
@@ -735,6 +740,7 @@ async function playerTurn(f) {
     [action, extra] = await askAction(f);
     print();
     if (action === "attack" || action === "heavy") {
+      if (equipment.weapon) f.weaponActions = (f.weaponActions || 0) + 1;
       if (action === "heavy") f.energy -= C.HEAVY_COST;
       const r = playerAttack(f, action === "heavy");
       triggerEnemyEvent(f, action, extra);
@@ -764,6 +770,8 @@ async function playerTurn(f) {
       else useSkill(f, SKILLS[extra.name]);
     } else if (action === "limit") {
       useLimitBreak(f);
+    } else if (action === "companion") {
+      if (typeof companionOrder === "function") await companionOrder(f);
     }
     else if (action === "guard") {
       print("🛡️ You raise your guard!");
@@ -1320,6 +1328,11 @@ function rollLoot(m) {
 }
 // Victory: grants XP and loot, records the kill for the story.
 function winFight(f) {
+  if (WORLD.flags.practiceMode) {
+    WORLD.flags.practiceMode = false;
+    print(`\n🎯 Practice complete. ${f.enemies?.map((e) => e.displayName || e.name).join(" and ") || f.name} defeated; this rehearsal gave no rewards or campaign progress.`);
+    return;
+  }
   const fallen = (f.enemies || [{ name: f.name, monster: f.monster }]).filter((e) => e.hp <= 0);
   const names = fallen.length ? fallen : [{ name: f.name, monster: f.monster }];
   print(`\n🏆 You defeated ${names.map((e) => "the " + (e.displayName || e.name)).join(" and ")}!`);
@@ -1333,6 +1346,14 @@ function winFight(f) {
   const xm = names[0]?.monster?._xpMult || 1;
   xp = Math.floor(xp * xm);
   print(`Earned ${xp} Exp.`);
+  if (f.weaponName && f.weaponActions > 0) {
+    WORLD.weaponMastery ||= {};
+    const before = Math.max(0, Number(WORLD.weaponMastery[f.weaponName]) || 0);
+    const after = before + f.weaponActions;
+    WORLD.weaponMastery[f.weaponName] = after;
+    const ranks = (uses) => uses >= 50 ? 3 : uses >= 25 ? 2 : uses >= 10 ? 1 : 0;
+    if (ranks(after) > ranks(before)) print(`🗡️ ${title(f.weaponName)} mastery reached rank ${ranks(after)} (+${ranks(after)} damage when equipped).`);
+  }
   grantXp(xp);
   names.forEach((e) => {
     rollLoot(e.monster || f.monster);
@@ -1363,6 +1384,11 @@ function winFight(f) {
 }
 // Defeat: the player drops half their coins.
 function loseFight(f) {
+  if (WORLD.flags.practiceMode) {
+    WORLD.flags.practiceMode = false;
+    print(`\n🎯 Practice ended. No coins or companion health were lost.`);
+    return;
+  }
   print(`\n💀 The ${f.name} defeated you!`);
   const l = Math.floor((inventory.coin || 0) / 2);
   if (l > 0) {
@@ -1440,6 +1466,7 @@ async function fightMonster(arg = "", elite = false) {
   const requested = Array.isArray(name) ? name : [name];
   if (!requested.every(checkEnemyLevel)) return;
   const f = newFight(name);
+  f.weaponName = equipment.weapon || null;
   if (WORLD.memories) WORLD.memories.inCombat = true;
   if (elite && f.enemies) f.enemies = f.enemies.map((e) => makeEnemyState(e.name, true));
   const battleEnemies = Array.isArray(name) ? name : [name];
@@ -1458,7 +1485,7 @@ async function fightMonster(arg = "", elite = false) {
       print(`\n🌟 A rare Glimmer-Touched ${title(rare.name)} emerges from the distortion! It is tougher, but carries a special reward.`);
     }
   }
-  (f.enemies || []).forEach((e) => noteBestiaryEncounter(e.name.replace(/^elite /, "")));
+  if (!WORLD.flags.practiceMode) (f.enemies || []).forEach((e) => noteBestiaryEncounter(e.name.replace(/^elite /, "")));
   if (typeof FX !== "undefined") FX.startBattleMusic(battleEnemies, bossEncounter, f.enemies?.length === 1 ? f.enemies[0].phases?.[0]?.music : null, f.enemies?.length === 1 ? f.enemies[0].monster?.music_file : null);
   const stopMusic = () => {
     if (typeof FX !== "undefined") FX.stopBattleMusic();
@@ -1467,7 +1494,7 @@ async function fightMonster(arg = "", elite = false) {
   if (bossEncounter) await playBossOpening(f);
   const eq = Object.values(equipment).filter(Boolean);
   if (eq.length) print("🧰 Equipped: " + eq.join(", "));
-  if (typeof applyRested === "function") applyRested(f);
+  if (!WORLD.flags.practiceMode && typeof applyRested === "function") applyRested(f);
   if (typeof SETTINGS !== "undefined" && SETTINGS.difficulty !== "normal")
     print(`⚙️ Difficulty: ${SETTINGS.difficulty}${PLAYER.ngPlus ? ` · NG+${PLAYER.ngPlus}` : ""}`);
   let turn = 0;

@@ -56,6 +56,7 @@ function defaultPlayerExtra(p = {}) {
     spells: Array.isArray(p.spells) ? [...p.spells] : ["ember spark", "mend"],
     ngPlus: p.ngPlus ?? 0,
     ngPlusEnding: ["remember", "release", "rewrite"].includes(p.ngPlusEnding) ? p.ngPlusEnding : null,
+    origin: ["vanguard", "duelist", "scout", "scholar"].includes(p.origin) ? p.origin : null,
   };
 }
 function defaultWorld() {
@@ -78,6 +79,9 @@ function defaultWorld() {
     eventsDone: 0,
     usedCombatItem: false,
     totalKills: 0,
+    hideout: { level: 0, trophies: [] },
+    dialogueLog: [],
+    weaponMastery: {},
     flags: {},
   };
 }

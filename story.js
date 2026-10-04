@@ -36,6 +36,52 @@ function showCampaignChronicle() {
   if (companion) print("Traveling with: " + companion.name + ".");
 }
 
+async function showAfterstory() {
+  if (!STORY.ending) { print("The postgame chapter unlocks after you choose an ending."); return; }
+  const step = Number(WORLD.flags.afterstoryStep) || 0;
+  if (step >= 3) {
+    print("\n📖 AFTER THE LAST SAVE");
+    print(WORLD.flags.afterstoryChoice === "share" ? "Your chronicle was shared. Travelers carry its warning across every road." : "You kept one final page. The quiet places can begin again without being watched.");
+    print("This postgame chapter is complete. Its choice is preserved in your chronicle.");
+    return;
+  }
+  if (step === 0) {
+    print("\n📖 POSTGAME · THE PAGE THAT REMAINED");
+    print("After the world settles, a page from the Archive appears in your pack. It contains the names of people whose stories did not fit inside the ending.");
+    print(`Your ${title(STORY.ending)} ending leaves the page ${STORY.ending === "remember" ? "covered in careful notes" : STORY.ending === "release" ? "blank at the edges" : "rewritten in a familiar hand"}.`);
+    const answer = (await input("Read the names aloud, or carry the page onward? [read/carry]: ")).trim().toLowerCase();
+    if (!["read", "r", "carry", "c", ""].includes(answer)) { print("Choose read or carry."); return; }
+    WORLD.flags.afterstoryChoice = ["read", "r"].includes(answer) ? "share" : "keep";
+    WORLD.flags.afterstoryStep = 1;
+    recordStoryMoment(`In the postgame, you chose to ${WORLD.flags.afterstoryChoice === "share" ? "share" : "keep"} the remaining page.`, "choice", `afterstory:${WORLD.flags.afterstoryChoice}`);
+    print(WORLD.flags.afterstoryChoice === "share" ? "You read the names. Somewhere, a traveler answers with one of their own." : "You fold the page carefully. Some memories can be carried without being announced.");
+    return;
+  }
+  if (step === 1) {
+    print("\n📖 POSTGAME · A PLACE TO RETURN");
+    const friend = WORLD.companions.active?.[0];
+    print(friend ? `${COMPANION_DEFS[friend].name} walks with you to the old shelter and asks what should become of it.` : "At the old shelter, you find a note asking what should become of the place now that the danger has passed.");
+    print(`The hideout is restored to level ${WORLD.hideout?.level || 0}. Your recovered keepsakes${WORLD.hideout?.trophies?.length ? " are gathered together in one place" : " still travel with you"}.`);
+    const answer = (await input("Welcome travelers, or leave the shelter quiet? [welcome/quiet]: ")).trim().toLowerCase();
+    if (!["welcome", "w", "quiet", "q", ""].includes(answer)) { print("Choose welcome or quiet."); return; }
+    WORLD.flags.afterstoryShelter = ["welcome", "w", ""].includes(answer) ? "welcome" : "quiet";
+    WORLD.flags.afterstoryStep = 2;
+    recordStoryMoment(`You left the old shelter ${WORLD.flags.afterstoryShelter === "welcome" ? "open to travelers" : "quiet"}.`, "choice", `afterstory:${WORLD.flags.afterstoryShelter}`);
+    return;
+  }
+  print("\n📖 POSTGAME · THE ROAD AHEAD");
+  const joined = WORLD.flags.afterstoryChoice === "share";
+  const welcome = WORLD.flags.afterstoryShelter === "welcome";
+  print(`${joined ? "The names you read begin to travel." : "The page remains safe in your pack."} ${welcome ? "The shelter fills with voices and small, practical plans." : "The shelter stays empty, a place where the quiet is allowed to last."}`);
+  if (FACTIONS[WORLD.flags.faction]) print(`The ${FACTIONS[WORLD.flags.faction].name} send a final message: they will keep the roads you chose open.`);
+  WORLD.flags.afterstoryStep = 3;
+  WORLD.flags.afterstoryComplete = true;
+  addItem("star glass", 2);
+  addItem("coin", 200);
+  recordStoryMoment("The postgame chapter ended with a new road open beyond the old campaign.", "ending", "afterstory_complete");
+  print("The postgame chapter is complete. You receive 2 star glass and 200 coin.");
+}
+
 async function replayChapter(choice = "") {
   const available = STORY_CHAPTERS.filter((chapter) => {
     const sid = STORY_SCENE_BY_CHAPTER[chapter.id];
@@ -406,6 +452,12 @@ async function showEnding() {
     if (safe || risky) print(`\nYour roads left a mark: ${safe} safe passage${safe === 1 ? "" : "s"}, ${risky} dangerous shortcut${risky === 1 ? "" : "s"}. ${safe > risky ? "Travelers remember the shelter you helped preserve." : risky > safe ? "The paths you forced open remain scars and warnings." : "People remember how you balanced caution and courage."}`);
     const bond = WORLD.flags.companionBondChoices || {};
     Object.entries(bond).forEach(([id]) => { if ((WORLD.companions.personal[id]?.moments || []).length >= 3) print(`${COMPANION_DEFS[id]?.name || title(id)} stands beside you, carrying the stories you shared.`); });
+    if (FACTIONS[WORLD.flags.faction]) {
+      const faction = FACTIONS[WORLD.flags.faction];
+      print(`The ${faction.name} remember your pledge and keep your chosen roads supplied.`);
+    }
+    if ((WORLD.flags.puzzlesSolved || 0) > 0) print(`You solved ${WORLD.flags.puzzlesSolved} regional puzzle${WORLD.flags.puzzlesSolved === 1 ? "" : "s"}; the caches you opened helped the world rebuild.`);
+    if ((WORLD.hideout?.level || 0) > 0) print(`Your restored hideout becomes a ${WORLD.flags.afterstoryShelter === "welcome" ? "welcoming refuge" : "quiet waystation"} for whoever needs it next.`);
   };
   if (STORY.ending) {
     play(STORY.ending);
