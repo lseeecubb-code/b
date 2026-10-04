@@ -131,6 +131,8 @@ function effLine(e) {
 function showStatus(f) {
   print(`❤️ You · Lv ${PLAYER.level}: ${hpBar(f.player_hp, f.player_max_hp)}`);
   print(`⚡ Energy:     ${energyBar(f.energy, typeof maxEnergy === "function" ? maxEnergy() : C.MAX_ENERGY)}`);
+  if (f.combo?.hits)
+    print(`Combo ${f.combo.hits} hits. ${f.combo.damage} damage dealt, next hit x${comboMult(f).toFixed(2)}, ${COMBO.WINDOW_MS / 1000}s to keep it going.`);
   f.effects.forEach(effLine);
   if (typeof WORLD !== "undefined") {
     (WORLD.companions.active || []).forEach((id) => {
@@ -260,7 +262,7 @@ function showCombatMenu(f) {
     readySpells = spells.filter((n) => f.energy >= spellCost(SPELLS[n]) && !(f.cooldowns[`spell:${n}`] || 0)).length;
   const sn = available ? `${readySkills + readySpells}/${available} ready` : "none learned or equipped";
   print("\n📋 COMBAT ACTIONS");
-  print("1. ⚔️ Attack — deal physical damage.");
+  print("1. ⚔️ Attack — deal physical damage; may link into a combo (weaker if you spam it).");
   print(`2. 💥 Heavy attack — deal increased damage; costs ${cn}.`);
   print("3. 🛡️ Guard — reduce damage from the next attack.");
   print("4. 🤺 Parry — deflect a parryable attack and counter.");
@@ -348,7 +350,7 @@ async function chooseSkill(f) {
 // Asks the player for an action and returns it (numbers or names are accepted).
 async function askAction(f) {
   while (true) {
-    const raw = (await input("Choose an action (1-9, 0, or z/x/c/v/f/q/e): ")).trim().toLowerCase();
+    const raw = String(await comboInput(f, "Choose an action (1-9, 0, or z/x/c/v/f/q/e): ")).trim().toLowerCase();
     let a = ACTION_ALIASES[raw];
     if (f.controlGlitchTurns > 0) {
       if (["1", "attack", "a"].includes(raw)) a = "guard";
@@ -635,6 +637,105 @@ function useLimitBreak(f) {
   }
   if (typeof clog === "function") clog(f, "used Limit Break: World Splitter");
 }
+// ---------- combat: combo chain ----------
+// Landing moves back to back builds a combo. The damage counter (hits in the chain) raises the damage
+// multiplier of your next hit, and moves landed inside a combo are much more likely to stun.
+// The chain lives only while you keep acting inside the timed window: when the countdown hits 0 it ends.
+// The countdown runs only while you're choosing an action (not while text types out or enemies act).
+// Basic attacks only have a CHANCE to link into a combo, and spamming them is penalised.
+// Tweak these numbers to taste.
+const COMBO = {
+  WINDOW_MS: 5000, // time you get to throw the next move before the combo ends
+  REPROMPT_MS: 2000, // minimum time left after a non-committal command (inspect, target, typo)
+  STEP: 0.15, // +15% damage per hit already in the chain
+  MAX_MULT: 2.5, // damage multiplier cap
+  STUN_BASE: 15, // % stun chance for a move landed inside a combo...
+  STUN_PER_HIT: 8, // ...plus this much per hit in the chain
+  STUN_MAX: 75,
+  LONG_CHAIN: 6, // chains this long stun for 2 turns instead of 1
+  BASIC_CHANCE: 40, // % chance a landed basic attack opens (or keeps) a combo
+  SPAM_CHANCE_STEP: 10, // every repeated basic attack in a row lowers that chance by this much
+  SPAM_CHANCE_MIN: 5,
+  SPAM_DAMAGE_STEP: 0.15, // every repeated basic attack in a row deals this much less damage...
+  SPAM_DAMAGE_MIN: 0.5, // ...down to this fraction of normal
+};
+function comboState(f) {
+  if (!f.combo) f.combo = { hits: 0, damage: 0, deadline: null };
+  return f.combo;
+}
+// Damage multiplier for the NEXT hit: grows with the number of hits already landed in the chain.
+function comboMult(f) {
+  return Math.min(COMBO.MAX_MULT, 1 + COMBO.STEP * (f.combo?.hits || 0));
+}
+// Basic attacks lose damage the more times in a row you use them.
+function spamMult(f) {
+  const streak = f.basicStreak || 0;
+  return streak <= 1 ? 1 : Math.max(COMBO.SPAM_DAMAGE_MIN, 1 - COMBO.SPAM_DAMAGE_STEP * (streak - 1));
+}
+function basicComboChance(f) {
+  const streak = f.basicStreak || 0;
+  return Math.max(COMBO.SPAM_CHANCE_MIN, COMBO.BASIC_CHANCE - COMBO.SPAM_CHANCE_STEP * Math.max(0, streak - 1));
+}
+const COMBO_END_TEXT = {
+  time: "time ran out",
+  miss: "attack missed",
+  rhythm: "lost the rhythm",
+  stop: "you stopped attacking",
+};
+function comboEnd(f, reason = "stop") {
+  const c = f.combo;
+  if (!c || !c.hits) return;
+  const { hits, damage } = c;
+  f.combo = { hits: 0, damage: 0, deadline: null };
+  const why = COMBO_END_TEXT[reason] || COMBO_END_TEXT.stop;
+  if (hits >= 2) print(`Combo ended (${why}). ${hits} hits, ${damage} damage.`);
+  else if (reason === "time") print(`Combo ended (${why}).`);
+  if (typeof clog === "function") clog(f, `combo ended (${reason}): ${hits} hits, ${damage} damage`);
+}
+// Called once per player move after it resolves. `kind` is attack | heavy | skill | spell | counter | limit.
+// A landed move extends the chain (basic attacks only by chance); a miss or failed link ends it.
+function comboAfterMove(f, kind, landed) {
+  const c = comboState(f);
+  const dealt = f.moveDamage || 0;
+  if (!landed) return comboEnd(f, "miss");
+  if (kind === "attack" && !percent(basicComboChance(f))) {
+    c.damage += dealt;
+    return comboEnd(f, "rhythm");
+  }
+  c.hits++;
+  c.damage += dealt;
+  c.deadline = null; // every link refreshes the window
+  const next = comboMult(f);
+  if (c.hits === 1)
+    print(`Combo started. Next hit x${next.toFixed(2)} damage if you land it within ${COMBO.WINDOW_MS / 1000}s.`);
+  else
+    print(`Combo ${c.hits} hits. ${c.damage} damage, next hit x${next.toFixed(2)}${next >= COMBO.MAX_MULT ? " (max)" : ""}.`);
+  if (typeof clog === "function") clog(f, `combo ${c.hits} hits, ${c.damage} damage`);
+  // Moves landed inside a combo stun far more often than normal.
+  if (c.hits >= 2 && f.monster_hp > 0) {
+    const chance = Math.min(COMBO.STUN_MAX, COMBO.STUN_BASE + COMBO.STUN_PER_HIT * c.hits);
+    if (percent(chance))
+      stunEnemy(f, c.hits >= COMBO.LONG_CHAIN ? 2 : 1, `   💫 The combo staggers the ${f.name} - it's stunned and loses its turn!`);
+  }
+}
+// Asks for input; while a combo is live the prompt is timed and running out of time ends the combo.
+async function comboInput(f, prompt) {
+  const c = f.combo;
+  if (!c || !c.hits) return input(prompt);
+  const ms = c.deadline == null ? COMBO.WINDOW_MS : Math.max(COMBO.REPROMPT_MS, c.deadline - Date.now());
+  const raw = await input(prompt, {
+    timeout: ms,
+    label: `Combo x${c.hits}`,
+    onStart: () => {
+      c.deadline = Date.now() + ms;
+    },
+  });
+  if (raw === null) {
+    comboEnd(f, "time");
+    return input(prompt);
+  }
+  return raw;
+}
 // Resolves one player strike: hit chance, crits, enemy guard/parry/dodge and the damage dealt.
 function strike(f, o) {
   const name = f.name;
@@ -674,6 +775,7 @@ function strike(f, o) {
   }
   let dmg = randint(...C.PLAYER_DAMAGE) + f.stats.damage + f.temporary_damage;
   dmg = int(dmg * mult);
+  dmg = int(dmg * comboMult(f)); // combo damage counter boosts every hit in the chain
   dmg = int(dmg * (f.stats.damage_mult || 1));
   if (WORLD.challengeRun?.active && WORLD.challengeRun.rule === "iron") dmg = int(dmg * 0.75);
   const pmod = typeof effectMods === "function" ? effectMods(f.effects) : { damage: 1 };
@@ -700,6 +802,7 @@ function strike(f, o) {
   print(`${label} ${ht}`);
   if (typeof clog === "function") clog(f, `${crit ? "CRIT " : ""}${dmg} to ${name}`);
   f.monster_hp -= dmg;
+  f.moveDamage = (f.moveDamage || 0) + dmg;
   chargeLimit(f, Math.max(1, int(dmg / 4)));
   const weakness = o.element
     ? Math.max(f.monster.weak?.[o.element] || 0, -(f.monster.resist?.[o.element] || 0))
@@ -711,7 +814,7 @@ function strike(f, o) {
 function playerAttack(f, heavy = false) {
   const r = strike(f, {
     hit_chance: heavy ? C.HEAVY_HIT : C.ATTACK_HIT,
-    mult: heavy ? C.HEAVY_MULT : 1,
+    mult: heavy ? C.HEAVY_MULT : spamMult(f), // repeating basic attacks weakens them
     atk_type: heavy ? "heavy" : "normal",
     heavy,
   });
@@ -767,6 +870,7 @@ function useSkill(f, s) {
     if (stunChance && percent(stunChance))
       stunEnemy(f, skillStunTurns(s), `   💫 The ${f.name} is stunned and loses its turn!`);
   }
+  return landed;
 }
 // Runs the player's turn: asks for an action and carries it out.
 async function playerTurn(f) {
@@ -778,10 +882,20 @@ async function playerTurn(f) {
     let extra;
     [action, extra] = await askAction(f);
     print();
+    f.moveDamage = 0;
+    const foeHp = () => (f.enemies ? f.enemies.reduce((n, e) => n + Math.max(0, e.hp), 0) : Math.max(0, f.monster_hp));
+    // Spamming basic attacks in a row weakens them; any other action resets the streak.
+    f.basicStreak = action === "attack" ? (f.basicStreak || 0) + 1 : 0;
+    if (f.basicStreak >= 2)
+      print(`Basic attack repeated. -${int((1 - spamMult(f)) * 100)}% damage, lower combo chance. Mix up your moves.`);
+    // Only attacking moves keep a combo alive; guarding, items, resting, etc. end it.
+    if (!["attack", "heavy", "skill", "counter", "limit"].includes(action)) comboEnd(f, "stop");
+    else if (comboMult(f) > 1) print(`Combo bonus x${comboMult(f).toFixed(2)} damage.`);
     if (action === "attack" || action === "heavy") {
       if (equipment.weapon) f.weaponActions = (f.weaponActions || 0) + 1;
       if (action === "heavy") f.energy -= C.HEAVY_COST;
       const r = playerAttack(f, action === "heavy");
+      comboAfterMove(f, action, r === "hit" || r === "crit");
       triggerEnemyEvent(f, action, extra);
       if (f.monster_hp <= 0) break;
       if (r === "crit") {
@@ -792,7 +906,7 @@ async function playerTurn(f) {
         continue;
       }
     } else if (action === "counter") {
-      strike(f, {
+      const counterResult = strike(f, {
         hit_chance: 100,
         mult: 1,
         atk_type: "heavy",
@@ -801,14 +915,35 @@ async function playerTurn(f) {
         ignore_dodge: true,
         skill_name: "counter",
       });
+      comboAfterMove(f, "counter", counterResult.landed);
       const opening = f.monster_effects.find((e) => e.type === "exposed");
       if (opening) f.monster_effects.splice(f.monster_effects.indexOf(opening), 1);
       if (typeof clog === "function") clog(f, "counterattack exploited opening");
     } else if (action === "skill") {
-      if (extra.kind === "spell") useSpell(f, extra.name);
-      else useSkill(f, SKILLS[extra.name]);
+      if (extra.kind === "spell") {
+        // Spells resolve outside strike(), so apply the combo bonus to whatever damage they dealt.
+        const before = foeHp();
+        const cm = comboMult(f);
+        useSpell(f, extra.name);
+        let dealt = before - foeHp();
+        if (dealt > 0 && cm > 1) {
+          const bonus = Math.max(1, int(dealt * (cm - 1)));
+          f.monster_hp -= bonus;
+          dealt += bonus;
+          print(`Combo bonus +${bonus} damage.`);
+        }
+        f.moveDamage = Math.max(0, dealt);
+        if (dealt > 0) comboAfterMove(f, "spell", true);
+        else comboEnd(f, "stop");
+      } else {
+        const landed = useSkill(f, SKILLS[extra.name]);
+        comboAfterMove(f, "skill", !!landed);
+      }
     } else if (action === "limit") {
+      const before = foeHp();
       useLimitBreak(f);
+      f.moveDamage = Math.max(0, before - foeHp());
+      comboAfterMove(f, "limit", true);
     } else if (action === "companion") {
       if (typeof companionOrder === "function") await companionOrder(f);
     }
@@ -1775,4 +1910,3 @@ function showBestiary(arg = "") {
     );
   }
 }
-
