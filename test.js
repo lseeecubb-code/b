@@ -74,10 +74,11 @@ const sandbox = {
   percent: () => true,
 };
 vm.createContext(sandbox);
+vm.runInContext(fs.readFileSync("scenes.js", "utf8"), sandbox, { filename: "scenes.js" });
 vm.runInContext(fs.readFileSync("monsters.js", "utf8"), sandbox, { filename: "monsters.js" });
 vm.runInContext(fs.readFileSync("combat.js", "utf8"), sandbox, { filename: "combat.js" });
-vm.runInContext("globalThis.__monsters = monsters; globalThis.DEFAULT_ATTACK = DEFAULT_ATTACK; globalThis.__smoke = { monsterTurn, limitEnemyAttacks, addBreak, chargeLimit, useLimitBreak, fightMonster };", sandbox);
-vm.runInContext("for (const enemy of Object.values(monsters)) { enemy.opening = null; enemy.event_flags = null; for (const phase of enemy.phases || []) phase.event_flags = null; if (enemy.secret_flag) STORY.flags.add(enemy.secret_flag); } globalThis.winFight = () => {}; globalThis.loseFight = () => {};", sandbox);
+vm.runInContext("globalThis.__monsters = monsters; globalThis.DEFAULT_ATTACK = DEFAULT_ATTACK; globalThis.__scenes = GAME_SCENES; globalThis.__smoke = { monsterTurn, limitEnemyAttacks, addBreak, chargeLimit, useLimitBreak, fightMonster, getAttackScene, getMonsterOpening };", sandbox);
+vm.runInContext("assert.ok(getAttackScene('goblin king', 'crown cleaver') === 'crown-shards'); assert.ok(getAttackScene('the last save', 'forced shutdown') === 'void-pulse'); assert.ok(!monsters['goblin king'].abilities['crown cleaver'].cutscene); assert.ok(getMonsterOpening('goblin king')?.title === 'THE CROWN BREAKS'); GAME_SCENES.openings = {}; for (const enemy of Object.values(monsters)) { enemy.opening = null; enemy.event_flags = null; for (const phase of enemy.phases || []) phase.event_flags = null; if (enemy.secret_flag) STORY.flags.add(enemy.secret_flag); } globalThis.winFight = () => {}; globalThis.loseFight = () => {};", sandbox);
 
 (async () => {
   let enemiesChecked = 0;
