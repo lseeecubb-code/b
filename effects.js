@@ -43,6 +43,7 @@ const FX = (() => {
   let battleAudioFallbackTimer = null;
   let battleMusicGeneration = 0;
   let corruptionTimer = null;
+  let musicDistortionTimer = null;
 
   function buildGraph() {
     const rate = audio.sampleRate;
@@ -659,7 +660,7 @@ const FX = (() => {
       fallbackToSynthesizedMusic(generation, track);
       return;
     }
-    const url = track.musicFile;
+    const url = track.distorted && track.distortionFile ? track.distortionFile : track.musicFile;
     if (!battleAudio || battleAudioUrl !== url) {
       if (battleAudio) {
         battleAudio.onerror = null;
@@ -743,16 +744,44 @@ const FX = (() => {
   }
 
   function startBattleMusic(enemyNames, boss = false, musicProfile = null, musicFile = null) {
+    clearMusicDistortion();
     pauseBattleMusic();
     battleMusicGeneration++;
+    const cleanFile = typeof musicFile === "string" ? musicFile.trim() : null;
     activeBattleMusic = {
       theme: battleTheme(enemyNames, boss, musicProfile),
       boss: Boolean(boss),
       bar: 0,
-      musicFile: typeof musicFile === "string" ? musicFile.trim() : null,
+      musicFile: cleanFile,
+      distortionFile: cleanFile?.replace("audio/remastered/", "audio/") || null,
+      distorted: false,
       fileFailed: false,
     };
     resumeBattleMusic();
+  }
+
+  function clearMusicDistortion() {
+    if (musicDistortionTimer !== null) clearTimeout(musicDistortionTimer);
+    musicDistortionTimer = null;
+  }
+
+  function setMusicDistortion(enabled, duration = 0) {
+    const track = activeBattleMusic;
+    if (!track?.distortionFile) return;
+    clearMusicDistortion();
+    const next = Boolean(enabled);
+    if (track.distorted !== next) {
+      track.distorted = next;
+      pauseBattleMusic();
+      battleMusicGeneration++;
+      resumeBattleMusic();
+    }
+    if (next && duration > 0) {
+      musicDistortionTimer = setTimeout(() => {
+        musicDistortionTimer = null;
+        if (activeBattleMusic === track) setMusicDistortion(false);
+      }, duration);
+    }
   }
 
   let lastAmbientMusicIndex = -1;
@@ -768,6 +797,7 @@ const FX = (() => {
       resumeBattleMusic();
       return;
     }
+    clearMusicDistortion();
     pauseBattleMusic();
     battleMusicGeneration++;
     if (battleAudio) {
@@ -778,11 +808,14 @@ const FX = (() => {
     battleAudioUrl = null;
     const offset = 1 + Math.floor(Math.random() * (ambientMusicFiles.length - 1));
     lastAmbientMusicIndex = (lastAmbientMusicIndex + offset) % ambientMusicFiles.length;
+    const cleanFile = `audio/remastered/ambient/${ambientMusicFiles[lastAmbientMusicIndex]}.wav`;
     activeBattleMusic = {
       theme: battleTheme("the quiet road", false, { root: 110, scale: [0, 2, 4, 7, 9], wave: "sine", tempo: 76 }),
       boss: false,
       bar: 0,
-      musicFile: `audio/ambient/${ambientMusicFiles[lastAmbientMusicIndex]}.wav`,
+      musicFile: cleanFile,
+      distortionFile: cleanFile.replace("audio/remastered/", "audio/"),
+      distorted: false,
       fileFailed: false,
       ambient: true,
     };
@@ -790,6 +823,7 @@ const FX = (() => {
   }
 
   function stopBattleMusic() {
+    clearMusicDistortion();
     pauseBattleMusic();
     battleMusicGeneration++;
     if (battleAudio) {
@@ -846,11 +880,13 @@ const FX = (() => {
     if (mode === "fracture") shake(true);
     flash(mode === "tear" ? "rgba(190, 45, 255, 0.2)" : "rgba(130, 115, 255, 0.18)");
     play(mode === "fracture" ? "hurtBig" : "warning");
+    const life = Math.max(700, Math.min(4000, Number(duration) || 1700));
+    setMusicDistortion(true, life);
     if (corruptionTimer !== null) clearTimeout(corruptionTimer);
     corruptionTimer = setTimeout(() => {
       terminal.classList.remove("terminal-corrupted", "corrupt-glitch", "corrupt-fracture", "corrupt-tear");
       corruptionTimer = null;
-    }, Math.max(700, Math.min(4000, Number(duration) || 1700)));
+    }, life);
   }
 
   // A short split-screen cut with a central void and a mostly-hash glyph burst.
@@ -887,6 +923,7 @@ const FX = (() => {
     terminal.appendChild(overlay);
     play("warning");
     const life = reduceMotion ? 900 : Math.max(1800, Math.min(4000, Number(duration) || 2600));
+    setMusicDistortion(true, life);
     setTimeout(() => overlay.remove(), life + 80);
   }
 
