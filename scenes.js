@@ -294,6 +294,78 @@ const GAME_SCENES = {
     ],
     scene: "umbra", color: "#7fe3b0", sub: "Death is only a long silence.",
   },
+  dragon: {
+    title: "THE SKY CATCHES FIRE",
+    lines: [
+      "A shadow passes over the battlefield.",
+      "The dragon descends through a storm of sparks.",
+      "The sky belongs to me.",
+    ],
+    scene: "ember", sub: "The sky catches fire.",
+  },
+  "ancient dragon": {
+    title: "AN OLDER FLAME",
+    lines: [
+      "The cavern answers with a sound like distant thunder.",
+      "Something ancient opens one burning eye.",
+      "You are standing inside a legend's shadow.",
+    ],
+    effect: "fracture", scene: "ember", color: "#ffb347", sub: "Older than the kingdom.",
+  },
+  wyvern: {
+    title: "WINGS OVER THE FRONTIER",
+    lines: [
+      "Dust tears across the road as a wingbeat hits.",
+      "A wyvern wheels overhead, then dives.",
+      "The next heartbeat belongs to the hunt.",
+    ],
+    scene: "fang", color: "#ffd27a", sub: "Look up too late.",
+  },
+  lich: {
+    title: "THE DEAD REMEMBER",
+    lines: [
+      "The torches dim without going out.",
+      "A crown of cold blue fire gathers around the lich.",
+      "Death has a memory, and it remembers you.",
+    ],
+    scene: "umbra", color: "#7fe3b0", sub: "Death remembers.",
+  },
+  "stone golem": {
+    title: "THE MOUNTAIN MOVES",
+    lines: [
+      "The ground becomes strangely quiet.",
+      "Stone grinds against stone as a giant figure stands.",
+      "The mountain has decided to walk.",
+    ],
+    scene: "quake", color: "#c9b38b", sub: "The mountain moves.",
+  },
+  troll: {
+    title: "BRIDGE-BREAKER",
+    lines: [
+      "The road shakes before you see why.",
+      "A troll steps from the dust and blocks the crossing.",
+      "Pay the toll in courage.",
+    ],
+    scene: "quake", color: "#d39f72", sub: "Something big is coming.",
+  },
+  vampire: {
+    title: "RED WITHOUT SUNLIGHT",
+    lines: [
+      "Every shadow turns toward the same doorway.",
+      "A pale figure steps into the moonless dark.",
+      "Your pulse has already given you away.",
+    ],
+    scene: "umbra", color: "#ff7c99", sub: "The dark can hear your heartbeat.",
+  },
+  demon: {
+    title: "HELLFIRE OPENS",
+    lines: [
+      "Heat rolls across the floor without a flame.",
+      "A horned silhouette steps through a seam of fire.",
+      "The world smells of ash again.",
+    ],
+    scene: "ember", color: "#ff7048", sub: "Hellfire has found the page.",
+  },
   "frost giant": {
     title: "WINTER STANDS UP",
     lines: [
@@ -303,7 +375,6 @@ const GAME_SCENES = {
     ],
     scene: "frost",
   },
-};,
 
   openingVisuals: {
     frost: { color: "#bfe8ff", sub: "The air forgets how to move.", ms: 3100, sound: "openFrost" },
@@ -321,18 +392,113 @@ const GAME_SCENES = {
 
   // Monster name -> attack name -> attack scene key.
   attacks: {
-    "goblin king": { "crown cleaver": "crown-shards" },
-    "alpha wolf": { "lunar pounce": "moon-pounce" },
-    "ancient golem": { "molten fist": "core-eruption" },
-    "frost giant king": { whiteout: "whiteout" },
-    "ash demon": { "cinder eruption": "cinder-collapse" },
-    "the editor": { "delete the target": "redline-slice" },
-    "the author": { "rewrite reality": "page-storm" },
-    "the last save": {
-      "erase the timeline": "logo-fall",
-      "forced shutdown": "void-pulse",
+    "goblin king": {
+      "crown cleaver": "crown-shards",
     },
-    "the missing page": { "burn the margins": "redline-slice" },
+    "alpha wolf": {
+      "lunar pounce": "moon-pounce",
+    },
+    "ancient golem": {
+      "molten fist": "core-eruption",
+    },
+    "frost giant king": {
+      whiteout: "whiteout",
+    },
+    "ash demon": {
+      "cinder eruption": "cinder-collapse",
+    },
+    dragon: {
+      "fire breath": "dragon-flame",
+      earthquake: "ground-rift",
+      "dragon roar": "dragon-roar",
+    },
+    "ancient dragon": {
+      inferno: "dragon-flame",
+      cataclysm: "cataclysm",
+      "wing storm": "wing-storm",
+    },
+    wyvern: {
+      "fire breath": "dragon-flame",
+      "wing strike": "wing-storm",
+    },
+    lich: {
+      "soul bolt": "soul-bolt",
+      "death grip": "soul-grip",
+      "plague cloud": "plague-cloud",
+    },
+    "stone golem": {
+      "stone fist": "stone-fist",
+      "ground shock": "ground-rift",
+    },
+    troll: {
+      "club smash": "ground-rift",
+      "ground slam": "earth-shatter",
+    },
+    vampire: {
+      "blood bite": "blood-bite",
+      "bat swarm": "bat-swarm",
+    },
+    demon: {
+      hellfire: "hellfire",
+      curse: "void-curse",
+      "life drain": "soul-drain",
+    },
+    ogre: {
+      "club smash": "ground-rift",
+      roar: "ogre-roar",
+    },
+    berserker: {
+      frenzy: "frenzy",
+      "reckless swing": "berserker-swing",
+    },
+    "the unnamed king": {
+      "forgotten decree": "royal-decree",
+      "erase name": "name-erasure",
+      godfall: "godfall",
+    },
+    "the leftover": {
+      "missing texture": "missing-texture",
+      "invalid state": "invalid-state",
+      "out of bounds": "out-of-bounds",
+    },
+    "the watcher": {
+      observe: "watcher-gaze",
+      prediction: "watcher-gaze",
+      counterfactual: "counterfactual",
+    },
+    "the witness": {
+      remember: "memory-flash",
+      forget: "memory-flash",
+      "fourth wall": "fourth-wall",
+    },
+    "the archivist": {
+      "cross reference": "index-beam",
+      "overdue notice": "index-beam",
+      "sealed vault": "sealed-vault",
+    },
+    "the first hero": {
+      "familiar strike": "hero-slash",
+      "worn out sword": "hero-slash",
+      "last attempt": "hero-finale",
+    },
+    "the editor": {
+      strikethrough: "redline-slice",
+      redact: "redline-slice",
+      "delete scene": "page-erasure",
+    },
+    "the author": {
+      "plot twist": "page-storm",
+      "writer's block": "ink-storm",
+      "deus ex machina": "author-decree",
+    },
+    "the last save": {
+      autosave: "save-pulse",
+      corrupt: "corruption-wave",
+      overwrite: "logo-fall",
+    },
+    "the missing page": {
+      "burn the margins": "redline-slice",
+    },
     "the echo of attempts": {
       "repeat the ending": "void-pulse",
       "overwrite the attempt": "logo-fall",
@@ -350,7 +516,44 @@ const GAME_SCENES = {
     "page-storm": { glyphs: ["▤", "§", "¶", "▧"], count: 20, duration: 1900 },
     "redline-slice": { glyphs: [""], count: 7, duration: 1350 },
     "void-pulse": { glyphs: ["#", "0", "?", "∅"], count: 26, duration: 1800 },
-  },
+  },    "dragon-flame": { glyphs: ["🔥", "◆", "▲", "✦"], count: 30, duration: 2050 },
+    "ground-rift": { glyphs: ["╱", "╲", "◆", "▲"], count: 20, duration: 1750 },
+    "dragon-roar": { glyphs: ["!!!", "≋", "⚡", "◆"], count: 16, duration: 1650 },
+    "wing-storm": { glyphs: ["≋", "／", "╱", "✧"], count: 24, duration: 1650 },
+    "cataclysm": { glyphs: ["☄", "◆", "▲", "✦"], count: 34, duration: 2300 },
+    "soul-bolt": { glyphs: ["✦", "†", "·", "◆"], count: 22, duration: 1650 },
+    "soul-grip": { glyphs: ["☠", "✋", "∅", "·"], count: 18, duration: 1700 },
+    "plague-cloud": { glyphs: ["☠", "•", "◌", "·"], count: 32, duration: 1900 },
+    "stone-fist": { glyphs: ["■", "◆", "░", "▒"], count: 18, duration: 1600 },
+    "earth-shatter": { glyphs: ["▲", "◆", "╲", "╱"], count: 26, duration: 1850 },
+    "blood-bite": { glyphs: ["🩸", "◆", "·", "╱"], count: 26, duration: 1700 },
+    "bat-swarm": { glyphs: ["◼", "◾", "◆", "·"], count: 34, duration: 1800 },
+    hellfire: { glyphs: ["🔥", "▲", "✦", "•"], count: 34, duration: 2100 },
+    "void-curse": { glyphs: ["∅", "?", "#", "◇"], count: 28, duration: 1900 },
+    "soul-drain": { glyphs: ["◉", "·", "✦", "∅"], count: 24, duration: 1850 },
+    "ogre-roar": { glyphs: ["ROAR", "!!!", "≋", "◆"], count: 18, duration: 1550 },
+    frenzy: { glyphs: ["╱", "╲", "✦", "!!"], count: 30, duration: 1500 },
+    "berserker-swing": { glyphs: ["╱", "╲", "⚔", "✦"], count: 18, duration: 1450 },
+    "royal-decree": { glyphs: ["KING", "◆", "♛", "═"], count: 22, duration: 1900 },
+    "name-erasure": { glyphs: ["_", " ", "∅", "?"], count: 20, duration: 1750 },
+    godfall: { glyphs: ["☄", "⚡", "♛", "✦"], count: 32, duration: 2250 },
+    "missing-texture": { glyphs: ["░", "▒", "▓", "□"], count: 28, duration: 1750 },
+    "invalid-state": { glyphs: ["ERROR", "NaN", "∅", "??"], count: 24, duration: 1800 },
+    "out-of-bounds": { glyphs: ["↗", "↘", "╱", "∅"], count: 26, duration: 1950 },
+    "watcher-gaze": { glyphs: ["◉", "●", "○", "?"], count: 18, duration: 1850 },
+    counterfactual: { glyphs: ["IF", "THEN", "NOT", "∅"], count: 22, duration: 1950 },
+    "memory-flash": { glyphs: ["MEMORY", "SAVE", "PAST", "◆"], count: 20, duration: 1750 },
+    "fourth-wall": { glyphs: ["> YOU", "> WATCHER", "> PLAYER", "> HELLO"], count: 16, duration: 1950 },
+    "index-beam": { glyphs: ["§", "p.", "#", "→"], count: 24, duration: 1800 },
+    "sealed-vault": { glyphs: ["▣", "▥", "▦", "LOCK"], count: 26, duration: 2050 },
+    "hero-slash": { glyphs: ["⚔", "✦", "╱", "／"], count: 20, duration: 1450 },
+    "hero-finale": { glyphs: ["⚔", "★", "◆", "!!!"], count: 30, duration: 2100 },
+    "page-erasure": { glyphs: ["DELETE", "▧", "✕", "∅"], count: 28, duration: 2050 },
+    "ink-storm": { glyphs: ["✒", "•", "≈", "▤"], count: 30, duration: 1900 },
+    "author-decree": { glyphs: ["WRITE", "GO", "END", "◆"], count: 22, duration: 2100 },
+    "save-pulse": { glyphs: ["SAVE", "0%", "50%", "100%"], count: 20, duration: 1750 },
+    "corruption-wave": { glyphs: ["ERR", "0x", "#", "∅"], count: 34, duration: 2000 },
+
 };
 
 function normalizeSceneKey(value) {
