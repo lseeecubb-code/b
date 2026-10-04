@@ -1,230 +1,61 @@
-// Terminal UI: prints game text to the page, turns the input box into the game's input(), and autosaves.
-const SAVE_KEY = "the-last-save.autosave.v1";
-const termScreen = document.getElementById("screen");
-const termInput = document.getElementById("command");
-const termStatus = document.getElementById("settingsButton");
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="theme-color" content="#05050a" />
+    <meta name="description" content="THE LAST SAVE: a terminal story RPG with 2.5D battles with crafting, combat and a fourth-wall campaign." />
+    <title>THE LAST SAVE</title>
+    <link rel="icon" href="icon-image.png" />
+    <link rel="stylesheet" href="styles.css?v=20261004-35" />
+    <link rel="stylesheet" href="battle25d.css?v=20261004-01" />
+  </head>
+  <body>
+    <div class="terminal">
+      <div class="terminal-corruption" aria-hidden="true"></div>
+      <header class="bar">
+        <div class="brand-copy">
+          <div class="title">THE LAST SAVE</div>
+          <div class="edition">terminal RPG · 2.5D battles</div>
+        </div>
+        <nav class="toolbar" aria-label="Game settings">
+          <button id="speedToggle" type="button">⌨️ Text: Normal</button>
+          <label class="music-volume" title="Music volume">
+            <span aria-hidden="true">♪</span>
+            <input id="musicVolume" type="range" min="0" max="100" step="1" value="55" aria-label="Music volume" />
+            <output id="musicVolumeValue" for="musicVolume">55%</output>
+          </label>
+          <button id="newGame" type="button">↻ New Game</button>
+        </nav>
+      </header>
+      <main id="screen" tabindex="0" aria-label="Game output"><noscript>THE LAST SAVE needs JavaScript to run.</noscript></main>
+      <div class="combo-timer" id="comboTimer" hidden role="timer" aria-live="off"><span id="comboTimerLabel"></span></div>
+      <div class="input-row"><span class="prompt">&gt;&gt;&gt;</span><input id="command" autocomplete="off" spellcheck="false" autofocus placeholder="Type a game command..." aria-label="Enter a game command" /></div>
+      <footer class="terminal-footer">
+        <button class="footer-settings" id="settingsButton" type="button" aria-label="Open game settings" title="Open game settings">⚙️ Settings</button>
+        <div class="footer-meta"><div class="help">↵ Enter confirms · ↑/↓ select listed choices</div><div class="version" id="gameVersion">THE LAST SAVE</div></div>
+      </footer>
+    </div>
 
-// Shows GAME_VERSION (set in helpers.js) in the footer.
-const versionLabel = document.getElementById("gameVersion");
-if (versionLabel) versionLabel.textContent = "THE LAST SAVE · " + GAME_VERSION;
-let pendingInput = null,
-  pendingChoices = [],
-  pendingChoiceIndex = -1;
-
-function showLoadingIndicator(message = "Still working…") {
-  termStatus.classList.add("is-loading");
-  termStatus.textContent = message;
-}
-
-function clearLoadingIndicator() {
-  termStatus.classList.remove("is-loading");
-  termStatus.disabled = false;
-  termStatus.textContent = "⚙️ Settings";
-  termStatus.setAttribute("aria-label", "Open game settings");
-}
-
-function reportStartupError(error) {
-  const message = error && error.stack ? error.stack : String(error || "Unknown startup error");
-  console.error("THE LAST SAVE startup error:", error);
-  try {
-    clearLoadingIndicator();
-    const output = document.createElement("pre");
-    output.style.whiteSpace = "pre-wrap";
-    output.style.color = "#ff7777";
-    output.textContent = "[startup error] " + message;
-    termScreen.replaceChildren(output);
-  } catch (displayError) {
-    termScreen.textContent = "[startup error] " + message;
-  }
-}
-
-window.addEventListener("error", (event) => {
-  if (!termScreen.textContent.trim() || termScreen.textContent.trim() === ">>>")
-    reportStartupError(event.error || event.message);
-});
-
-// Adds text to the screen. Text ending in "\n" becomes a finished line; anything else (like the
-// "what do you want to do?" prompt) stays on the same line as what the player types next.
-function write(text) {
-  const endsLine = text.endsWith("\n");
-  Typewriter.print(endsLine ? text.slice(0, -1) : text, { plain: true, newline: endsLine });
-}
-
-// The game's print(): every line goes through the typewriter, which paces it (during battle)
-// and sends it to the effects system for colors, shakes and sounds.
-function print(...args) {
-  const lines = args.join(" ").split("\n");
-  if (typeof WORLD !== "undefined") {
-    if (!Array.isArray(WORLD.dialogueLog)) WORLD.dialogueLog = [];
-    WORLD.dialogueLog.push(...lines.map((line) => String(line).slice(0, 240)));
-    if (WORLD.dialogueLog.length > 240) WORLD.dialogueLog.splice(0, WORLD.dialogueLog.length - 240);
-  }
-  for (const line of lines) Typewriter.print(line);
-}
-
-function autosave(manual = false) {
-  try {
-    if (WORLD?.flags?.practiceMode && !manual) return;
-    if (typeof WORLD !== "undefined" && WORLD.memories) WORLD.memories.lastSeenAt = Date.now();
-    localStorage.setItem(SAVE_KEY, saveCode());
-    termStatus.title = "Your adventure is saved automatically.";
-    if (manual) print("💾 Game saved.");
-  } catch (e) {
-    termStatus.title = "Saving is unavailable in this browser.";
-    if (manual) print("❌ Save failed: this browser could not store the save.");
-  }
-}
-
-// The game awaits this wherever the Python version called input().
-// It waits for the typewriter to finish showing everything first, so the prompt never appears
-// in the middle of a battle line.
-// Pass { timeout, label, onStart } for a timed prompt: a countdown bar shows and the promise resolves
-// with null if time runs out first. The clock starts only once the prompt is actually live.
-async function input(prompt = "", opts = {}) {
-  clearLoadingIndicator();
-  write(prompt);
-  autosave();
-  await Typewriter.idle();
-  return new Promise((resolve) => {
-    pendingInput = resolve;
-    const choiceMatch = String(prompt).match(/\[([^\]]*\/[^\]]*)\]/);
-    pendingChoices = choiceMatch
-      ? choiceMatch[1].split("/").map((choice) => choice.split(",")[0].trim()).filter(Boolean)
-      : [];
-    pendingChoiceIndex = -1;
-    termInput.placeholder = pendingChoices.length ? "↑/↓ select an option, or type your own..." : "Type a command...";
-    termInput.focus();
-    if (opts.timeout > 0) startInputTimer(opts, resolve);
-  });
-}
-
-// ----- timed prompts (combo window) -----
-const timerBox = document.getElementById("comboTimer");
-const timerLabel = document.getElementById("comboTimerLabel");
-const TIMER_SLOTS = 10; // length of the [#####-----] bar
-let inputTimer = null;
-function stopInputTimer() {
-  if (inputTimer) clearInterval(inputTimer);
-  inputTimer = null;
-  if (timerBox) timerBox.hidden = true;
-}
-function startInputTimer(opts, resolve) {
-  stopInputTimer();
-  const total = opts.timeout,
-    began = performance.now();
-  const paint = () => {
-    const left = Math.max(0, total - (performance.now() - began));
-    if (timerBox) {
-      // "Combo x10 [#######---] 3.5s": the #s drain as the window runs out.
-      const filled = Math.ceil((left / total) * TIMER_SLOTS);
-      const part = (text, cls) => {
-        const el = document.createElement("span");
-        el.textContent = text;
-        if (cls) el.className = cls;
-        return el;
-      };
-      timerLabel.replaceChildren(
-        part(`${opts.label || "Hurry"} [`),
-        part("#".repeat(filled), "combo-bar-fill"),
-        part("-".repeat(TIMER_SLOTS - filled), "combo-bar-empty"),
-        part(`] ${(left / 1000).toFixed(1)}s`)
-      );
-      timerBox.classList.toggle("urgent", left < 1500);
-    }
-    return left;
-  };
-  if (timerBox) timerBox.hidden = false;
-  if (typeof opts.onStart === "function") opts.onStart();
-  paint();
-  inputTimer = setInterval(() => {
-    if (paint() > 0) return;
-    stopInputTimer();
-    if (pendingInput !== resolve) return; // already answered
-    pendingInput = null;
-    pendingChoices = [];
-    pendingChoiceIndex = -1;
-    termInput.value = "";
-    termInput.placeholder = "Type a command...";
-    write("\n");
-    resolve(null);
-  }, 100);
-}
-
-termInput.addEventListener("keydown", (e) => {
-  // While text is still typing out, Enter / Space / Escape skip ahead and other keys do nothing.
-  if (Typewriter.isBusy()) {
-    if (!e.ctrlKey && !e.metaKey && !e.altKey) e.preventDefault();
-    if (["Enter", " ", "Escape"].includes(e.key)) Typewriter.skip();
-    return;
-  }
-  // Soft typing click for printable keys (and a slightly deeper one for backspace).
-  if (e.key.length === 1 || e.key === "Backspace") FX.play("key");
-  if (e.key === "Enter") {
-    e.preventDefault();
-    FX.play("enter");
-    const value = termInput.value;
-    termInput.value = "";
-    if (!pendingInput) return;
-    stopInputTimer();
-    termInput.placeholder = "Type a command...";
-    write(value + "\n");
-    const resolve = pendingInput;
-    pendingInput = null;
-    pendingChoices = [];
-    pendingChoiceIndex = -1;
-    showLoadingIndicator();
-    requestAnimationFrame(() => setTimeout(() => resolve(value), 0));
-  } else if (e.key === "ArrowUp") {
-    if (!pendingChoices.length || e.altKey || e.ctrlKey || e.metaKey) return;
-    e.preventDefault();
-    pendingChoiceIndex = pendingChoiceIndex <= 0 ? pendingChoices.length - 1 : pendingChoiceIndex - 1;
-    termInput.value = pendingChoices[pendingChoiceIndex];
-  } else if (e.key === "ArrowDown") {
-    if (!pendingChoices.length || e.altKey || e.ctrlKey || e.metaKey) return;
-    e.preventDefault();
-    pendingChoiceIndex = (pendingChoiceIndex + 1) % pendingChoices.length;
-    termInput.value = pendingChoices[pendingChoiceIndex];
-  }
-});
-
-termScreen.addEventListener("click", () => termInput.focus());
-termStatus.addEventListener("click", () => {
-  if (!pendingInput || termStatus.disabled || Typewriter.isBusy()) return;
-  termInput.value = "settings";
-  termInput.focus();
-  termInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-});
-document.getElementById("newGame").addEventListener("click", () => {
-  if (confirm("Delete the automatic save and start a new game?")) {
-    try {
-      localStorage.removeItem(SAVE_KEY);
-    } catch (e) {}
-    location.reload();
-  }
-});
-
-// Battles are shown like dialogue: wrap fightMonster() so the typewriter knows when one is running.
-// (This must come after commands.js and combat.js have been loaded.)
-const runFight = fightMonster;
-fightMonster = async function (...args) {
-  Typewriter.setBattle(true);
-  try {
-    return await runFight.apply(this, args);
-  } finally {
-    Typewriter.setBattle(false);
-  }
-};
-
-let savedCode = "";
-try {
-  savedCode = localStorage.getItem(SAVE_KEY) || "";
-} catch (e) {}
-showLoadingIndicator("Starting your game…");
-requestAnimationFrame(() =>
-  setTimeout(
-    () => runGame(savedCode).catch((e) => {
-      reportStartupError(e);
-    }),
-    0
-  )
-);
+    <!-- data -->
+    <script src="items.js?v=20261004-30"></script>
+    <script src="scenes.js?v=20261004-34"></script>
+    <script src="monsters.js?v=20261004-34"></script>
+    <script src="dialogue.js?v=20261004-30"></script>
+    <!-- game engine -->
+    <script src="helpers.js?v=20261004-31"></script>
+    <script src="playerGear.js?v=20261004-30"></script>
+    <script src="crafting.js?v=20261004-30"></script>
+    <script src="combat.js?v=20261004-34"></script>
+    <script src="story.js?v=20261004-30"></script>
+    <script src="saves.js?v=20261004-30"></script>
+    <script src="rpgSystems.js?v=20261004-30"></script>
+    <script src="commands.js?v=20261004-30"></script>
+    <script src="effects.js?v=20261004-34"></script>
+    <script src="typewriter.js?v=20261004-30"></script>
+    <script src="index.js?v=20261004-31"></script>
+    <script src="admin.js?v=20261004-30"></script>
+    <!-- 2.5D battle stage (fights only) -->
+    <script src="battle25d.js?v=20261004-01"></script>
+  </body>
+</html>
