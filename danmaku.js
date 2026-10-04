@@ -67,6 +67,13 @@ const DANMAKU_BOSSES = [
 ];
 
 function danmakuClamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+function danmakuEffectivePlayerHP() {
+  try {
+    return typeof maxHp === "function" ? maxHp() : (C.BASE_MAX_HP + (PLAYER.vit - 5) * C.LVL_HP + (PLAYER.level - 1) * C.LVL_HP);
+  } catch (_) {
+    return 100;
+  }
+}
 function danmakuRand(a, b) { return a + Math.random() * (b - a); }
 
 function danmakuState() {
