@@ -988,6 +988,11 @@ const FX = (() => {
   };
 
   const RULES = [
+    // ----- combos (same feed style as Exp / coin / item lines; kept first so nothing else claims them) -----
+    { match: /^Combo (started|\d+ hits|bonus)/, cls: "fx-reward-feed", run: () => play("xp") },
+    { match: /^Combo ended/, cls: "fx-reward-feed", run: () => play("hint") },
+    { match: /^Basic attack repeated/, cls: "fx-reward-feed", run: () => play("hint") },
+
     // ----- damage you take -----
     {
       match: /^\s*💔 You are hit for (\d+)/,
@@ -1284,6 +1289,14 @@ const FX = (() => {
       wrapper.append(span("Obtained "), span(`<${itemReward[1]}>`, "reward-item"), span(` (${itemReward[2]})`));
       return wrapper;
     }
+    // Combo lines: highlight the key numbers (hit count, multiplier, bonus damage) like the Exp amount.
+    if (/^(Combo |Basic attack repeated)/.test(line)) {
+      const wrapper = document.createElement("span");
+      line.split(/(\d+ hits?|x\d+(?:\.\d+)?|[+-]\d+(?: damage|%))/).forEach((part, i) => {
+        if (part) wrapper.append(span(part, i % 2 ? "reward-combo" : ""));
+      });
+      return wrapper;
+    }
     const hp = line.match(HP_BAR);
     if (hp) {
       const ratio = +hp[5] > 0 ? +hp[4] / +hp[5] : 0;
@@ -1349,5 +1362,3 @@ const FX = (() => {
 
   return { renderLine, play, blip, startBattleMusic, stopBattleMusic, corrupt, realityCut, attackCutscene };
 })();
-
-
