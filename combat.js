@@ -1704,6 +1704,27 @@ async function fightMonster(arg = "", elite = false) {
   if (!WORLD.flags.practiceMode && typeof applyRested === "function") applyRested(f);
   if (typeof SETTINGS !== "undefined" && SETTINGS.difficulty !== "normal")
     print(`⚙️ Difficulty: ${SETTINGS.difficulty}${PLAYER.ngPlus ? ` · NG+${PLAYER.ngPlus}` : ""}`);
+
+  // ===== REAL-TIME (Touhou-style) FIGHT =====
+  // battle25d.js provides RealtimeBattle. Remove this block to go back to turn-based fights.
+  if (typeof RealtimeBattle !== "undefined") {
+    const outcome = await RealtimeBattle.run(f);
+    saveDungeonVitals(f);
+    stopMusic();
+    if (outcome === "fled") {
+      print("(No XP or loot from a fight you ran from.)");
+      return;
+    }
+    if (outcome === "win") {
+      winFight(f);
+      if (typeof maybePromptLevelUp === "function") await maybePromptLevelUp();
+      return;
+    }
+    loseFight(f);
+    return;
+  }
+  // ===== end real-time fight =====
+
   let turn = 0;
   const down = () => {
     advanceBossForms(f);
