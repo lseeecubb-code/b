@@ -375,6 +375,7 @@ const GAME_SCENES = {
     ],
     scene: "frost",
   },
+},
 
   openingVisuals: {
     frost: { color: "#bfe8ff", sub: "The air forgets how to move.", ms: 3100, sound: "openFrost" },
