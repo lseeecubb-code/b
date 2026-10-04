@@ -15,7 +15,7 @@
     { sky: "#11162a", floor: "#182039", edge: "#354a76", accent: "#9bc6ff" },
   ];
 
-  let host, canvas, ctx, tag, w = 0, h = 0, raf = 0, last = 0, active = false;
+  let host, view, canvas, ctx, tag, w = 0, h = 0, raf = 0, last = 0, active = false;
   let fight = null, theme = THEMES[0], t = 0, shake = 0, boss = false;
   const player = { hp: 1, max: 1, shown: 1, lunge: 0, hit: 0, down: 0 };
   let foes = [];
@@ -27,18 +27,22 @@
     host = document.createElement("section");
     host.id = "battle25d";
     host.setAttribute("aria-hidden", "true");
-    host.innerHTML = '<canvas></canvas><div class="b25-tag">BATTLE · 2.5D</div>';
+    host.innerHTML = '<div class="b25-view"><canvas></canvas><div class="b25-tag">BATTLE · 2.5D</div></div><div class="b25-bar" id="b25Bar"></div>';
+    view = host.querySelector(".b25-view");
     const screen = document.getElementById("screen");
     screen.parentNode.insertBefore(host, screen);
     canvas = host.querySelector("canvas");
     ctx = canvas.getContext("2d");
     tag = host.querySelector(".b25-tag");
     window.addEventListener("resize", resize);
+    canvas.addEventListener("click", (e) => {
+      if (window.Battle25D && window.Battle25D.onFoeClick) window.Battle25D.onFoeClick(foeAt(e.clientX, e.clientY));
+    });
   }
 
   function resize() {
     if (!canvas) return;
-    w = host.clientWidth; h = host.clientHeight;
+    w = view.clientWidth; h = view.clientHeight;
     canvas.width = Math.max(1, Math.floor(w * DPR));
     canvas.height = Math.max(1, Math.floor(h * DPR));
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -141,6 +145,33 @@
     ctx.fillStyle = "#e9e3f2"; ctx.font = "700 10px ui-monospace,monospace"; ctx.textAlign = "center";
     ctx.fillText(`YOU ${Math.max(0, Math.round(player.hp))}/${Math.round(player.max)}`, b.x, b.y - 5);
   }
+  function intentLabel(e) {
+    try {
+      const it = e && e.intent; if (!it) return "";
+      const k = it.kind;
+      if (k === "stunned" || k === "staggered") return "✦ CAN'T ACT";
+      if (k === "idle") return "…";
+      if (k === "block") return "▶ GUARDING";
+      if (k === "parry_stance") return "▶ PARRY STANCE";
+      if (k === "dodge_stance") return "▶ DODGE STANCE";
+      const a = it.attack; if (!a) return "";
+      if (k === "heal") return "▶ " + String(a.name).toUpperCase() + " (HEAL)";
+      const st = fight.stats;
+      return `▶ ${String(a.name).toUpperCase()}${a.warning ? " !!" : ""}  P${parryChance(a, st) ? "✓" : "✗"} G${canGuard(a) ? "✓" : "✗"} D${dodgeChance(a, st) ? "✓" : "✗"}`;
+    } catch (_) { return ""; }
+  }
+  function foeAt(cx, cy) {
+    if (!canvas) return -1;
+    const r = canvas.getBoundingClientRect(); const x = cx - r.left, y = cy - r.top;
+    let best = -1, bd = 1e9;
+    foes.forEach((s, i) => {
+      if (s.hp <= 0) return;
+      const p = proj(enemyX(i), enemyY(i), 40); const rad = (boss ? 80 : 56) * p.s;
+      const d = Math.hypot(x - p.x, y - p.y);
+      if (d < rad && d < bd) { bd = d; best = i; }
+    });
+    return best;
+  }
   function drawFoe(s, i, n) {
     const slot = n === 1 ? 0 : (i / (n - 1)) * 2 - 1;
     const gx = n === 1 ? .5 : .15 + (slot + 1) * .3;
@@ -156,11 +187,15 @@
     ctx.fillText(s.icon, 0, -size * .1);
     ctx.filter = "none"; ctx.restore();
     if (fade > .05) {
-      const b = proj(gx, gy, 6 + (boss ? 130 : 96));
+      const b = proj(gx, gy, 6 + (boss ? 144 : 110));
       bar(b.x, b.y, boss ? 150 : 100, s.shown / s.max, s.staggered ? "#ffb347" : "#7a6cff");
       ctx.fillStyle = "#e9e3f2"; ctx.font = "700 10px ui-monospace,monospace"; ctx.textAlign = "center";
       const flag = s.stunned ? " ✦STUN" : s.staggered ? " ✦BREAK" : s.exposed ? " ✦OPEN" : "";
       ctx.fillText(String(s.name || "").toUpperCase().slice(0, 22) + flag, b.x, b.y - 5);
+      if (window.Battle25D && window.Battle25D.awaiting && fight && fight.enemies) {
+        const lbl = intentLabel(fight.enemies[i]);
+        if (lbl) { ctx.fillStyle = "#ffb347"; ctx.font = "700 10px ui-monospace,monospace"; ctx.fillText(lbl, b.x, b.y - 20); }
+      }
     }
   }
   function drawFloaters(dt) {
@@ -216,6 +251,13 @@
     }
     raf = requestAnimationFrame(frame);
   }
+
+  window.Battle25D = {
+    awaiting: false,
+    isActive: () => active,
+    fight: () => fight,
+    onFoeClick: null,
+  };
 
   // ---- show / hide around a fight ----
   function begin() {
