@@ -138,11 +138,33 @@
       function fire(foc) {
         const tg = nearest(); if (!tg) return;
         f.target = f.enemies.indexOf(tg);
+        const weaponName = equipment?.weapon || "iron fist";
+        const weapon = ITEMS?.[weaponName] || ITEMS?.["iron fist"];
+        const proj = weapon?.projectile || {};
+        const style = proj.style || (weaponName === "iron fist" ? "fist" : "weapon");
+        const range = Math.max(35, Number(proj.range ?? (weaponName === "iron fist" ? 135 : 300)));
+        const speed = Math.max(120, Number(proj.speed ?? (weaponName === "iron fist" ? 250 : 560)));
+        const radius = Math.max(3, Number(proj.radius ?? 5));
+        const count = Math.max(1, Math.floor(Number(proj.count ?? (foc ? 2 : 3))));
+        const spread = Number(proj.spread ?? (weaponName === "iron fist" ? 0 : (foc ? .025 : .14)));
+        const homing = Boolean(proj.homing ?? (weaponName === "iron fist" ? false : !foc));
+        const baseDamage = Math.max(1, dmgBase() * RT.SHOT_SCALE * (foc ? 1.3 : 1));
         const base = Math.atan2(tg.y - pl.y, tg.x - pl.x);
-        const d = Math.max(1, dmgBase() * RT.SHOT_SCALE * (foc ? 1.3 : 1));
-        const spread = foc ? [-.025, .025] : [-.14, 0, .14];
-        for (const s of spread) { const a = base + s; pb.push({ x: pl.x, y: pl.y - 8, vx: Math.cos(a) * 560, vy: Math.sin(a) * 560, d: d * (spread.length === 3 ? .8 : 1), hom: 0 }); }
-        if (!foc) for (const s of [-.8, .8]) { const a = base + s; pb.push({ x: pl.x, y: pl.y - 8, vx: Math.cos(a) * 420, vy: Math.sin(a) * 420, d: d * .7, hom: 1 }); }
+        for (let i = 0; i < count; i++) {
+          const centered = i - (count - 1) / 2;
+          const a = base + centered * spread;
+          pb.push({
+            x: pl.x, y: pl.y - 8,
+            vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
+            d: weaponName === "iron fist" ? Math.max(1, baseDamage * .75) : baseDamage,
+            hom: homing ? 1 : 0,
+            life: range / speed,
+            r: radius,
+            style,
+            weapon: weaponName,
+            color: proj.color || "#bfeaff",
+          });
+        }
       }
       function hitEnemy(e, d) {
         if (Math.random() < (C.CRIT + f.stats.crit) / 100) d *= C.CRIT_MULT;
@@ -194,7 +216,8 @@
             }
           }
           b.x += b.vx * dt; b.y += b.vy * dt;
-          if (b.x < -20 || b.x > FW + 20 || b.y < -30 || b.y > FH + 20) { b.dead = true; continue; }
+          b.life = (b.life ?? Infinity) - dt;
+          if (b.life <= 0 || b.x < -40 || b.x > FW + 40 || b.y < -50 || b.y > FH + 50) { b.dead = true; continue; }
           for (const e of f.enemies) {
             if (e.hp <= 0) continue;
             const rr = e.monster.chance <= 0 ? 34 : 24;
@@ -293,7 +316,25 @@
         g.globalAlpha = 1; g.lineCap = "round";
         for (const b of eb) { const p = pr(b.x, b.y, 12); glow(p, b.r * p.s * .55, "#fff", 1); }
         g.strokeStyle = "#bfeaff"; g.lineWidth = 2.2;
-        for (const b of pb) { const p = pr(b.x, b.y, 12), q = pr(b.x - b.vx * .025, b.y - b.vy * .025, 12); g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(q.x, q.y); g.stroke(); }
+        for (const b of pb) {
+          const p = pr(b.x, b.y, 12), q = pr(b.x - b.vx * .025, b.y - b.vy * .025, 12);
+          if (b.style === "fist" || b.weapon === "iron fist") {
+            g.save();
+            g.fillStyle = b.color || "#f0d0bd";
+            g.strokeStyle = "#7b5140";
+            g.lineWidth = 1.5;
+            g.translate(p.x, p.y);
+            g.rotate(Math.atan2(b.vy, b.vx));
+            g.beginPath();
+            g.arc(0, 0, Math.max(4, b.r || 7), 0, TAU);
+            g.fill(); g.stroke();
+            g.fillStyle = "#fff8";
+            g.fillRect(-1, -2, Math.max(3, (b.r || 7) * .9), 2);
+            g.restore();
+          } else {
+            g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(q.x, q.y); g.stroke();
+          }
+        }
         g.restore();
         if (flash > 0) { g.globalAlpha = Math.min(.5, flash); g.fillStyle = "#fff"; g.fillRect(0, 0, W, H); g.globalAlpha = 1; }
 
