@@ -99,7 +99,9 @@ Type **story** for your current objective or **guide** for level targets and the
 
 ## Saves and offline play
 
-Progress autosaves in the browser. Use **saves** to manage local slots, or **copy** and **load** to move a save with its code. The tower leaderboard is stored separately in the current browser; scores are not shared online because this game has no server backend.
+Progress autosaves in the browser. Use **saves** to manage three named local slots, or **copy** and **load** to move a save with its code. The tower and five bout regional arena leaderboards are stored separately in the current browser; scores are not shared online because this game has no server backend.
+
+The campaign now has one personal regional story and one region specific hazard in each chapter, four bond scenes for each companion, optional New Game+ enemy rules, and a first play tutorial. Settings also include relaxed text spacing and reduced flashes. These features and records work locally in the browser.
 
 To play offline, download or clone this repository and keep the project files together. Open **index.html** in a modern browser. The live site is the easiest way to keep browser saves and the tower leaderboard available.
 

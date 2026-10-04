@@ -91,6 +91,16 @@
       }
       body.access-large #screen,
       body.access-large #command { font-size: 19px; line-height: 1.55; }
+      body.access-spacing #screen { line-height: 1.8; letter-spacing: 0.025em; }
+      body.access-reduced-flash .fx-glitch { animation: none !important; text-shadow: none !important; }
+      body.access-reduced-flash .fx-flash { display: none !important; }
+      body.access-reduced-flash .shake,
+      body.access-reduced-flash .shake-strong { animation: none !important; }
+      body.access-reduced-flash .boss-attack-scene,
+      body.access-reduced-flash .boss-attack-scene * { animation: none !important; }
+      body.access-reduced-flash .boss-attack-scene::before { opacity: 0.72; }
+      body.access-reduced-flash .fx-intent-head,
+      body.access-reduced-flash .boss-attack-mark { text-shadow: none !important; }
       body.access-reduced-motion *,
       body.access-reduced-motion *::before,
       body.access-reduced-motion *::after {
@@ -818,14 +828,14 @@
     <script src="monsters.js?v=20261004-10"></script>
     <script src="dialogue.js?v=20261003-9"></script>
     <!-- game engine -->
-    <script src="helpers.js?v=20261004-11"></script>
+    <script src="helpers.js?v=20261004-12"></script>
     <script src="playerGear.js?v=20261004-10"></script>
     <script src="crafting.js?v=20261004-10"></script>
-    <script src="combat.js?v=20261004-12"></script>
-    <script src="story.js?v=20261004-11"></script>
-    <script src="saves.js?v=20261004-11"></script>
-    <script src="rpgSystems.js?v=20261004-12"></script>
-    <script src="commands.js?v=20261004-12"></script>
+    <script src="combat.js?v=20261004-13"></script>
+    <script src="story.js?v=20261004-13"></script>
+    <script src="saves.js?v=20261004-13"></script>
+    <script src="rpgSystems.js?v=20261004-13"></script>
+    <script src="commands.js?v=20261004-13"></script>
     <!-- terminal UI + start -->
     <script src="effects.js?v=20261004-16"></script>
     <script src="typewriter.js?v=20261003-8"></script>

@@ -26,6 +26,7 @@ const COMMANDS = {
   dungeon: [runDungeon, "dungeon", "Enter a five-floor gauntlet with a rest-or-push choice between floors"],
   challenge: [runChallenge, "challenge [glass|iron|frenzy]", "Survive three fights under a custom rule for a special reward"],
   tower: [runTower, "tower", "Fight endless scaling waves, bank rewards, and set a browser leaderboard score"],
+  arena: [runArena, "arena", "Enter a five bout regional arena and post a score stored in this browser"],
   raids: [raidBoard, "raids", "Choose a regional raid and spend raid tokens on permanent upgrades"],
   bestiary: [showBestiary, "bestiary [enemy]", "Study enemy moves, resistances, drops, and encounter odds"],
   journal: [showBestiaryJournal, "journal [enemy]", "Review enemy encounters, forms, and moves you have discovered"],
@@ -51,7 +52,7 @@ const COMMANDS = {
   record: [showCampaignRecord, "record", "Review a detailed record of this campaign"],
   practice: [practiceBoss, "practice [boss]", "Rehearse a previously defeated story boss without rewards or risk"],
   training: [trainingMode, "training", "Practice your build against a training construct"],
-  settings: [showSettingsMenu, "settings", "Adjust difficulty, combat log, and display preferences"],
+  settings: [showSettingsMenu, "settings", "Adjust difficulty, text display, motion, and accessibility preferences"],
   save: [() => autosave(true), "save", "Save your adventure immediately"],
   saves: [saveSlotsMenu, "saves", "Manage your three local save slots"],
   completed: [loadCompletedRun, "completed", "Restore your most recently completed campaign"],
@@ -178,6 +179,10 @@ async function doFunction(line) {
     print("You are in a challenge trial. Resume with 'challenge' or leave with 'quit'.");
     return;
   }
+  if (WORLD.arenaRun?.active && !["arena", "quit"].includes(n)) {
+    print("You are in a regional arena. Resume with 'arena' or leave with 'quit'.");
+    return;
+  }
   await COMMANDS[n][0](m[2]);
 }
 async function runGame(savedCode) {
@@ -191,6 +196,7 @@ async function runGame(savedCode) {
       print(`[autosave warning] ${e.message}`);
     }
   }
+  const firstPlay = !WORLD.flags?.tutorialSeen;
   if (!WORLD.memories || typeof WORLD.memories !== "object") WORLD.memories = { reloads: 0, quitsMidFight: 0, lastSeenAt: 0 };
   const now = Date.now();
   if (WORLD.memories.inCombat) {
@@ -208,6 +214,10 @@ async function runGame(savedCode) {
   print("\n👋");
   print("⚔️ A turn-based story RPG. Explore a fractured world, grow stronger, and uncover what waits beyond the final save.");
   storyIntro();
+  if (firstPlay) {
+    showTutorial();
+    WORLD.flags.tutorialSeen = true;
+  }
   showStory();
   if (typeof maybeRecruitFromStory === "function") maybeRecruitFromStory();
   showMainMenu();
