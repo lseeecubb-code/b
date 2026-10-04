@@ -7,8 +7,8 @@
 :root {
   color-scheme: dark;
 
-  --void: #04030a;
-  --void-2: #0a0712;
+  --void: #000;
+  --void-2: #000;
   --line: #1c1730;
 
   --text: #cdc6dc;
@@ -30,7 +30,7 @@
 }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; }
+html, body { margin: 0; height: 100%; background: #000; }
 
 body {
   font-family: var(--mono);
@@ -166,7 +166,7 @@ button:focus-visible { outline: 1px solid var(--gold); outline-offset: 2px; }
   gap: 10px;
   padding: 10px 22px;
   border-top: 1px solid var(--line);
-  background: #07050f;
+  background: #000;
 }
 .prompt { user-select: none; font-weight: 700; color: var(--gold); text-shadow: 0 0 10px #e9cf8688; }
 #command {
