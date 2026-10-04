@@ -3,20 +3,20 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <meta name="theme-color" content="#000000" />
-    <meta name="description" content="THE LAST SAVE: a turn-based crafting RPG with a fourth-wall campaign." />
-    <title>THE LAST SAVE</title>
+    <meta name="theme-color" content="#05050a" />
+    <meta name="description" content="THE LAST SAVE: a 2.5D story RPG with crafting, combat and a fourth-wall campaign." />
+    <title>THE LAST SAVE — 2.5D</title>
     <link rel="icon" href="icon-image.png" />
     <link rel="stylesheet" href="styles.css?v=20261004-34" />
+    <link rel="stylesheet" href="game2_5d.css?v=20261004-01" />
   </head>
   <body>
     <div class="terminal">
       <div class="terminal-corruption" aria-hidden="true"></div>
       <header class="bar">
-        
         <div class="brand-copy">
           <div class="title">THE LAST SAVE</div>
-          <div class="edition">offline role-playing game</div>
+          <div class="edition">2.5D adventure RPG</div>
         </div>
         <nav class="toolbar" aria-label="Game settings">
           <button id="speedToggle" type="button">⌨️ Text: Normal</button>
@@ -29,19 +29,11 @@
         </nav>
       </header>
       <main id="screen" tabindex="0" aria-label="Game output"><noscript>THE LAST SAVE needs JavaScript to run.</noscript></main>
-      <div class="combo-timer" id="comboTimer" hidden role="timer" aria-live="off">
-        <span id="comboTimerLabel"></span>
-      </div>
-      <div class="input-row">
-        <span class="prompt">&gt;&gt;&gt;</span
-        ><input id="command" autocomplete="off" spellcheck="false" autofocus placeholder="Type a command..." aria-label="Enter a game command" />
-      </div>
+      <div class="combo-timer" id="comboTimer" hidden role="timer" aria-live="off"><span id="comboTimerLabel"></span></div>
+      <div class="input-row"><span class="prompt">&gt;&gt;&gt;</span><input id="command" autocomplete="off" spellcheck="false" autofocus placeholder="Type a command..." aria-label="Enter a game command" /></div>
       <footer class="terminal-footer">
         <button class="footer-settings" id="settingsButton" type="button" aria-label="Open game settings" title="Open game settings">⚙️ Settings</button>
-        <div class="footer-meta">
-          <div class="help">↵ Enter confirms · ↑/↓ select listed choices</div>
-          <div class="version" id="gameVersion">THE LAST SAVE · v1.0</div>
-        </div>
+        <div class="footer-meta"><div class="help">↵ Enter confirms · ↑/↓ select listed choices</div><div class="version" id="gameVersion">THE LAST SAVE · 2.5D</div></div>
       </footer>
     </div>
 
@@ -59,10 +51,11 @@
     <script src="saves.js?v=20261004-30"></script>
     <script src="rpgSystems.js?v=20261004-30"></script>
     <script src="commands.js?v=20261004-30"></script>
-    <!-- terminal UI + start -->
     <script src="effects.js?v=20261004-34"></script>
     <script src="typewriter.js?v=20261004-30"></script>
     <script src="index.js?v=20261004-31"></script>
     <script src="admin.js?v=20261004-30"></script>
+    <!-- full-game 2.5D presentation -->
+    <script src="game2_5d.js?v=20261004-01"></script>
   </body>
 </html>
