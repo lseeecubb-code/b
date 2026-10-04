@@ -10,29 +10,23 @@
   };
   const save = (b) => { try { localStorage.setItem(KEY, JSON.stringify(b)); } catch (_) {} };
 
-  // battle25d.js still owns the real-time projectile loop. It checks this
-  // gate indirectly through Array#push, so no projectile can be emitted by
-  // the loop unless the player has deliberately pressed the Attack key.
+  // battle25d.js owns the real-time projectile loop. This gate means its
+  // automatic timer can never emit a player projectile by itself.
   let attackArmed = false;
-  let disarmTimer = null;
-  function armAttack() {
-    attackArmed = true;
-    if (disarmTimer) clearTimeout(disarmTimer);
-    disarmTimer = setTimeout(() => { attackArmed = false; disarmTimer = null; }, 0);
-  }
-  window.BattleManualAttack = {
-    arm: armAttack,
-    isArmed: () => attackArmed,
-  };
+  function armAttack() { attackArmed = true; }
+  window.BattleManualAttack = { arm: armAttack, isArmed: () => attackArmed };
 
-  // Only gate the player-projectile objects produced by battle25d.js.
-  // Enemy bullets and every other array push remain untouched.
   const nativePush = Array.prototype.push;
   if (!window.__battleManualPushGateInstalled) {
     window.__battleManualPushGateInstalled = true;
     Array.prototype.push = function (...items) {
       const isPlayerProjectile = items.some((item) => item && item.style && item.weapon && Object.prototype.hasOwnProperty.call(item, "life"));
-      if (isPlayerProjectile && !attackArmed) return this.length;
+      if (isPlayerProjectile) {
+        if (!attackArmed) return this.length;
+        // A volley may call push several times synchronously. Consume the
+        // permission after the current call stack, not after the first bullet.
+        queueMicrotask(() => { attackArmed = false; });
+      }
       return nativePush.apply(this, items);
     };
   }
