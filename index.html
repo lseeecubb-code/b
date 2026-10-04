@@ -1,63 +1,118 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-    <meta name="theme-color" content="#05050a" />
-    <meta name="description" content="THE LAST SAVE: a 2.5D story RPG with crafting, combat and a fourth-wall campaign." />
-    <title>THE LAST SAVE — 2.5D</title>
-    <link rel="icon" href="icon-image.png" />
-    <link rel="stylesheet" href="styles.css?v=20261004-34" />
-    <link rel="stylesheet" href="game2_5d.css?v=20261004-03" />
-  </head>
-  <body>
-    <div class="terminal">
-      <div class="terminal-corruption" aria-hidden="true"></div>
-      <header class="bar">
-        <div class="brand-copy">
-          <div class="title">THE LAST SAVE</div>
-          <div class="edition">2.5D adventure RPG</div>
-        </div>
-        <nav class="toolbar" aria-label="Game settings">
-          <button id="speedToggle" type="button">⌨️ Text: Normal</button>
-          <label class="music-volume" title="Music volume">
-            <span aria-hidden="true">♪</span>
-            <input id="musicVolume" type="range" min="0" max="100" step="1" value="55" aria-label="Music volume" />
-            <output id="musicVolumeValue" for="musicVolume">55%</output>
-          </label>
-          <button id="newGame" type="button">↻ New Game</button>
-        </nav>
-      </header>
-      <main id="screen" tabindex="0" aria-label="Game output"><noscript>THE LAST SAVE needs JavaScript to run.</noscript></main>
-      <div class="combo-timer" id="comboTimer" hidden role="timer" aria-live="off"><span id="comboTimerLabel"></span></div>
-      <div class="input-row"><span class="prompt">&gt;&gt;&gt;</span><input id="command" autocomplete="off" spellcheck="false" autofocus placeholder="Type a game command..." aria-label="Enter a game command" /></div>
-      <footer class="terminal-footer">
-        <button class="footer-settings" id="settingsButton" type="button" aria-label="Open game settings" title="Open game settings">⚙️ Settings</button>
-        <div class="footer-meta"><div class="help">↵ Enter confirms · ↑/↓ select listed choices</div><div class="version" id="gameVersion">THE LAST SAVE · 2.5D</div></div>
-      </footer>
-    </div>
+/*
+ * THE LAST SAVE — 2.5D hard boot.
+ * The 2.5D world is the primary presentation, while the original terminal
+ * input is retained as a compact command bar at the bottom of the screen.
+ */
+(function () {
+  "use strict";
 
-    <!-- data -->
-    <script src="items.js?v=20261004-30"></script>
-    <script src="scenes.js?v=20261004-34"></script>
-    <script src="monsters.js?v=20261004-34"></script>
-    <script src="dialogue.js?v=20261004-30"></script>
-    <!-- game engine -->
-    <script src="helpers.js?v=20261004-31"></script>
-    <script src="playerGear.js?v=20261004-30"></script>
-    <script src="crafting.js?v=20261004-30"></script>
-    <script src="combat.js?v=20261004-34"></script>
-    <script src="story.js?v=20261004-30"></script>
-    <script src="saves.js?v=20261004-30"></script>
-    <script src="rpgSystems.js?v=20261004-30"></script>
-    <script src="commands.js?v=20261004-30"></script>
-    <script src="effects.js?v=20261004-34"></script>
-    <script src="typewriter.js?v=20261004-30"></script>
-    <script src="index.js?v=20261004-31"></script>
-    <script src="admin.js?v=20261004-30"></script>
-    <!-- full-game 2.5D presentation -->
-    <script src="game2_5d.js?v=20261004-02"></script>
-    <script src="game2_5d_boot.js?v=20261004-03"></script>
-    <script src="game2_5d_camera.js?v=20261004-04"></script>
-  </body>
-</html>
+  const TERMINAL = ".terminal";
+
+  function restoreCommandBar() {
+    const terminal = document.querySelector(TERMINAL);
+    if (terminal) {
+      terminal.style.setProperty("display", "block", "important");
+      terminal.removeAttribute("aria-hidden");
+      terminal.classList.add("command-bar-25d");
+    }
+    document.documentElement.classList.add("last-save-25d");
+    document.body.classList.add("last-save-25d");
+  }
+
+  function ensureState() {
+    try {
+      if (typeof WORLD !== "undefined" && typeof PLAYER !== "undefined") return true;
+      if (typeof resetState === "function") {
+        resetState();
+        return typeof PLAYER !== "undefined";
+      }
+    } catch (error) {
+      console.error("2.5D state boot failed:", error);
+    }
+    return false;
+  }
+
+  function emergencyRenderer() {
+    if (document.getElementById("world25d") || document.getElementById("world25dEmergency")) return;
+
+    const root = document.createElement("div");
+    root.id = "world25dEmergency";
+    root.style.cssText = "position:fixed;inset:0;z-index:2147483000;background:#070711;color:#eee;font-family:system-ui,sans-serif;overflow:hidden";
+    root.innerHTML = `
+      <canvas id="world25dEmergencyCanvas" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+      <div style="position:absolute;left:24px;top:20px;font-weight:900;letter-spacing:.18em;font-size:20px;text-shadow:0 2px 10px #000">THE LAST SAVE<div id="emergencyBiome" style="font-size:10px;color:#cbbfe0;letter-spacing:.22em;margin-top:5px">LANTERN FIELDS · 2.5D</div></div>
+      <div style="position:absolute;right:24px;top:20px;padding:10px 14px;background:#0b0b16cc;border:1px solid #ffffff22;backdrop-filter:blur(8px)" id="emergencyStats">ADVENTURER · LV 1</div>
+      <div style="position:absolute;left:24px;bottom:22px;padding:9px 12px;background:#090912cc;border:1px solid #ffffff1c;color:#aaa0b7;font-size:11px">WASD / ARROWS · ENTER COMMANDS · E INTERACT</div>
+    `;
+    document.body.appendChild(root);
+
+    const canvas = document.getElementById("world25dEmergencyCanvas");
+    const ctx = canvas.getContext("2d");
+    let dpr = Math.min(2, window.devicePixelRatio || 1);
+    let px = 8, py = 7;
+    const keys = new Set();
+    const tw = 54, th = 54, mw = 17, mh = 13;
+
+    function resize() {
+      const w = innerWidth, h = innerHeight;
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      canvas.style.width = w + "px";
+      canvas.style.height = h + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function iso(x, y, z = 0) {
+      return { x: (x-8.5)*tw + innerWidth*.5, y: (y-6.5)*th + innerHeight*.5 - z };
+    }
+
+    function diamond(p, fill, stroke) {
+      ctx.beginPath();
+      ctx.moveTo(p.x,p.y); ctx.lineTo(p.x+tw,p.y); ctx.lineTo(p.x+tw,p.y+th); ctx.lineTo(p.x,p.y+th); ctx.closePath();
+      ctx.fillStyle=fill; ctx.fill(); ctx.strokeStyle=stroke; ctx.stroke();
+    }
+
+    function draw() {
+      const w=innerWidth,h=innerHeight;
+      ctx.clearRect(0,0,w,h);
+      const g=ctx.createLinearGradient(0,0,0,h); g.addColorStop(0,"#14152b"); g.addColorStop(1,"#05050a");
+      ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+      for(let y=0;y<mh;y++) for(let x=0;x<mw;x++) {
+        const p=iso(x,y);
+        diamond(p,(x+y)%4===0?"#1b2030":"#17182b","#39314f");
+      }
+      const p=iso(px,py,18); ctx.fillStyle="#0008"; ctx.beginPath(); ctx.ellipse(p.x,p.y+17,13,6,0,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle="#e8c986"; ctx.beginPath(); ctx.moveTo(p.x-10,p.y+14);ctx.lineTo(p.x-7,p.y-7);ctx.quadraticCurveTo(p.x,p.y-16,p.x+7,p.y-7);ctx.lineTo(p.x+10,p.y+14);ctx.closePath();ctx.fill();
+      ctx.fillStyle="#f4e9e3";ctx.beginPath();ctx.arc(p.x,p.y-12,7,0,Math.PI*2);ctx.fill();
+      requestAnimationFrame(draw);
+    }
+
+    window.addEventListener("resize", resize);
+    window.addEventListener("keydown", e => {
+      const k=e.key.toLowerCase();
+      if(["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"].includes(k)) { e.preventDefault(); keys.add(k); }
+      if(k==="enter") {
+        const command=prompt("Command");
+        if(command && typeof issueCommand === "function") issueCommand(command);
+      }
+    });
+    window.addEventListener("keyup", e => keys.delete(e.key.toLowerCase()));
+    setInterval(() => {
+      let dx=0,dy=0;
+      if(keys.has("a")||keys.has("arrowleft")) dx--;
+      if(keys.has("d")||keys.has("arrowright")) dx++;
+      if(keys.has("w")||keys.has("arrowup")) dy--;
+      if(keys.has("s")||keys.has("arrowdown")) dy++;
+      if(dx||dy){px=Math.max(.8,Math.min(mw-.8,px+dx*.18));py=Math.max(.8,Math.min(mh-.8,py+dy*.18));}
+    },50);
+    resize(); draw();
+  }
+
+  restoreCommandBar();
+  ensureState();
+
+  setTimeout(() => {
+    restoreCommandBar();
+    if (!document.getElementById("world25d")) emergencyRenderer();
+  }, 1200);
+})();
