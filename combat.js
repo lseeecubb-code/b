@@ -1314,7 +1314,7 @@ function winFight(f) {
     if (run?.lootBonus) {
       const coins = 25 + Math.max(0, PLAYER.level) * 5;
       addItem("coin", coins);
-      print(`💰 Push bonus: ${coins} coin from ${title(e.name)}.`);
+      print(`Earned $${coins} · push bonus from ${title(e.name)}.`);
     }
   });
   names.forEach((e) => {

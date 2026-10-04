@@ -208,7 +208,8 @@ function applySave({ inv, eq, pl, st, world }) {
     const personal = WORLD.companions?.personal || {};
     WORLD.companions.personal = Object.fromEntries(Object.entries(COMPANION_PERSONAL_QUESTS).map(([id, quest]) => {
       const state = personal[id] || {};
-      return [id, { progress: Math.max(0, Math.min(quest.need, parseInt(state.progress) || 0)), done: !!state.done }];
+      return [id, { progress: Math.max(0, Math.min(quest.need, parseInt(state.progress) || 0)), done: !!state.done,
+        moments: [...new Set(Array.isArray(state.moments) ? state.moments.map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n < 3) : [])] }];
     }));
   }
   if (typeof WORLD !== "undefined")

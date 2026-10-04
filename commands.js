@@ -12,7 +12,8 @@ function openGitHubRepository() {
 }
 const COMMANDS = {
   explore: [exploreStory, "explore", "Travel the current region, find encounters, and advance the campaign"],
-  map: [chooseRoute, "map", "Choose a safe road or a risky shortcut through the current region"],
+  map: [showWorldMap, "map", "View regions, discoveries, and your tracked objective"],
+  route: [chooseRoute, "route", "Choose a safe road or a risky shortcut through the current region"],
   story: [showStory, "story", "Review your chapter, objective, and progress"],
   chronicle: [showCampaignChronicle, "chronicle", "Read story memories and major choices from this run"],
   replay: [replayChapter, "replay [chapter]", "Revisit an unlocked chapter memory without changing progress"],
@@ -31,6 +32,8 @@ const COMMANDS = {
   perks: [showPerks, "perks", "Browse the Warrior, Rogue, and Mage perk paths"],
   magic: [showMagic, "magic", "Review spells that spend Energy in combat"],
   party: [showParty, "party", "Review your companions and choose who fights beside you"],
+  bond: [showBondStory, "bond [companion]", "Share a personal story with a companion as your bond grows"],
+  track: [trackQuest, "track [main|quest|none]", "Pin an objective to your map and story log"],
   quests: [showQuestLog, "quests", "Track side quests, objectives, and rewards"],
   achievements: [showAchievements, "achievements", "Celebrate milestones earned along the way"],
   settings: [showSettingsMenu, "settings", "Adjust difficulty, combat log, and display preferences"],
@@ -74,11 +77,11 @@ const COMMANDS = {
   ],
 };
 const MENU = [
-  ["📖", ["explore", "map", "story", "chronicle", "replay", "guide", "ending"]],
+  ["📖", ["explore", "map", "route", "story", "chronicle", "replay", "guide", "ending"]],
   ["⚔️", ["fight", "dungeon", "tower", "raids", "bestiary", "journal"]],
   ["🧙", ["inventory", "stats", "skills", "allocate", "perks", "magic", "info", "equip", "unequip"]],
   ["🔨", ["craft", "recipes", "shop", "buy", "sell"]],
-  ["🏕️", ["town", "quests", "party", "achievements", "settings", "save", "saves", "completed", "ngplus", "event", "github", "copy", "load", "menu", "quit"]],
+  ["🏕️", ["town", "quests", "track", "party", "bond", "achievements", "settings", "save", "saves", "completed", "ngplus", "event", "github", "copy", "load", "menu", "quit"]],
 ];
 const ORDER = MENU.flatMap((x) => x[1]),
   cnum = (n) => ORDER.indexOf(n) + 1;
