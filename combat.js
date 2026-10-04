@@ -272,7 +272,11 @@ function showCombatMenu(f) {
   print("Z. 🗣️ Companion — order your ally to attack, guard, or heal (when available).");
   print(`0. 🏃 Run away — attempt to flee (${run}% chance).`);
   print(`X. 🌟 Limit Break — ${f.limitUsed ? "spent this fight" : `${Math.min(100, f.limitGauge || 0)}% charged`}.`);
-  print("C. 🎯 Choose target · V. 📜 Combat log · F. 🔎 Inspect target · Q/E. Cycle target.");
+  print("C. 🎯 Choose target.");
+  print("V. 📜 Combat log.");
+  print("F. 🔎 Inspect target.");
+  print("Q. Cycle to the previous target.");
+  print("E. Cycle to the next target.");
 }
 async function chooseItem() {
   const owned = Object.keys(USABLE_ITEMS).filter((n) => (inventory[n] || 0) > 0);
