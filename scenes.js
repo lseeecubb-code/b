@@ -516,7 +516,7 @@ const GAME_SCENES = {
     "page-storm": { glyphs: ["▤", "§", "¶", "▧"], count: 20, duration: 1900 },
     "redline-slice": { glyphs: [""], count: 7, duration: 1350 },
     "void-pulse": { glyphs: ["#", "0", "?", "∅"], count: 26, duration: 1800 },
-  },    "dragon-flame": { glyphs: ["🔥", "◆", "▲", "✦"], count: 30, duration: 2050 },
+    "dragon-flame": { glyphs: ["🔥", "◆", "▲", "✦"], count: 30, duration: 2050 },
     "ground-rift": { glyphs: ["╱", "╲", "◆", "▲"], count: 20, duration: 1750 },
     "dragon-roar": { glyphs: ["!!!", "≋", "⚡", "◆"], count: 16, duration: 1650 },
     "wing-storm": { glyphs: ["≋", "／", "╱", "✧"], count: 24, duration: 1650 },
