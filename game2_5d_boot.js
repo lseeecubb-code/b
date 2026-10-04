@@ -51,7 +51,7 @@
     let dpr = Math.min(2, window.devicePixelRatio || 1);
     let px = 8, py = 7;
     const keys = new Set();
-    const tw = 76, th = 38, mw = 17, mh = 13;
+    const tw = 54, th = 54, mw = 17, mh = 13;
 
     function resize() {
       const w = innerWidth, h = innerHeight;
@@ -63,12 +63,12 @@
     }
 
     function iso(x, y, z = 0) {
-      return { x: (x-y)*tw*.5 + innerWidth*.5, y: (x+y)*th*.5 + 100-z };
+      return { x: (x-8.5)*tw + innerWidth*.5, y: (y-6.5)*th + innerHeight*.5 - z };
     }
 
     function diamond(p, fill, stroke) {
       ctx.beginPath();
-      ctx.moveTo(p.x,p.y); ctx.lineTo(p.x+tw*.5,p.y+th*.5); ctx.lineTo(p.x,p.y+th); ctx.lineTo(p.x-tw*.5,p.y+th*.5); ctx.closePath();
+      ctx.moveTo(p.x,p.y); ctx.lineTo(p.x+tw,p.y); ctx.lineTo(p.x+tw,p.y+th); ctx.lineTo(p.x,p.y+th); ctx.closePath();
       ctx.fillStyle=fill; ctx.fill(); ctx.strokeStyle=stroke; ctx.stroke();
     }
 
