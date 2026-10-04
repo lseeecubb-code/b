@@ -55,6 +55,7 @@ function stanceRate(m, st, type) {
   );
 }
 const ACTION_ALIASES = {
+  // Combat keys use 1-0 first, then z/x/c/v/f/q/e for extra actions.
   1: "attack",
   attack: "attack",
   a: "attack",
@@ -87,22 +88,34 @@ const ACTION_ALIASES = {
   s: "skill",
   9: "counter",
   10: "companion",
+  z: "companion",
   companion: "companion",
   ally: "companion",
   order: "companion",
   counter: "counter",
-  c: "counter",
+  c: "target",
   limit: "limit",
   "limit break": "limit",
   l: "limit",
+  x: "limit",
   magic: "skill",
   spell: "skill",
   spells: "skill",
   cast: "skill",
   target: "target",
   t: "target",
+  v: "log",
   log: "log",
+  f: "inspect",
+  q: "target-prev",
+  e: "target-next",
 };
+const COMBAT_OPTION_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "z", "x", "c", "v", "f", "q", "e"];
+function combatOptionKey(index) { return COMBAT_OPTION_KEYS[index] || String(index + 1); }
+function combatOptionIndex(raw, count) {
+  const index = COMBAT_OPTION_KEYS.indexOf(raw);
+  return index >= 0 && index < count ? index : -1;
+}
 
 // ---------- combat: UI ----------
 function effLine(e) {
@@ -256,10 +269,10 @@ function showCombatMenu(f) {
   print("7. 🧪 Item — use a potion, bomb, or combat aid.");
   print(`8. ✨ Skills & abilities — use an equipped technique or learned spell (${sn}).`);
   print("9. 🎯 Counter — exploit an enemy's exposed opening.");
-  if (WORLD.companions.active?.length) print("10. 🗣️ Companion — order your ally to attack, guard, or heal.");
+  print("Z. 🗣️ Companion — order your ally to attack, guard, or heal (when available).");
   print(`0. 🏃 Run away — attempt to flee (${run}% chance).`);
-  print(`L. 🌟 Limit Break — ${f.limitUsed ? "spent this fight" : `${Math.min(100, f.limitGauge || 0)}% charged`}.`);
-  if (f.enemies && f.enemies.length > 1) print("Switch targets with 'target'; review recent events with 'log'.");
+  print(`X. 🌟 Limit Break — ${f.limitUsed ? "spent this fight" : `${Math.min(100, f.limitGauge || 0)}% charged`}.`);
+  print("C. 🎯 Choose target · V. 📜 Combat log · F. 🔎 Inspect target · Q/E. Cycle target.");
 }
 async function chooseItem() {
   const owned = Object.keys(USABLE_ITEMS).filter((n) => (inventory[n] || 0) > 0);
@@ -268,14 +281,15 @@ async function chooseItem() {
     return null;
   }
   print("\n🧪 YOUR ITEMS");
-  owned.forEach((n, i) => print(`${i + 1}. ${n} x${inventory[n]} (${describeUsable(n)})`));
-  print("0. Back");
+  owned.forEach((n, i) => print(`${combatOptionKey(i)}. ${n} x${inventory[n]} (${describeUsable(n)})`));
+  print("Type 'back' to return.");
   while (true) {
     const raw = (await input("Use which item? ")).trim().toLowerCase();
-    if (["0", "back", ""].includes(raw)) return null;
-    if (isDigit(raw) && +raw >= 1 && +raw <= owned.length) return owned[+raw - 1];
+    if (["back", "", "cancel"].includes(raw)) return null;
+    const index = combatOptionIndex(raw, owned.length);
+    if (index >= 0) return owned[index];
     if (owned.includes(raw)) return raw;
-    print("Pick an item number or name, or 0 to go back.");
+    print("Pick its displayed key or name, or type 'back'.");
   }
 }
 async function chooseSkill(f) {
@@ -308,18 +322,19 @@ async function chooseSkill(f) {
   print(kind === "weapon" ? "\n⚔️ EQUIPMENT SKILLS" : "\n🔮 ABILITIES");
   options.forEach((s, i) => {
     const y = prob(s);
-    print(`${i + 1}. ${title(s.name)} (${s.cost} energy) — ${s.desc}` + (y ? ` [${y}]` : ""));
+    print(`${combatOptionKey(i)}. ${title(s.name)} (${s.cost} energy) — ${s.desc}` + (y ? ` [${y}]` : ""));
     if (s.kind === "weapon") print(`     ${describeSkill(s.data)}`);
   });
-  print("0. Back");
+  print("Type 'back' to return.");
   while (true) {
     const raw = (await input("Use which skill or ability? ")).trim().toLowerCase();
-    if (["0", "back", ""].includes(raw)) return null;
-    const ch = isDigit(raw) && +raw >= 1 && +raw <= options.length
-      ? options[+raw - 1]
+    if (["back", "", "cancel"].includes(raw)) return null;
+    const index = combatOptionIndex(raw, options.length);
+    const ch = index >= 0
+      ? options[index]
       : options.find((s) => s.name === raw || s.name.includes(raw));
     if (!ch) {
-      print("Pick a skill number or name, or 0 to go back.");
+      print("Pick its displayed key or name, or type 'back'.");
       continue;
     }
     const y = prob(ch);
@@ -333,7 +348,7 @@ async function chooseSkill(f) {
 // Asks the player for an action and returns it (numbers or names are accepted).
 async function askAction(f) {
   while (true) {
-    const raw = (await input("Choose an action (1-10, or 0 to run away): ")).trim().toLowerCase();
+    const raw = (await input("Choose an action (1-9, 0, or z/x/c/v/f/q/e): ")).trim().toLowerCase();
     let a = ACTION_ALIASES[raw];
     if (f.controlGlitchTurns > 0) {
       if (["1", "attack", "a"].includes(raw)) a = "guard";
@@ -341,7 +356,7 @@ async function askAction(f) {
       if (a) f.controlGlitchTurns--;
     }
     if (!a) {
-      print("Pick 1-10, 0 to run away, or type an action like 'parry', 'magic', or 'companion'.");
+      print("Use a displayed fight key (1-9, 0, z/x/c/v/f/q/e) or type an action name.");
       continue;
     }
     if (a === "heavy" && f.energy < C.HEAVY_COST) {
@@ -377,13 +392,37 @@ async function askAction(f) {
       }
       print("Living enemies:");
       f.enemies.forEach((e, i) => {
-        if (e.hp > 0) print(`  ${i + 1}. ${e.name} · ${title(e.role || enemyRole(e.monster))} (${e.hp} HP)${i === f.target ? " <" : ""}`);
+        if (e.hp > 0) print(`  ${combatOptionKey(i)}. ${e.name} · ${title(e.role || enemyRole(e.monster))} (${e.hp} HP)${i === f.target ? " <" : ""}`);
       });
-      const rawT = (await input("Target which? ")).trim();
-      const idx = parseInt(rawT, 10) - 1;
+      const rawT = (await input("Target which key? ")).trim().toLowerCase();
+      const idx = combatOptionIndex(rawT, f.enemies.length);
       if (f.enemies[idx] && f.enemies[idx].hp > 0) {
         f.target = idx;
         print(`Targeting the ${f.enemies[idx].name}.`);
+      }
+      continue;
+    }
+    if (a === "target-prev" || a === "target-next") {
+      const direction = a === "target-next" ? 1 : -1;
+      const count = f.enemies?.length || 0;
+      let idx = f.target;
+      for (let i = 0; i < count; i++) {
+        idx = (idx + direction + count) % count;
+        if (f.enemies[idx].hp > 0) break;
+      }
+      if (count > 1 && idx !== f.target && f.enemies[idx]?.hp > 0) {
+        f.target = idx;
+        print(`Targeting the ${f.enemies[idx].name}.`);
+      } else print("There are no other living targets.");
+      continue;
+    }
+    if (a === "inspect") {
+      const foe = f.enemies?.[f.target];
+      if (!foe) print("There is no target to inspect.");
+      else {
+        const intent = foe.intent?.attack?.name || foe.intent?.text || foe.intent?.kind || "no visible move";
+        print(`🔎 ${title(foe.displayName || foe.name)} · ${foe.hp}/${foe.monster.hp} HP · next: ${intent}`);
+        if (foe.effects?.length) print("Effects: " + foe.effects.map((effect) => title(effect.type)).join(", "));
       }
       continue;
     }
