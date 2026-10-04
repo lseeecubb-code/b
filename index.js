@@ -1,874 +1,226 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>THE LAST SAVE</title>
-    <link rel="icon" href="icon-image.png" />
-    <style>
-      :root {
-        color-scheme: dark;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      html,
-      body {
-        margin: 0;
-        height: 100%;
-        background: #050505;
-      }
-      body {
-        font-family: Consolas, "Courier New", monospace;
-        color: #e8e8e8;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 14px;
-      }
-      .terminal {
-        width: min(1100px, 100%);
-        height: min(820px, 96vh);
-        display: flex;
-        flex-direction: column;
-        background: #0b0b0b;
-        border: 1px solid #333;
-        border-radius: 8px;
-        box-shadow: 0 18px 50px #000;
-        overflow: hidden;
-      }
-      .bar {
-        height: 38px;
-        flex: 0 0 38px;
-        background: #191919;
-        border-bottom: 1px solid #333;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 0 12px;
-        color: #aaa;
-        font-size: 13px;
-      }
-      .dot {
-        width: 11px;
-        height: 11px;
-        border-radius: 50%;
-        background: #555;
-      }
-      .title {
-        margin-left: 8px;
-      }
-      #screen {
-        flex: 1;
-        overflow: auto;
-        padding: 14px 16px;
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-        line-height: 1.35;
-        font-size: 15px;
-        cursor: text;
-      }
-      .input-row {
-        display: flex;
-        align-items: center;
-        border-top: 1px solid #292929;
-        padding: 9px 14px;
-        gap: 8px;
-      }
-      .prompt {
-        color: #fff;
-        user-select: none;
-      }
-      #command {
-        flex: 1;
-        min-width: 0;
-        border: 0;
-        outline: 0;
-        background: transparent;
-        color: #fff;
-        font: inherit;
-        font-size: 15px;
-      }
-      body.access-large #screen,
-      body.access-large #command { font-size: 19px; line-height: 1.55; }
-      body.access-spacing #screen { line-height: 1.8; letter-spacing: 0.025em; }
-      body.access-reduced-flash .fx-glitch { animation: none !important; text-shadow: none !important; }
-      body.access-reduced-flash .fx-flash { display: none !important; }
-      body.access-reduced-flash .shake,
-      body.access-reduced-flash .shake-strong { animation: none !important; }
-      body.access-reduced-flash .boss-attack-scene,
-      body.access-reduced-flash .boss-attack-scene * { animation: none !important; }
-      body.access-reduced-flash .boss-attack-scene::before { opacity: 0.72; }
-      body.access-reduced-flash .fx-intent-head,
-      body.access-reduced-flash .boss-attack-mark { text-shadow: none !important; }
-      body.access-reduced-motion *,
-      body.access-reduced-motion *::before,
-      body.access-reduced-motion *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        scroll-behavior: auto !important;
-        transition-duration: 0.01ms !important;
-      }
-      button {
-        font: inherit;
-        background: #191919;
-        color: #ddd;
-        border: 1px solid #3a3a3a;
-        border-radius: 4px;
-        padding: 6px 9px;
-        cursor: pointer;
-      }
-      button:hover {
-        background: #252525;
-      }
-      .status {
-        padding: 5px 14px;
-        border-top: 1px solid #222;
-        color: #888;
-        font-size: 12px;
-      }
-      .status.is-loading {
-        color: #e6c86e;
-      }
-      .status.is-loading::before {
-        content: "⏳";
-        display: inline-block;
-        margin-right: 6px;
-        animation: loading-pulse 0.9s ease-in-out infinite alternate;
-      }
-      @keyframes loading-pulse {
-        to {
-          opacity: 0.45;
-          transform: translateY(-1px);
-        }
-      }
-      .help {
-        padding: 0 14px 7px;
-        color: #666;
-        font-size: 11px;
-      }
-      @media (max-width: 700px) {
-        .terminal {
-          height: 98vh;
-        }
-        #screen {
-          font-size: 13px;
-        }
-        .bar button {
-          display: none;
-        }
-      }
+// Terminal UI: prints game text to the page, turns the input box into the game's input(), and autosaves.
+const SAVE_KEY = "the-last-save.autosave.v1";
+const termScreen = document.getElementById("screen");
+const termInput = document.getElementById("command");
+const termStatus = document.getElementById("settingsButton");
+let pendingInput = null,
+  pendingChoices = [],
+  pendingChoiceIndex = -1;
 
-      /* ---------- Effects (see effects.js) ---------- */
-      .terminal {
-        position: relative;
-      }
-      .line {
-        animation: line-in 0.22s ease-out both;
-      }
-      @keyframes line-in {
-        from {
-          opacity: 0;
-          transform: translateY(3px);
-        }
-        to {
-          opacity: 1;
-          transform: none;
-        }
-      }
+function showLoadingIndicator(message = "Still working…") {
+  termStatus.classList.add("is-loading");
+  termStatus.textContent = message;
+}
 
-      /* line colors */
-      .fx-hurt {
-        color: #ff6b6b;
-        font-weight: bold;
-      }
-      .fx-hit {
-        color: #ffd479;
-      }
-      .fx-crit {
-        color: #ffe066;
-        font-weight: bold;
-        text-shadow: 0 0 8px #ffb300;
-      }
-      .fx-parry {
-        color: #7fd4ff;
-        font-weight: bold;
-      }
-      .fx-dodge {
-        color: #7ff0e0;
-      }
-      .fx-heal {
-        color: #6fe39a;
-      }
-      .fx-levelup {
-        color: #ffe066;
-        font-weight: bold;
-        text-shadow: 0 0 10px #ffb300;
-      }
-      .fx-win {
-        color: #6fe39a;
-        font-weight: bold;
-        text-shadow: 0 0 8px #1faa5a;
-      }
-      .fx-lose {
-        color: #ff4d4d;
-        font-weight: bold;
-        text-shadow: 0 0 10px #a00000;
-      }
-      .fx-chapter {
-        color: #c9a7ff;
-        font-weight: bold;
-        text-shadow: 0 0 12px #8a5cff;
-      }
-      .fx-encounter {
-        color: #ff9f6b;
-        font-weight: bold;
-      }
-      .fx-warning {
-        color: #ff9f1a;
-        font-weight: bold;
-        animation:
-          line-in 0.22s ease-out both,
-          pulse 0.7s ease-in-out 3;
-      }
-      .fx-loot {
-        color: #e6c86e;
-      }
-      .fx-reward-feed {
-        display: block;
-        text-align: left;
-        font: inherit;
-        font-size: 0.96em;
-        font-weight: 600;
-        line-height: 1.4;
-        padding: 2px 8px;
-        border-left: 2px solid #756d49;
-        background: linear-gradient(90deg, #b6a85a12, transparent 70%);
-      }
-      .reward-coin { color: #a9d58d; }
-      .reward-xp { color: #e5ce7b; }
-      .reward-item { color: #c5a7d8; }
-      .reward-combo { color: #f0a868; }
-      .combo-timer {
-        padding: 5px 16px;
-        border-top: 1px solid #292929;
-        border-left: 2px solid #756d49;
-        background: linear-gradient(90deg, #b6a85a12, transparent 70%);
-        color: #e5ce7b;
-        font-size: 0.96em;
-        font-weight: 600;
-      }
-      .combo-timer[hidden] {
-        display: none;
-      }
-      .combo-bar-fill {
-        color: #e5ce7b;
-      }
-      .combo-bar-empty {
-        color: #4a4531;
-      }
-      .combo-timer.urgent {
-        color: #ff8b7a;
-        border-left-color: #a8483c;
-      }
-      .combo-timer.urgent .combo-bar-fill {
-        color: #ff6b6b;
-      }
-      .fx-status {
-        color: #d98cff;
-      }
-      .fx-turn-player {
-        color: #6fe39a;
-        font-weight: bold;
-      }
-      .fx-turn-enemy {
-        color: #ff6b6b;
-        font-weight: bold;
-      }
-      .fx-dim {
-        color: #666;
-      }
-      .fx-glitch {
-        color: #7ffff0;
-        animation:
-          line-in 0.22s ease-out both,
-          glitch 0.5s steps(2) 2;
-      }
+function clearLoadingIndicator() {
+  termStatus.classList.remove("is-loading");
+  termStatus.disabled = false;
+  termStatus.textContent = "⚙️ Settings";
+  termStatus.setAttribute("aria-label", "Open game settings");
+}
 
+function reportStartupError(error) {
+  const message = error && error.stack ? error.stack : String(error || "Unknown startup error");
+  console.error("THE LAST SAVE startup error:", error);
+  try {
+    clearLoadingIndicator();
+    const output = document.createElement("pre");
+    output.style.whiteSpace = "pre-wrap";
+    output.style.color = "#ff7777";
+    output.textContent = "[startup error] " + message;
+    termScreen.replaceChildren(output);
+  } catch (displayError) {
+    termScreen.textContent = "[startup error] " + message;
+  }
+}
 
-      /* enemy intent block (dialogue-style) */
-      .fx-intent-head {
-        color: #ff9f6b;
-        font-weight: bold;
-        letter-spacing: 1px;
-      }
-      .fx-intent-main {
-        color: #ffd9b8;
-        font-weight: bold;
-      }
-      .fx-can {
-        color: #6fe39a;
-      }
-      .fx-cant {
-        color: #c9737a;
-      }
+window.addEventListener("error", (event) => {
+  if (!termScreen.textContent.trim() || termScreen.textContent.trim() === ">>>")
+    reportStartupError(event.error || event.message);
+});
 
-      /* status bars */
-      .bar-good {
-        color: #4ad27a;
-      }
-      .bar-warn {
-        color: #f0b429;
-      }
-      .bar-low {
-        color: #ff5252;
-      }
-      .bar-energy {
-        color: #5aa9ff;
-      }
-      .bar-empty {
-        color: #444;
-      }
+// Adds text to the screen. Text ending in "\n" becomes a finished line; anything else (like the
+// "what do you want to do?" prompt) stays on the same line as what the player types next.
+function write(text) {
+  const endsLine = text.endsWith("\n");
+  Typewriter.print(endsLine ? text.slice(0, -1) : text, { plain: true, newline: endsLine });
+}
 
-      @keyframes pulse {
-        50% {
-          opacity: 0.45;
-        }
-      }
-      @keyframes glitch {
-        0% {
-          text-shadow:
-            2px 0 #ff2e63,
-            -2px 0 #08d9d6;
-          transform: translateX(-2px);
-        }
-        50% {
-          text-shadow:
-            -2px 0 #ff2e63,
-            2px 0 #08d9d6;
-          transform: translateX(2px);
-        }
-        100% {
-          text-shadow: none;
-          transform: none;
-        }
-      }
+// The game's print(): every line goes through the typewriter, which paces it (during battle)
+// and sends it to the effects system for colors, shakes and sounds.
+function print(...args) {
+  const lines = args.join(" ").split("\n");
+  if (typeof WORLD !== "undefined") {
+    if (!Array.isArray(WORLD.dialogueLog)) WORLD.dialogueLog = [];
+    WORLD.dialogueLog.push(...lines.map((line) => String(line).slice(0, 240)));
+    if (WORLD.dialogueLog.length > 240) WORLD.dialogueLog.splice(0, WORLD.dialogueLog.length - 240);
+  }
+  for (const line of lines) Typewriter.print(line);
+}
 
-      /* screen shake and flash */
-      .shake {
-        animation: shake 0.25s linear;
-      }
-      .shake-strong {
-        animation: shake 0.45s linear;
-      }
-      @keyframes shake {
-        0%,
-        100% {
-          transform: translate(0, 0);
-        }
-        20% {
-          transform: translate(-6px, 2px);
-        }
-        40% {
-          transform: translate(5px, -3px);
-        }
-        60% {
-          transform: translate(-4px, 3px);
-        }
-        80% {
-          transform: translate(3px, -2px);
-        }
-      }
-      .fx-flash {
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        opacity: 0;
-        z-index: 5;
-      }
-      .fx-flash.on {
-        animation: flash 0.45s ease-out;
-      }
-      @keyframes flash {
-        0% {
-          opacity: 1;
-        }
-        100% {
-          opacity: 0;
-        }
-      }
+function autosave(manual = false) {
+  try {
+    if (WORLD?.flags?.practiceMode && !manual) return;
+    if (typeof WORLD !== "undefined" && WORLD.memories) WORLD.memories.lastSeenAt = Date.now();
+    localStorage.setItem(SAVE_KEY, saveCode());
+    termStatus.title = "Your adventure is saved automatically.";
+    if (manual) print("💾 Game saved.");
+  } catch (e) {
+    termStatus.title = "Saving is unavailable in this browser.";
+    if (manual) print("❌ Save failed: this browser could not store the save.");
+  }
+}
 
-      /* floating damage numbers */
-      .fx-float {
-        position: absolute;
-        pointer-events: none;
-        z-index: 6;
-        font-size: 25px;
-        font-weight: bold;
-        animation: float-up 0.82s ease-out forwards;
-      }
-      .fx-float.hurt {
-        color: #ff5252;
-        text-shadow: 0 0 10px #a00000;
-      }
-      .fx-float.hit {
-        color: #ffd479;
-        text-shadow: 0 0 8px #8a5a00;
-      }
-      .fx-float.crit {
-        color: #ffe066;
-        font-size: 40px;
-        text-shadow: 0 0 14px #ffb300;
-      }
-      @keyframes float-up {
-        0% {
-          opacity: 0;
-          transform: translateY(10px) scale(0.7);
-        }
-        15% {
-          opacity: 1;
-          transform: translateY(0) scale(1.15);
-        }
-        100% {
-          opacity: 0;
-          transform: translateY(-60px) scale(1);
-        }
-      }
+// The game awaits this wherever the Python version called input().
+// It waits for the typewriter to finish showing everything first, so the prompt never appears
+// in the middle of a battle line.
+// Pass { timeout, label, onStart } for a timed prompt: a countdown bar shows and the promise resolves
+// with null if time runs out first. The clock starts only once the prompt is actually live.
+async function input(prompt = "", opts = {}) {
+  clearLoadingIndicator();
+  write(prompt);
+  autosave();
+  await Typewriter.idle();
+  return new Promise((resolve) => {
+    pendingInput = resolve;
+    const choiceMatch = String(prompt).match(/\[([^\]]*\/[^\]]*)\]/);
+    pendingChoices = choiceMatch
+      ? choiceMatch[1].split("/").map((choice) => choice.split(",")[0].trim()).filter(Boolean)
+      : [];
+    pendingChoiceIndex = -1;
+    termInput.placeholder = pendingChoices.length ? "↑/↓ select an option, or type your own..." : "Type a command...";
+    termInput.focus();
+    if (opts.timeout > 0) startInputTimer(opts, resolve);
+  });
+}
 
-      @media (prefers-reduced-motion: reduce) {
-        .line,
-        .shake,
-        .shake-strong,
-        .fx-warning,
-        .fx-glitch {
-          animation: none;
-        }
-        .status.is-loading::before {
-          animation: none;
-        }
-      }
-      /* Refined terminal frame and persistent command/save footer. */
-      :root {
-        --ui-bg: #080c11;
-        --ui-panel: #101820;
-        --ui-line: #263642;
-        --ui-muted: #8ba0ad;
-        --ui-text: #e7f0f4;
-        --ui-accent: #73dccb;
-      }
-      html, body {
-        min-height: 100%;
-        background: radial-gradient(ellipse at 50% 0%, #142633 0%, #080c11 58%, #05070a 100%);
-      }
-      body {
-        min-height: 100vh;
-        min-height: 100dvh;
-        padding: clamp(8px, 2.5vw, 28px);
-      }
-      .terminal {
-        width: min(1180px, 100%);
-        height: min(900px, 94vh);
-        height: min(900px, 94dvh);
-        background: var(--ui-bg);
-        border: 1px solid #344b59;
-        border-radius: 13px;
-        box-shadow: 0 28px 90px #000a, 0 0 0 1px #b4e9ff0a inset, 0 0 50px #1b69701c;
-      }
-      .bar {
-        height: auto;
-        min-height: 62px;
-        flex-basis: auto;
-        padding: 10px 16px;
-        gap: 12px;
-        color: var(--ui-text);
-        background: linear-gradient(110deg, #16232d, #111921 65%, #101820);
-        border-bottom: 1px solid var(--ui-line);
-      }
-      .window-controls { display: flex; gap: 6px; flex: 0 0 auto; }
-      .dot { width: 9px; height: 9px; box-shadow: 0 0 8px currentColor; }
-      .dot:nth-child(1) { background: #ff7168; color: #ff7168; }
-      .dot:nth-child(2) { background: #e9bd5c; color: #e9bd5c; }
-      .dot:nth-child(3) { background: #68d79a; color: #68d79a; }
-      .brand-mark {
-        display: grid;
-        place-items: center;
-        width: 34px;
-        height: 34px;
-        border: 1px solid #69b7b2;
-        border-radius: 9px;
-        color: var(--ui-accent);
-        font-weight: 800;
-        letter-spacing: -1px;
-        background: #73dccb12;
-      }
-      .brand-copy { min-width: 0; }
-      .title {
-        margin: 0;
-        color: #f1f8fa;
-        font-weight: 700;
-        letter-spacing: 0.11em;
-        font-size: 12px;
-      }
-      .edition { margin-top: 3px; color: #92a7b2; font-size: 10px; letter-spacing: 0.08em; }
-      .toolbar { display: flex; align-items: center; gap: 7px; margin-left: auto; }
-      .toolbar button {
-        padding: 7px 10px;
-        color: #c8d7dd;
-        background: #ffffff08;
-        border-color: #ffffff18;
-        border-radius: 7px;
-        font-size: 11px;
-        transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
-      }
-      .toolbar button:hover { background: #73dccb18; border-color: #73dccb66; transform: translateY(-1px); }
-      .music-volume { display: flex; align-items: center; gap: 5px; color: #c8d7dd; font-size: 11px; white-space: nowrap; }
-      #musicVolume { width: 82px; accent-color: #73dccb; cursor: pointer; }
-      #musicVolumeValue { width: 31px; text-align: right; color: #92a7b2; }
-      @media (max-width: 700px) { #musicVolume { width: 64px; } .music-volume { gap: 3px; } }
-      #screen {
-        min-height: 0;
-        padding: clamp(14px, 2.4vw, 26px);
-        color: var(--ui-text);
-        background: radial-gradient(ellipse at 50% 0%, #111d25 0%, #0b1117 62%);
-        line-height: 1.48;
-        scrollbar-color: #3a5968 #0b1117;
-      }
-      #screen:focus { outline: none; }
-      .input-row { min-height: 56px; padding: 9px 16px; gap: 11px; background: #101820; border-top: 1px solid var(--ui-line); }
-      .prompt { color: var(--ui-accent); font-weight: 700; }
-      #command {
-        min-height: 34px;
-        padding: 5px 9px;
-        color: #f2fafb;
-        caret-color: var(--ui-accent);
-        border: 1px solid transparent;
-        border-radius: 6px;
-        transition: background 0.16s ease, border-color 0.16s ease;
-      }
-      #command:focus { background: #ffffff07; border-color: #73dccb42; }
-      #command::placeholder { color: #71838d; }
-      .terminal-footer {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        min-height: 43px;
-        padding: 6px 14px;
-        background: #0d141a;
-        border-top: 1px solid #202f39;
-      }
-      .footer-settings {
-        display: inline-flex;
-        align-items: center;
-        justify-content: flex-start;
-        min-height: 29px;
-        padding: 5px 9px;
-        border: 1px solid #73dccb38;
-        border-radius: 6px;
-        color: #a8e8d7;
-        background: #73dccb0c;
-        text-align: left;
-        font-size: 11px;
-        white-space: nowrap;
-      }
-      .footer-settings:hover:not(:disabled) { color: #d6fff1; border-color: #73dccb88; background: #73dccb1b; }
-      .footer-settings:focus-visible, .toolbar button:focus-visible { outline: 2px solid var(--ui-accent); outline-offset: 2px; }
-      .footer-settings:disabled { cursor: wait; opacity: 0.78; }
-      .footer-settings.is-loading { color: #f2d889; border-color: #f2d88945; background: #f2d8890b; }
-      .footer-settings.is-unavailable { color: #f0a9a9; border-color: #f0a9a945; background: #f0a9a90b; }
-      .footer-meta { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex: 1; min-width: 0; }
-      .help, .version { padding: 0; color: var(--ui-muted); font-size: 10px; white-space: nowrap; }
-      .version { color: #bed0d8; letter-spacing: 0.07em; }
-      @media (max-width: 700px) {
-        body { padding: 0; }
-        .terminal { width: 100%; height: 100vh; height: 100dvh; border-radius: 0; border-left: 0; border-right: 0; }
-        .bar { min-height: 56px; padding: 8px 10px; gap: 8px; }
-        .brand-mark { width: 30px; height: 30px; }
-        .edition { display: none; }
-        .toolbar { gap: 5px; }
-        .toolbar button { display: inline-flex; padding: 7px; font-size: 10px; }
-        .input-row { min-height: 52px; padding: 7px 10px; }
-        .terminal-footer { flex-wrap: wrap; gap: 5px 9px; padding: 7px 10px; }
-        .footer-meta { flex-basis: calc(100% - 160px); gap: 6px; }
-        .help, .version { font-size: 9px; }
-      }
-      @media (max-width: 420px) {
-        .bar { gap: 6px; }
-        .window-controls { gap: 4px; }
-        .dot { width: 7px; height: 7px; }
-        .title { font-size: 10px; letter-spacing: 0.07em; }
-        .brand-mark { width: 27px; height: 27px; font-size: 12px; }
-        .toolbar button { padding: 6px 5px; font-size: 9px; }
-        .footer-meta { flex-direction: column; align-items: flex-end; gap: 2px; }
-      }
+// ----- timed prompts (combo window) -----
+const timerBox = document.getElementById("comboTimer");
+const timerLabel = document.getElementById("comboTimerLabel");
+const TIMER_SLOTS = 10; // length of the [#####-----] bar
+let inputTimer = null;
+function stopInputTimer() {
+  if (inputTimer) clearInterval(inputTimer);
+  inputTimer = null;
+  if (timerBox) timerBox.hidden = true;
+}
+function startInputTimer(opts, resolve) {
+  stopInputTimer();
+  const total = opts.timeout,
+    began = performance.now();
+  const paint = () => {
+    const left = Math.max(0, total - (performance.now() - began));
+    if (timerBox) {
+      // "Combo x10 [#######---] 3.5s": the #s drain as the window runs out.
+      const filled = Math.ceil((left / total) * TIMER_SLOTS);
+      const part = (text, cls) => {
+        const el = document.createElement("span");
+        el.textContent = text;
+        if (cls) el.className = cls;
+        return el;
+      };
+      timerLabel.replaceChildren(
+        part(`${opts.label || "Hurry"} [`),
+        part("#".repeat(filled), "combo-bar-fill"),
+        part("-".repeat(TIMER_SLOTS - filled), "combo-bar-empty"),
+        part(`] ${(left / 1000).toFixed(1)}s`)
+      );
+      timerBox.classList.toggle("urgent", left < 1500);
+    }
+    return left;
+  };
+  if (timerBox) timerBox.hidden = false;
+  if (typeof opts.onStart === "function") opts.onStart();
+  paint();
+  inputTimer = setInterval(() => {
+    if (paint() > 0) return;
+    stopInputTimer();
+    if (pendingInput !== resolve) return; // already answered
+    pendingInput = null;
+    pendingChoices = [];
+    pendingChoiceIndex = -1;
+    termInput.value = "";
+    termInput.placeholder = "Type a command...";
+    write("\n");
+    resolve(null);
+  }, 100);
+}
 
-      /* Keep the terminal surfaces dark while allowing game text and effects to stay colored. */
-      html, body { background: #050505; color: #e5e5e5; }
-      .terminal {
-        background: #090909;
-        border-color: #454545;
-        box-shadow: 0 24px 70px #000, 0 0 0 1px #ffffff0a inset;
-      }
-      .bar { background: #151515; border-color: #333; }
-      #screen { background: #090909; scrollbar-color: #555 #111; }
-      .input-row, .terminal-footer { background: #111; border-color: #333; }
-      .terminal-corruption {
-        position: absolute;
-        inset: 0;
-        z-index: 8;
-        overflow: hidden;
-        pointer-events: none;
-        opacity: 0;
-      }
-      .terminal-corruption::before,
-      .terminal-corruption::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        opacity: 0;
-      }
-      .terminal.terminal-corrupted.corrupt-glitch { animation: terminal-jitter 0.11s steps(2) 7; }
-      .terminal.terminal-corrupted.corrupt-glitch #screen { text-shadow: 1px 0 #aaa, -1px 0 #555; }
-      .terminal-corrupted.corrupt-glitch .terminal-corruption { opacity: 1; }
-      .corrupt-glitch .terminal-corruption::before {
-        opacity: 0.18;
-        background: repeating-linear-gradient(to bottom, transparent 0 5px, #eee 6px, transparent 7px 11px);
-        animation: scan-static 0.16s steps(3) infinite;
-      }
-      .terminal.terminal-corrupted.corrupt-fracture { animation: terminal-jitter 0.14s steps(2) 5; }
-      .corrupt-fracture .terminal-corruption { opacity: 1; }
-      .corrupt-fracture .terminal-corruption::before {
-        opacity: 0.62;
-        background:
-          linear-gradient(112deg, transparent 0 48%, #eee 48.15%, transparent 48.45%),
-          linear-gradient(72deg, transparent 0 52%, #aaa 52.12%, transparent 52.35%),
-          linear-gradient(152deg, transparent 0 43%, #888 43.1%, transparent 43.35%);
-        clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
-      }
-      .corrupt-fracture .terminal-corruption::after {
-        opacity: 0.38;
-        background: linear-gradient(28deg, transparent 0 66%, #eee 66.1%, transparent 66.35%);
-      }
-      .terminal.terminal-corrupted.corrupt-tear { animation: terminal-jitter 0.09s steps(2) 9; }
-      .corrupt-tear .terminal-corruption { opacity: 1; }
-      .corrupt-tear .terminal-corruption::before {
-        opacity: 0.22;
-        background: repeating-linear-gradient(to bottom, transparent 0 35px, #ddd 36px 38px, transparent 39px 61px);
-        animation: tear-shift 0.32s steps(2) 8;
-      }
-      .corrupt-tear #screen { animation: text-slip 0.22s steps(2) 7; }
-      @keyframes terminal-jitter {
-        0%, 100% { transform: translate(0); }
-        25% { transform: translate(2px, -1px); }
-        50% { transform: translate(-2px, 1px); }
-        75% { transform: translate(1px, 1px); }
-      }
-      @keyframes scan-static {
-        50% { transform: translateY(3px); }
-      }
-      @keyframes tear-shift {
-        50% { transform: translateX(9px) skewY(-1deg); }
-      }
-      @keyframes text-slip {
-        50% { transform: translateX(5px); clip-path: inset(35% 0 38%); }
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .terminal.terminal-corrupted, .corrupt-glitch .terminal-corruption::before,
-        .corrupt-tear .terminal-corruption::before, .corrupt-tear #screen { animation: none; }
-      }
-    
-      /* The Last Save opens a brief, original terminal split and void effect. */
-      .last-save-cut {
-        position: absolute;
-        inset: 0;
-        z-index: 12;
-        overflow: hidden;
-        pointer-events: none;
-        background: #000;
-        animation: last-save-cut-fade 2600ms ease-in forwards;
-      }
-      .last-save-cut .cut-half {
-        position: absolute;
-        top: 0;
-        width: 50.5%;
-        height: 100%;
-        background: linear-gradient(90deg, #050505, #111 94%, #050505);
-        box-shadow: 0 0 24px #b8c8ff55;
-        will-change: transform;
-      }
-      .last-save-cut .cut-half-left {
-        left: 0;
-        border-right: 1px solid #c9d5ff;
-        animation: last-save-left-open 2600ms cubic-bezier(.7, 0, .2, 1) forwards;
-      }
-      .last-save-cut .cut-half-right {
-        right: 0;
-        border-left: 1px solid #c9d5ff;
-        animation: last-save-right-open 2600ms cubic-bezier(.7, 0, .2, 1) forwards;
-      }
-      .last-save-cut .cut-seam {
-        position: absolute;
-        z-index: 2;
-        left: 50%;
-        top: 0;
-        width: 2px;
-        height: 100%;
-        background: #f4f6ff;
-        box-shadow: 0 0 8px 2px #c2d2ff, 0 0 28px 6px #8ca6ff;
-        transform: scaleY(0);
-        transform-origin: center;
-        animation: last-save-seam 700ms steps(2, end) forwards;
-      }
-      .last-save-cut .cut-void {
-        position: absolute;
-        z-index: 3;
-        left: 50%;
-        top: 50%;
-        width: clamp(110px, 24vw, 300px);
-        height: clamp(90px, 34vh, 260px);
-        background: #000;
-        border: 1px solid #68708a;
-        box-shadow: 0 0 0 2px #000, 0 0 24px #8a9ed844;
-        transform: translate(-50%, -50%) scale(.08);
-        opacity: 0;
-        animation: last-save-void 2600ms cubic-bezier(.16, .8, .28, 1) forwards;
-      }
-      .last-save-cut .cut-hash-field {
-        position: absolute;
-        z-index: 4;
-        inset: 0;
-        color: #e7e9f2;
-        text-shadow: 0 0 7px #c3d2ff;
-        font: 700 clamp(13px, 2vw, 24px)/1 Consolas, "Courier New", monospace;
-      }
-      .last-save-cut .cut-glyph {
-        position: absolute;
-        opacity: 0;
-        animation: last-save-glyph 900ms steps(2, end) var(--glyph-delay, 0ms) 2;
-      }
-      @keyframes last-save-cut-fade {
-        0%, 72% { opacity: 1; }
-        100% { opacity: 0; visibility: hidden; }
-      }
-      @keyframes last-save-left-open {
-        0%, 24% { transform: translateX(0); }
-        44% { transform: translate(-3%, -1%); }
-        70%, 100% { transform: translate(-112%, -2%); }
-      }
-      @keyframes last-save-right-open {
-        0%, 24% { transform: translateX(0); }
-        44% { transform: translate(3%, 1%); }
-        70%, 100% { transform: translate(112%, 2%); }
-      }
-      @keyframes last-save-seam {
-        0% { transform: scaleY(0); opacity: 0; }
-        20% { transform: scaleY(1); opacity: 1; }
-        70%, 100% { transform: scaleY(1); opacity: 0; }
-      }
-      @keyframes last-save-void {
-        0%, 24% { opacity: 0; transform: translate(-50%, -50%) scale(.08); }
-        42% { opacity: 1; transform: translate(-50%, -50%) scale(1.04); }
-        58%, 78% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-        100% { opacity: 0; transform: translate(-50%, -50%) scale(.96); }
-      }
-      @keyframes last-save-glyph {
-        0% { opacity: 0; transform: translate(0, -12px) skewX(-18deg); }
-        18%, 65% { opacity: .92; }
-        100% { opacity: 0; transform: translate(var(--glyph-drift, 8px), 34px) skewX(12deg); }
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .last-save-cut, .last-save-cut .cut-half-left, .last-save-cut .cut-half-right,
-        .last-save-cut .cut-seam, .last-save-cut .cut-void, .last-save-cut .cut-glyph {
-          animation: none !important;
-        }
-        .last-save-cut { opacity: 1; }
-        .last-save-cut .cut-seam { transform: scaleY(1); }
-        .last-save-cut .cut-void { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-        .last-save-cut .cut-glyph { opacity: .7; }
-      }
-\n    
-      /* Original boss signature-attack cutscenes. */
-      .boss-attack-scene{position:absolute;inset:0;z-index:14;overflow:hidden;pointer-events:none;background:#020307ef;isolation:isolate}
-      .boss-attack-scene::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at center,#28334a55,#020307 72%);animation:attack-scene-flash 2.25s ease-out both}
-      .boss-attack-mark{position:absolute;display:grid;place-items:center;color:#f2f5ff;text-shadow:0 0 10px currentColor,0 0 26px currentColor;font-weight:900;line-height:1;user-select:none;will-change:transform,opacity}
-      .attack-logo-fall .boss-attack-mark{width:30%;min-height:17%;padding:8px;border:1px solid #e5e9ff9c;background:linear-gradient(145deg,#121722f5,#050609f5);box-shadow:0 0 18px #c8d3ff66,inset 0 0 16px #fff2;color:#f4f5ff;font-size:clamp(10px,1.6vw,18px);letter-spacing:.08em;text-align:center;animation:boss-logo-fall 2250ms cubic-bezier(.5,0,.8,.5) var(--attack-delay,0ms) both}
-      .attack-crown-shards .boss-attack-mark{color:#ffd36a;font-size:clamp(22px,6vw,72px);animation:attack-shard-fall 1800ms ease-in var(--attack-delay,0ms) both}
-      .attack-moon-pounce .boss-attack-mark{color:#b7d8ff;font-size:clamp(34px,10vw,110px);animation:attack-swipe 1450ms cubic-bezier(.2,.7,.3,1) var(--attack-delay,0ms) both}
-      .attack-core-eruption .boss-attack-mark{color:#ff9a58;font-size:clamp(18px,4vw,48px);animation:attack-erupt 1900ms ease-out var(--attack-delay,0ms) both}
-      .attack-whiteout .boss-attack-mark{color:#dff6ff;font-size:clamp(20px,5vw,60px);animation:attack-snowfall 1900ms linear var(--attack-delay,0ms) both}
-      .attack-cinder-collapse .boss-attack-mark{color:#ff854d;font-size:clamp(16px,4vw,42px);animation:attack-ember 2100ms ease-in var(--attack-delay,0ms) both}
-      .attack-page-storm .boss-attack-mark{color:#ead9ae;font-size:clamp(22px,4vw,48px);animation:attack-page 1900ms ease-in-out var(--attack-delay,0ms) both}
-      .attack-redline-slice .boss-attack-mark{left:-10%;width:120%;height:3px;background:#ff3434;box-shadow:0 0 10px #ff3434,0 0 30px #ff2020;animation:attack-redline 1350ms steps(2,end) var(--attack-delay,0ms) both}
-      .attack-void-pulse .boss-attack-mark{color:#d8d9e5;font-size:clamp(16px,3vw,34px);animation:attack-void-glyph 1800ms steps(2,end) var(--attack-delay,0ms) both}
-      @keyframes attack-scene-flash{0%{opacity:0}8%,62%{opacity:1}100%{opacity:.12}}
-      @keyframes boss-logo-fall{0%,58%{opacity:1;transform:translateY(0) rotate(0) scale(1)}68%{opacity:.95;transform:translateY(8px) rotate(2deg) scale(1.03)}100%{opacity:0;transform:translateY(125vh) rotate(var(--attack-tilt,8deg)) scale(.82)}}
-      @keyframes attack-shard-fall{0%{opacity:0;transform:translate(0,-70vh) rotate(0) scale(.5)}22%,50%{opacity:1}100%{opacity:0;transform:translate(var(--attack-drift,30px),120vh) rotate(460deg) scale(1.2)}}
-      @keyframes attack-swipe{0%{opacity:0;transform:translate(-90vw,30vh) rotate(-32deg) scale(.55)}25%,55%{opacity:1}100%{opacity:0;transform:translate(100vw,-22vh) rotate(18deg) scale(1.35)}}
-      @keyframes attack-erupt{0%{opacity:0;transform:translateY(35vh) scale(.1)}25%,55%{opacity:1}100%{opacity:0;transform:translate(var(--attack-drift,20px),-90vh) scale(1.5) rotate(250deg)}}
-      @keyframes attack-snowfall{0%{opacity:0;transform:translate(var(--attack-drift,20px),-15vh) rotate(0)}20%,65%{opacity:.95}100%{opacity:0;transform:translate(calc(var(--attack-drift,20px)*-1),110vh) rotate(300deg)}}
-      @keyframes attack-ember{0%{opacity:0;transform:translateY(-70vh) scale(.4)}20%,55%{opacity:1}100%{opacity:0;transform:translate(var(--attack-drift,20px),115vh) scale(1.4) rotate(180deg)}}
-      @keyframes attack-page{0%{opacity:0;transform:translate(var(--attack-drift,20px),-80vh) rotate(-90deg)}18%,62%{opacity:.96}100%{opacity:0;transform:translate(calc(var(--attack-drift,20px)*-1),115vh) rotate(240deg)}}
-      @keyframes attack-redline{0%{opacity:0;transform:translateX(-20vw) scaleX(.1)}18%,62%{opacity:1;transform:translateX(0) scaleX(1)}100%{opacity:0;transform:translateX(20vw) scaleX(.2)}}
-      @keyframes attack-void-glyph{0%{opacity:0;transform:scale(.2) rotate(-30deg)}25%,65%{opacity:.9}100%{opacity:0;transform:translate(var(--attack-drift,20px),20vh) scale(1.6) rotate(90deg)}}
-      @media(prefers-reduced-motion:reduce){.boss-attack-scene::before,.boss-attack-mark{animation:none!important}.boss-attack-scene::before{opacity:.72}.boss-attack-mark{opacity:.8}}
+termInput.addEventListener("keydown", (e) => {
+  // While text is still typing out, Enter / Space / Escape skip ahead and other keys do nothing.
+  if (Typewriter.isBusy()) {
+    if (!e.ctrlKey && !e.metaKey && !e.altKey) e.preventDefault();
+    if (["Enter", " ", "Escape"].includes(e.key)) Typewriter.skip();
+    return;
+  }
+  // Soft typing click for printable keys (and a slightly deeper one for backspace).
+  if (e.key.length === 1 || e.key === "Backspace") FX.play("key");
+  if (e.key === "Enter") {
+    e.preventDefault();
+    FX.play("enter");
+    const value = termInput.value;
+    termInput.value = "";
+    if (!pendingInput) return;
+    stopInputTimer();
+    termInput.placeholder = "Type a command...";
+    write(value + "\n");
+    const resolve = pendingInput;
+    pendingInput = null;
+    pendingChoices = [];
+    pendingChoiceIndex = -1;
+    showLoadingIndicator();
+    requestAnimationFrame(() => setTimeout(() => resolve(value), 0));
+  } else if (e.key === "ArrowUp") {
+    if (!pendingChoices.length || e.altKey || e.ctrlKey || e.metaKey) return;
+    e.preventDefault();
+    pendingChoiceIndex = pendingChoiceIndex <= 0 ? pendingChoices.length - 1 : pendingChoiceIndex - 1;
+    termInput.value = pendingChoices[pendingChoiceIndex];
+  } else if (e.key === "ArrowDown") {
+    if (!pendingChoices.length || e.altKey || e.ctrlKey || e.metaKey) return;
+    e.preventDefault();
+    pendingChoiceIndex = (pendingChoiceIndex + 1) % pendingChoices.length;
+    termInput.value = pendingChoices[pendingChoiceIndex];
+  }
+});
 
-    </style>
-  </head>
-  <body>
-    <div class="terminal">
-      <div class="terminal-corruption" aria-hidden="true"></div>
-      <header class="bar">
-        <div class="window-controls" aria-hidden="true">
-          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-        </div>
-        <div class="brand-mark" aria-hidden="true">LS</div>
-        <div class="brand-copy">
-          <div class="title">THE LAST SAVE</div>
-          <div class="edition">OFFLINE ROLE-PLAYING GAME</div>
-        </div>
-        <nav class="toolbar" aria-label="Game settings">
-          <button id="speedToggle" type="button">⌨️ Text: Normal</button>
-          <label class="music-volume" title="Music volume">
-            <span aria-hidden="true">♪</span>
-            <input id="musicVolume" type="range" min="0" max="100" step="1" value="55" aria-label="Music volume" />
-            <output id="musicVolumeValue" for="musicVolume">55%</output>
-          </label>
-          <button id="newGame" type="button">↻ New Game</button>
-        </nav>
-      </header>
-      <main id="screen" tabindex="0" aria-label="Game output"></main>
-      <div class="combo-timer" id="comboTimer" hidden role="timer" aria-live="off">
-        <span id="comboTimerLabel"></span>
-      </div>
-      <div class="input-row">
-        <span class="prompt">&gt;&gt;&gt;</span
-        ><input id="command" autocomplete="off" spellcheck="false" autofocus placeholder="Type a command..." aria-label="Enter a game command" />
-      </div>
-      <footer class="terminal-footer">
-        <button class="footer-settings" id="settingsButton" type="button" aria-label="Open game settings" title="Open game settings">⚙️ Settings</button>
-        <div class="footer-meta">
-          <div class="help">↵ Enter confirms · ↑/↓ select listed choices</div>
-          <div class="version" id="gameVersion">THE LAST SAVE · v1.0</div>
-        </div>
-      </footer>
-    </div>
+termScreen.addEventListener("click", () => termInput.focus());
+termStatus.addEventListener("click", () => {
+  if (!pendingInput || termStatus.disabled || Typewriter.isBusy()) return;
+  termInput.value = "settings";
+  termInput.focus();
+  termInput.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+});
+document.getElementById("newGame").addEventListener("click", () => {
+  if (confirm("Delete the automatic save and start a new game?")) {
+    try {
+      localStorage.removeItem(SAVE_KEY);
+    } catch (e) {}
+    location.reload();
+  }
+});
 
-    <!-- data -->
-    <script src="items.js?v=20261003-8"></script>
-    <script src="monsters.js?v=20261004-10"></script>
-    <script src="dialogue.js?v=20261003-9"></script>
-    <!-- game engine -->
-    <script src="helpers.js?v=20261004-12"></script>
-    <script src="playerGear.js?v=20261004-10"></script>
-    <script src="crafting.js?v=20261004-10"></script>
-    <script src="combat.js?v=20261004-18"></script>
-    <script src="story.js?v=20261004-13"></script>
-    <script src="saves.js?v=20261004-13"></script>
-    <script src="rpgSystems.js?v=20261004-13"></script>
-    <script src="commands.js?v=20261004-13"></script>
-    <!-- terminal UI + start -->
-    <script src="effects.js?v=20261004-18"></script>
-    <script src="typewriter.js?v=20261004-9"></script>
-    <script src="index.js?v=20261004-15"></script>
-    <script src="admin.js?v=20261003-8"></script>
-  </body>
-</html>
+// Battles are shown like dialogue: wrap fightMonster() so the typewriter knows when one is running.
+// (This must come after commands.js and combat.js have been loaded.)
+const runFight = fightMonster;
+fightMonster = async function (...args) {
+  Typewriter.setBattle(true);
+  try {
+    return await runFight.apply(this, args);
+  } finally {
+    Typewriter.setBattle(false);
+  }
+};
+
+let savedCode = "";
+try {
+  savedCode = localStorage.getItem(SAVE_KEY) || "";
+} catch (e) {}
+showLoadingIndicator("Starting your game…");
+requestAnimationFrame(() =>
+  setTimeout(
+    () => runGame(savedCode).catch((e) => {
+      reportStartupError(e);
+    }),
+    0
+  )
+);
