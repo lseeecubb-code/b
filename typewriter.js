@@ -25,6 +25,9 @@ const Typewriter = (() => {
     // Extra info during battle (HP/energy bars, last move, stance notes, the action menu...):
     // not instant, but much quicker than the intent text, with a tiny pause between lines.
     extra: { msPerChar: 6, pause: 50 },
+    // The combat action menu (and other numbered/keyed option lists): near-instant, so the options
+    // pop in almost at once and you can act without waiting for them to type out.
+    menu: { msPerChar: 0, pause: 14 },
   };
 
   // Lines inside the intent block that are plain numbers/checks rather than story text.
@@ -34,6 +37,11 @@ const Typewriter = (() => {
 
   // First match wins. Lines that match nothing stay instant.
   const PACING_RULES = [
+    {
+      // "📋 COMBAT ACTIONS", "1. ⚔️ Attack — ...", "C. 🎯 Choose target", "Q/E. ..." and similar keyed options.
+      tier: "menu",
+      match: /^(📋 COMBAT ACTIONS|(?:[0-9]|[A-Z](?:\/[A-Z])?)\. )/,
+    },
     {
       tier: "reaction",
       match:
@@ -213,4 +221,3 @@ const Typewriter = (() => {
 
   return { print, idle, skip, isBusy, setBattle };
 })();
-
