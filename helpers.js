@@ -72,6 +72,7 @@ function defaultWorld() {
     dungeonRun: null,
     towerRun: null,
     raidRun: null,
+    challengeRun: null,
     memories: { reloads: 0, quitsMidFight: 0, lastSeenAt: 0 },
     rested: 0,
     eventsDone: 0,

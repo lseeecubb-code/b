@@ -149,6 +149,10 @@ function showIntent(f) {
     name = cap(f.name),
     icon = f.monster.icon || "👹";
   print("\n👁️ ENEMY INTENT");
+  if (f.enraged && !f.enrageAnnounced) {
+    print(`🔥 ${name} enters a desperate last stand. Its attacks grow stronger!`);
+    f.enrageAnnounced = true;
+  }
   if (k === "stunned") {
     print(`${icon} The ${name} is stunned and can't act this turn!`);
     if (f.stun_turns > 0)
@@ -199,6 +203,12 @@ function showIntent(f) {
   const s = f.stats,
     p = parryChance(a, s),
     d = dodgeChance(a, s);
+  const mitigation = (typeof effectMods === "function" ? effectMods(f.effects).taken : 1) || 1;
+  const estimate = (raw) => Math.max(C.MIN_DMG, int(raw * mitigation) - Math.max(0, s.defense || 0));
+  if (a.damage?.length) {
+    const low = estimate(a.damage[0]), high = estimate(a.damage[1]);
+    print(`Estimated damage after armor: ${a.hits > 1 ? `${low}-${high} × ${a.hits} hits` : `${low}-${high}`} before choosing a defense.`);
+  }
   print(p ? `✓ Can Parry (${p}%)` : "✗ Can't Parry");
   print(
     canGuard(a)
@@ -621,6 +631,7 @@ function strike(f, o) {
   let dmg = randint(...C.PLAYER_DAMAGE) + f.stats.damage + f.temporary_damage;
   dmg = int(dmg * mult);
   dmg = int(dmg * (f.stats.damage_mult || 1));
+  if (WORLD.challengeRun?.active && WORLD.challengeRun.rule === "iron") dmg = int(dmg * 0.75);
   const pmod = typeof effectMods === "function" ? effectMods(f.effects) : { damage: 1 };
   dmg = int(dmg * pmod.damage);
   const emod = typeof effectMods === "function" ? effectMods(f.monster_effects) : { taken: 1 };
@@ -922,6 +933,8 @@ function monsterDealDamage(f, a, inc) {
 // Decides what the enemy will do on the coming turn.
 function rollIntent(f) {
   let it;
+  f.turnCount = (f.turnCount || 0) + 1;
+  if (!f.enraged && f.monster_hp > 0 && f.monster_hp <= f.monster.hp * 0.5) f.enraged = true;
   if (f.stun_turns > 0) {
     f.stun_turns--;
     it = { kind: "stunned", attack: null };
@@ -929,6 +942,14 @@ function rollIntent(f) {
   else {
     it = monsterChoose(f.monster, f.choice);
     if (it.kind === "idle") it.text = IDLE_LINES[randint(0, IDLE_LINES.length - 1)];
+    if (it.kind === "attack" && it.attack?.damage) {
+      const pressure = Math.min(0.3, Math.max(0, Math.floor((f.turnCount - 2) / 3)) * 0.1);
+      const multiplier = (f.enraged ? 1.25 : 1) * (1 + pressure);
+      if (multiplier > 1) {
+        it.attack = { ...it.attack, damage: scaleRange(it.attack.damage, multiplier) };
+        it.attack.telegraph = `${f.enraged ? "desperately " : "with gathering force "}${it.attack.telegraph || "attacks"}`;
+      }
+    }
   }
   f.intent = it;
   f.guarding = it.kind === "block";
@@ -1074,6 +1095,9 @@ function advanceBossForms(f) {
     e.stance = null;
     e.stun_turns = 0;
     e.staggered = false;
+    e.turnCount = 0;
+    e.enraged = false;
+    e.enrageAnnounced = false;
     e.intent = null;
     e.last_move = null;
     f.target = i;
@@ -1204,7 +1228,8 @@ const BOSS_UNLOCKS = {
 function newFight(n, extras = []) {
   const names = Array.isArray(n) ? n : [n, ...extras];
   const s = getStats();
-  const expedition = WORLD.raidRun?.active ? WORLD.raidRun : WORLD.dungeonRun?.active ? WORLD.dungeonRun : WORLD.towerRun?.active ? WORLD.towerRun : null;
+  if (WORLD.challengeRun?.active && WORLD.challengeRun.rule === "glass") s.max_hp = Math.max(1, int(s.max_hp * 0.65));
+  const expedition = WORLD.challengeRun?.active ? WORLD.challengeRun : WORLD.raidRun?.active ? WORLD.raidRun : WORLD.dungeonRun?.active ? WORLD.dungeonRun : WORLD.towerRun?.active ? WORLD.towerRun : null;
   const f = {
     enemies: names.map((nm) =>
       typeof makeEnemyState === "function" ? makeEnemyState(nm) : { name: nm, displayName: nm, monster: monsters[nm], hp: monsters[nm].hp, effects: [], guarding: false, stance: null, stun_turns: 0, stun_immune: 0, staggered: false, last_move: null, intent: null, phase: 0, phases: [] }
@@ -1267,7 +1292,7 @@ function playerDown(f) {
 }
 function saveDungeonVitals(f) {
   if (WORLD.memories) WORLD.memories.inCombat = false;
-  const run = WORLD.raidRun?.active ? WORLD.raidRun : WORLD.dungeonRun?.active ? WORLD.dungeonRun : WORLD.towerRun?.active ? WORLD.towerRun : null;
+  const run = WORLD.challengeRun?.active ? WORLD.challengeRun : WORLD.raidRun?.active ? WORLD.raidRun : WORLD.dungeonRun?.active ? WORLD.dungeonRun : WORLD.towerRun?.active ? WORLD.towerRun : null;
   if (run) {
     run.hp = Math.max(0, f.player_hp);
     run.energy = Math.max(0, f.energy);
@@ -1303,6 +1328,7 @@ function winFight(f) {
   names.forEach((e) => {
     const m = e.monster || f.monster;
     xp += Math.floor((e.totalBossHp || m.hp) / 2) + 5;
+    if (e.rareVariant) xp += Math.floor(m.hp * 0.25);
   });
   const xm = names[0]?.monster?._xpMult || 1;
   xp = Math.floor(xp * xm);
@@ -1310,6 +1336,11 @@ function winFight(f) {
   grantXp(xp);
   names.forEach((e) => {
     rollLoot(e.monster || f.monster);
+    if (e.rareVariant) {
+      addItem("void crystal", 1);
+      addItem("coin", 40 + PLAYER.level * 5);
+      print("✨ The rare creature leaves a void crystal and a cache of coin behind.");
+    }
     const run = WORLD.dungeonRun?.active ? WORLD.dungeonRun : null;
     if (run?.lootBonus) {
       const coins = 25 + Math.max(0, PLAYER.level) * 5;
@@ -1413,6 +1444,20 @@ async function fightMonster(arg = "", elite = false) {
   if (elite && f.enemies) f.enemies = f.enemies.map((e) => makeEnemyState(e.name, true));
   const battleEnemies = Array.isArray(name) ? name : [name];
   const bossEncounter = elite || battleEnemies.some((enemy) => monsters[enemy]?.chance <= 0);
+  if (!elite && !bossEncounter && !WORLD.challengeRun?.active && Math.random() < 0.07) {
+    const eligible = (f.enemies || []).filter((e) => !e.phases?.length && !e.rareVariant);
+    const rare = eligible[Math.floor(Math.random() * eligible.length)];
+    if (rare) {
+      rare.rareVariant = true;
+      rare.displayName = `Glimmer-Touched ${title(rare.name)}`;
+      rare.hp = int(rare.hp * 1.45);
+      rare.monster.hp = rare.hp;
+      if (rare.monster.basic_attack?.damage) rare.monster.basic_attack.damage = scaleRange(rare.monster.basic_attack.damage, 1.2);
+      for (const move of Object.values(rare.monster.abilities || {})) if (move.damage) move.damage = scaleRange(move.damage, 1.2);
+      rare.monster._xpMult = (rare.monster._xpMult || 1) * 1.5;
+      print(`\n🌟 A rare Glimmer-Touched ${title(rare.name)} emerges from the distortion! It is tougher, but carries a special reward.`);
+    }
+  }
   (f.enemies || []).forEach((e) => noteBestiaryEncounter(e.name.replace(/^elite /, "")));
   if (typeof FX !== "undefined") FX.startBattleMusic(battleEnemies, bossEncounter, f.enemies?.length === 1 ? f.enemies[0].phases?.[0]?.music : null, f.enemies?.length === 1 ? f.enemies[0].monster?.music_file : null);
   const stopMusic = () => {

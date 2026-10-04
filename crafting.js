@@ -153,6 +153,15 @@ async function craftItem(choice = "") {
     if (i) craftOne(i, a);
   }
 }
+function tradeBuyPrice(item) {
+  const base = SHOP_BUY[item] || 0;
+  const discount = WORLD.flags.safeRoadNetwork ? 0.9 : WORLD.flags.frontier_scout_guided ? 0.95 : 1;
+  return base ? Math.max(1, Math.floor(base * discount)) : 0;
+}
+function tradeSellPrice(item) {
+  const base = SHOP_SELL[item] || 0;
+  return base ? Math.max(1, Math.floor(base * (WORLD.flags.frontier_scout_guided ? 1.1 : 1))) : 0;
+}
 async function shop(arg = "") {
   let term = arg.trim().toLowerCase(),
     mode = null;
@@ -191,12 +200,14 @@ async function shop(arg = "") {
     if (!rows.length) continue;
     print(`\n[${c}]`);
     rows.forEach((n) =>
-      print(`  ${pad(n, 24)}${rpad(SHOP_BUY[n] || "-", 6)}${rpad(SHOP_SELL[n] || "-", 7)}`)
+      print(`  ${pad(n, 24)}${rpad(tradeBuyPrice(n) || "-", 6)}${rpad(tradeSellPrice(n) || "-", 7)}`)
     );
     shown += rows.length;
   }
   if (!shown) print("Nothing is available in this section.");
   print("\n💰 BUY is your cost; SELL is the merchant's offer. A dash means unavailable.");
+  if (WORLD.flags.safeRoadNetwork) print("📦 The connected safe-road supply network is reflected in the reduced buy prices.");
+  else if (WORLD.flags.frontier_scout_guided) print("📡 The rescued scout's route map earns you a better selling price here.");
   print(`🪙 Your purse: ${inventory.coin || 0} coin.`);
   print("Trade with 'buy <item> [amount]', 'sell <item> [amount]', or 'sell all <item>'.");
   return true;
@@ -216,7 +227,7 @@ async function buyItem(arg = "") {
     print(`🛍️ The merchant doesn't carry '${item}'.`);
     return;
   }
-  const cost = SHOP_BUY[item] * amount;
+  const cost = tradeBuyPrice(item) * amount;
   if ((inventory.coin || 0) < cost) {
     print(`🪙 Not enough coin: ${amount} ${item} costs ${cost}.`);
     return;
@@ -271,5 +282,5 @@ async function sellItem(arg = "") {
     return;
   }
   removeItem(item, amount);
-  addItem("coin", SHOP_SELL[item] * amount);
+  addItem("coin", tradeSellPrice(item) * amount);
 }

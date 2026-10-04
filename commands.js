@@ -12,6 +12,7 @@ function openGitHubRepository() {
 }
 const COMMANDS = {
   explore: [exploreStory, "explore", "Travel the current region, find encounters, and advance the campaign"],
+  revisit: [revisitRegion, "revisit [region]", "Return to completed regions to find one-time keepsakes"],
   map: [showWorldMap, "map", "View regions, discoveries, and your tracked objective"],
   route: [chooseRoute, "route", "Choose a safe road or a risky shortcut through the current region"],
   story: [showStory, "story", "Review your chapter, objective, and progress"],
@@ -21,6 +22,7 @@ const COMMANDS = {
   ending: [showEnding, "ending", "Choose the fate of the world after the final boss"],
   fight: [fightCommand, "fight [enemy]", "Challenge a discovered foe or enter a random battle"],
   dungeon: [runDungeon, "dungeon", "Enter a five-floor gauntlet with a rest-or-push choice between floors"],
+  challenge: [runChallenge, "challenge [glass|iron|frenzy]", "Survive three fights under a custom rule for a special reward"],
   tower: [runTower, "tower", "Fight endless scaling waves, bank rewards, and set a browser leaderboard score"],
   raids: [raidBoard, "raids", "Choose a regional raid and spend raid tokens on permanent upgrades"],
   bestiary: [showBestiary, "bestiary [enemy]", "Study enemy moves, resistances, drops, and encounter odds"],
@@ -77,8 +79,8 @@ const COMMANDS = {
   ],
 };
 const MENU = [
-  ["📖", ["explore", "map", "route", "story", "chronicle", "replay", "guide", "ending"]],
-  ["⚔️", ["fight", "dungeon", "tower", "raids", "bestiary", "journal"]],
+  ["📖", ["explore", "revisit", "map", "route", "story", "chronicle", "replay", "guide", "ending"]],
+  ["⚔️", ["fight", "dungeon", "challenge", "tower", "raids", "bestiary", "journal"]],
   ["🧙", ["inventory", "stats", "skills", "allocate", "perks", "magic", "info", "equip", "unequip"]],
   ["🔨", ["craft", "recipes", "shop", "buy", "sell"]],
   ["🏕️", ["town", "quests", "track", "party", "bond", "achievements", "settings", "save", "saves", "completed", "ngplus", "event", "github", "copy", "load", "menu", "quit"]],
@@ -157,6 +159,10 @@ async function doFunction(line) {
   const n = resolveCommand(m[1]);
   if (!n) {
     print("🤔 I don't recognize that command. Type 'menu' to browse your options.");
+    return;
+  }
+  if (WORLD.challengeRun?.active && !["challenge", "quit"].includes(n)) {
+    print("You are in a challenge trial. Resume with 'challenge' or leave with 'quit'.");
     return;
   }
   await COMMANDS[n][0](m[2]);

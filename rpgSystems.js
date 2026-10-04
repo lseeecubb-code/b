@@ -669,6 +669,9 @@ function attachEnemyAccessors(f) {
   def("intent", "intent");
   def("phase", "phase");
   def("eventFlags", "eventFlags");
+  def("turnCount", "turnCount");
+  def("enraged", "enraged");
+  def("enrageAnnounced", "enrageAnnounced");
 }
 
 function makeEnemyState(name, elite = false) {
@@ -693,6 +696,15 @@ function makeEnemyState(name, elite = false) {
     m.icon = m.icon || "👹";
     if (m.basic_attack?.damage) m.basic_attack.damage = scaleRange(m.basic_attack.damage, 1.15);
   }
+  if (WORLD.challengeRun?.active) {
+    const rule = WORLD.challengeRun.rule;
+    const roundScale = 1 + Math.max(0, (WORLD.challengeRun.round || 1) - 1) * 0.1;
+    const hpBoost = (rule === "iron" ? 1.7 : rule === "glass" ? 1.2 : 1.35) * roundScale;
+    const damageBoost = (rule === "frenzy" ? 1.65 : rule === "glass" ? 1.5 : 1.2) * (1 + Math.max(0, (WORLD.challengeRun.round || 1) - 1) * 0.08);
+    m.hp = int(m.hp * hpBoost);
+    if (m.basic_attack?.damage) m.basic_attack.damage = scaleRange(m.basic_attack.damage, damageBoost);
+    for (const move of Object.values(m.abilities || {})) if (move.damage) move.damage = scaleRange(move.damage, damageBoost);
+  }
   const forms = Array.isArray(m.phases) ? m.phases : [];
   const activeForm = forms.length ? { ...m, ...forms[0], phases: undefined } : m;
   const totalBossHp = forms.length ? forms.reduce((sum, form) => sum + form.hp, 0) : m.hp;
@@ -713,6 +725,9 @@ function makeEnemyState(name, elite = false) {
     intent: null,
     phase: 0,
     eventFlags: {},
+    turnCount: 0,
+    enraged: false,
+    enrageAnnounced: false,
     elite: !!elite,
     poise: 0,
     role: enemyRole(activeForm),
@@ -1257,13 +1272,24 @@ async function companionTurns(f) {
       }
     }
     const bondQuest = WORLD.companions.personal[id];
-    if (bondQuest?.done && !f.companionComboUsed?.[id] && tgt.hp > 0) {
+    if (bondQuest?.done && (bondQuest.moments || []).length > 0 && !f.companionComboUsed?.[id] && tgt.hp > 0) {
       if (!f.companionComboUsed) f.companionComboUsed = {};
       f.companionComboUsed[id] = true;
-      const combo = Math.max(1, int((randint(...companionDamage(id)) + PLAYER.level) * 1.5));
+      const bond = WORLD.companions.affinity[id] || 0;
+      const combo = Math.max(1, int((randint(...companionDamage(id)) + PLAYER.level) * (bond >= 50 ? 1.9 : 1.5)));
       tgt.hp -= combo;
-      print(`✨ ${d.name} joins your attack in a bonded combo for ${combo} damage!`);
-      if (tgt.hp > 0) tgt.effects = applyStatus(tgt.effects, { type: "exposed", chance: 100, damage: 0, turns: 1 }, `The ${tgt.name}`) || tgt.effects;
+      const comboLine = { mira: "Mira threads a page of light through your strike", kael: "Kael crashes his shield into your opening", nyx: "Nyx pins the target's shadow to your blade" }[id];
+      print(`✨ ${comboLine} for ${combo} damage!`);
+      if (id === "mira") {
+        const healing = Math.min(f.player_max_hp - f.player_hp, bond >= 80 ? 14 : 8);
+        f.player_hp += healing;
+        if (healing) print(`📖 Mira's follow-through restores ${healing} HP.`);
+      } else if (id === "kael") {
+        f.effects = applyStatus(f.effects, { type: "fortified", chance: 100, turns: 2, damage: 0 }, "You") || f.effects;
+      } else if (id === "nyx" && tgt.hp > 0) {
+        tgt.effects = applyStatus(tgt.effects, { type: "bleed", chance: 100, damage: bond >= 80 ? 5 : 3, turns: 2 }, `The ${tgt.name}`) || tgt.effects;
+      }
+      if (tgt.hp > 0 && id !== "nyx") tgt.effects = applyStatus(tgt.effects, { type: "exposed", chance: 100, damage: 0, turns: 1 }, `The ${tgt.name}`) || tgt.effects;
     }
     WORLD.companions.hp[id] = hp;
   }
@@ -1300,7 +1326,11 @@ async function showParty() {
     print(`    Bond: ${affinity}/100`);
     if (affinity < 10) print("    Personal request: build trust through battles together.");
     else if (!progress.done) print(`    Personal quest: ${quest.name} · ${progress.progress || 0}/${quest.need} ${title(quest.target)} defeated.`);
-    else print("    Bonded combo attack: unlocked (once per fight).");
+    else if (!(progress.moments || []).length) print(`    Personal hunt complete. Share a bond story with 'bond ${id}' to unlock their unique combo.`);
+    else {
+      const comboName = { mira: "Margin of Light (heals you)", kael: "Bellbreak Guard (fortifies you)", nyx: "Pinned Shadow (causes bleed)" }[id];
+      print(`    Bond skill: ${comboName} · once per fight${affinity >= 50 ? " · enhanced at this bond" : ""}.`);
+    }
     const scenes = COMPANION_BOND_LINES[id];
     const unlocked = scenes.filter((scene) => affinity >= scene[0]).length;
     print(`    Bond stories: ${unlocked}/${scenes.length} available · type 'bond ${id}'. Combat perk strengthens at 50 and 80 bond.`);
@@ -1379,6 +1409,48 @@ function showWorldMap() {
   const routes = WORLD.flags.routeChoices || [];
   print(`Routes chosen: ${routes.filter((r) => r === "safe").length} safe · ${routes.filter((r) => r === "risky").length} risky`);
   print("Use 'route' to choose this region's road. Discoveries appear as you explore.");
+  if (STORY.chapter > 0) print("Type 'revisit' to return to a completed region and search for a one-time keepsake.");
+}
+
+const REGION_KEEPSAKES = [
+  ["moon herb", "Mira's first trail marker still hangs from the Wayrest waystone."],
+  ["clockwork spring", "A Frontier signal lantern has kept one small part safe for you."],
+  ["resonant bell", "The Cathedral's lowest bell left a clear shard of its first note."],
+  ["void crystal", "The Null Expanse releases a piece of the road it once erased."],
+  ["signal wire", "A half-built doorway in the Unfinished Room contains useful wire."],
+  ["star glass", "At the world's edge, a fallen star has left a bright splinter."],
+  ["ancient crystal", "The Archive returns a crystal from a life it never indexed."],
+  ["oath fragment", "A retired Hollow knight leaves you a fragment of their old oath."],
+  ["ink fragment", "A struck-out sentence in the Margin refuses to disappear."],
+  ["soul shard", "A trace of the Blank Page holds together long enough to collect."],
+];
+
+async function revisitRegion(arg = "") {
+  const available = STORY_CHAPTERS.filter((ch) => ch.id < STORY.chapter || (ch.id === STORY.chapter && STORY.flags.has(`chapter_${ch.id}_complete`)));
+  if (!available.length) { print("No region has been completed yet. Advance the story, then return for its keepsake."); return; }
+  let query = String(arg).trim().toLowerCase();
+  if (!query) {
+    print("\n🧭 COMPLETED REGIONS");
+    available.forEach((ch, i) => print(`${i + 1}. ${ch.area} — ${ch.title}`));
+    query = (await input(`Return to which region? [${available.map((_, i) => i + 1).join("/")}/0]: `)).trim().toLowerCase();
+  }
+  if (["0", "back", "cancel"].includes(query)) return;
+  const ch = /^\d+$/.test(query) ? available[Number(query) - 1] : available.find((entry) => entry.area.toLowerCase().includes(query) || entry.title.toLowerCase().includes(query));
+  if (!ch) { print("That region is not unlocked for revisiting."); return; }
+  const keepsake = REGION_KEEPSAKES[ch.id];
+  const visited = WORLD.flags.returnedRegions || (WORLD.flags.returnedRegions = {});
+  print(`\n🗺️ RETURNING TO ${ch.area.toUpperCase()}`);
+  print(keepsake[1]);
+  if (!visited[ch.id]) {
+    visited[ch.id] = true;
+    addItem(keepsake[0], ch.id < 2 ? 2 : 1);
+    print(`You recover a keepsake: ${title(keepsake[0])}. The road feels a little less distant now.`);
+    recordStoryMoment(`Returned to ${ch.area} and recovered ${title(keepsake[0])}.`, "discovery", keepsake[0]);
+  } else {
+    const history = STORY.journal.filter((entry) => entry.chapter === ch.id && entry.kind === "choice").slice(-1)[0];
+    print(history ? `The place remembers your earlier choice: ${history.text}` : "The region is quiet. Your keepsake is safely in your pack.");
+    print("There is nothing else to recover here today.");
+  }
 }
 
 async function showBondStory(arg = "") {
@@ -1456,6 +1528,14 @@ async function townMenu() {
   print(`🏘️  ${t.name.toUpperCase()}`);
   print("=".repeat(62));
   print(t.blurb);
+  const safeRoutes = (WORLD.flags.routeChoices || []).filter((route) => route === "safe").length;
+  const riskyRoutes = (WORLD.flags.routeChoices || []).filter((route) => route === "risky").length;
+  if (WORLD.flags.safeRoadNetwork) print('A courier from the supply network leaves a note: "The safe roads connect now. We can send more than news."');
+  else if (riskyRoutes >= 3) print('The guard watches the road anxiously: "Those shortcuts are leaving fractures behind. We have posted extra sentries."');
+  else if (safeRoutes > riskyRoutes) print('Travelers trade stories about your safer routes. The innkeeper offers you a warm welcome.');
+  else if (riskyRoutes > safeRoutes) print('Merchants have begun asking what you found beyond the dangerous shortcuts.');
+  if (WORLD.flags.frontier_scout_guided) print("A scout's signal flag hangs above the town gate, marking a safer trail for other travelers.");
+  if (STORY.ending) print(`The people here still tell the story of the ${title(STORY.ending)} ending.`);
   print("\n🛏️ 1. Innkeeper — rest and recover");
   print("🛍️ 2. Merchant — buy and sell supplies");
   print("🔨 3. Blacksmith — upgrade equipment");
@@ -1584,6 +1664,7 @@ async function trainerNpc() {
 }
 
 async function raidBoard() {
+  if (WORLD.challengeRun?.active) { print("Finish or retire from the challenge trial before starting a raid."); return; }
   const upgrades = WORLD.flags.raidUpgrades || {};
   const levels = { vigor: Math.max(0, upgrades.vigor || 0), edge: Math.max(0, upgrades.edge || 0), core: Math.max(0, upgrades.core || 0) };
   const tokens = Math.max(0, WORLD.flags.raidTokens || 0);
@@ -2322,7 +2403,64 @@ async function startNewGamePlus() {
   storyIntro();
 }
 
+async function runChallenge(arg = "") {
+  if (WORLD.dungeonRun?.active || WORLD.towerRun?.active || WORLD.raidRun?.active) {
+    print("Finish your current expedition before entering the challenge trial.");
+    return;
+  }
+  const rules = {
+    glass: { title: "Glass Trial", text: "Your maximum HP is reduced to 65%; opponents hit harder." },
+    iron: { title: "Iron Trial", text: "Opponents have much more HP; your attacks deal 25% less damage." },
+    frenzy: { title: "Frenzy Trial", text: "Opponents grow stronger with every round and hit much harder." },
+  };
+  if (!WORLD.challengeRun?.active) {
+    let rule = String(arg).trim().toLowerCase();
+    if (!rules[rule]) {
+      print("\n🏅 CHALLENGE TRIAL — survive three consecutive fights for a Stormglass Charm.");
+      print("glass. " + rules.glass.text);
+      print("iron. " + rules.iron.text);
+      print("frenzy. " + rules.frenzy.text);
+      rule = (await input("Choose a rule [glass/iron/frenzy]: ")).trim().toLowerCase();
+    }
+    if (!rules[rule]) { print("Choose glass, iron, or frenzy to start the trial."); return; }
+    const pool = Object.keys(monsters).filter((name) => monsters[name].chance > 0 && PLAYER.level >= enemyRequiredLevel(name) && (!monsters[name].secret_flag || STORY.flags.has(monsters[name].secret_flag)));
+    if (!pool.length) { print("No opponents are available at your level yet."); return; }
+    const stats = getStats();
+    WORLD.challengeRun = { active: true, round: 1, hp: rule === "glass" ? Math.max(1, int(stats.max_hp * 0.65)) : stats.max_hp, energy: Math.min(C.START_ENERGY, maxEnergy()), rule, pending: false };
+    print(`\n${rules[rule].title}: ${rules[rule].text}`);
+  }
+  const run = WORLD.challengeRun;
+  const pool = Object.keys(monsters).filter((name) => monsters[name].chance > 0 && PLAYER.level >= enemyRequiredLevel(name) && (!monsters[name].secret_flag || STORY.flags.has(monsters[name].secret_flag)));
+  while (run.round <= 3) {
+    if (run.hp <= 0 || run.abandoned) {
+      WORLD.challengeRun = null;
+      print("The challenge trial ends here. Rest, regroup, and try another rule when you are ready.");
+      return;
+    }
+    const foe = run.pending ? run.pendingFoe : wchoice(pool, pool.map((name) => monsters[name].chance));
+    run.pending = true;
+    run.pendingFoe = foe;
+    print(`\n⚔️ TRIAL ROUND ${run.round}/3 · ${title(run.rule)}`);
+    await fightMonster(foe);
+    if (run.hp <= 0 || run.abandoned) continue;
+    run.round++;
+    run.pending = false;
+    delete run.pendingFoe;
+    if (run.round <= 3) print(`The next challenger approaches. You carry ${run.hp} HP and ${run.energy} energy forward.`);
+  }
+  WORLD.challengeRun = null;
+  WORLD.flags.challengeClears = (WORLD.flags.challengeClears || 0) + 1;
+  const coins = 150 + PLAYER.level * 20;
+  addItem("coin", coins);
+  grantXp(150 + PLAYER.level * 25);
+  const charmPrize = !inventory["stormglass charm"];
+  if (charmPrize) addItem("stormglass charm", 1);
+  else addItem("star glass", 3);
+  print(`🏆 Trial cleared! Your prize: ${coins} coin and ${charmPrize ? "a Stormglass Charm" : "3 star glass"}.`);
+}
+
 async function runDungeon() {
+  if (WORLD.challengeRun?.active) { print("Finish or retire from the challenge trial before entering the dungeon."); return; }
   if (WORLD.towerRun?.active) {
     print("Finish or retire from your current tower run before entering the dungeon.");
     return;
@@ -2431,6 +2569,7 @@ async function runDungeon() {
 }
 
 async function runTower() {
+  if (WORLD.challengeRun?.active) { print("Finish or retire from the challenge trial before entering the tower."); return; }
   if (WORLD.dungeonRun?.active) {
     print("Finish the current dungeon run before entering the tower.");
     return;

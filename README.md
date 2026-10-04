@@ -16,14 +16,18 @@ The game runs in the browser and saves progress automatically. Use the **music v
 
 - **Explore and choose your approach.** Follow enemy tracks, investigate a discovery, or leave both leads. Random encounters can include groups. Before an ordinary encounter, choose whether to fight or spare the enemy; sparing grants no XP, loot, or kill progress.
 - **Fight tactically.** Enemy moves show their accuracy and intent. Attacks can miss, and an opening gives you a chance to respond. In a group battle, enemies take their turns one at a time. Learn elemental weaknesses, build break and stagger, and use parries, guards, spells, items, and companions.
+- **Watch enemies adapt.** Foes build pressure as a fight drags on and enter a stronger last stand below half health. Rare Glimmer-Touched enemies can appear with extra health and a guaranteed special drop.
 - **Hear a dedicated battle soundtrack for every enemy.** Each enemy has its own original looping WAV theme; the game also includes separate tracks for many boss phases.
 - **Shape your character.** Allocate Strength, Agility, Vitality, and Focus; learn spells and perks; preview stat changes before equipping or upgrading weapons, armor, shields, headgear, and trinkets; and craft gear from materials.
 - **Keep a campaign chronicle.** Your major discoveries, choices, companions, and ending are saved in the **chronicle**. Use **replay** or **replay [chapter]** to revisit completed chapters with companion memories and see a what-if ending, without changing campaign progress.
 - **Follow the story.** Progress through 11 chapters, finish side quests, meet companions, uncover secrets, and choose an ending. Completed campaigns unlock New Game+.
 - **Read the world map and pin goals.** See visited and future regions, open side trails, and your chosen routes; pin the main story or an active quest with `track`.
 - **Grow closer to companions.** Build bond through combat, share three personal memories with each ally, and unlock stronger combat support as trust deepens.
+- **Earn companion techniques.** Complete each ally's personal hunt to unlock their unique once-per-fight combo; bond milestones strengthen its effect.
 - **Leave a mark on the roads.** Repeated safe routes establish a supply network, while risky shortcuts scar the map and shape the ending epilogue.
+- **Return for keepsakes.** Revisit completed regions to find one-time collectibles and read how the place remembers your earlier choices. Towns and merchants react to your supply routes and rescue work.
 - **Find New Game+ echoes.** Rare chapter discoveries recall your previous ending and let you turn the memory into a reward or share it with an ally.
+- **Try challenge trials.** Pick Glass, Iron, or Frenzy rules and survive three consecutive fights for a Stormglass Charm or star glass.
 - **Take on optional challenges.** Run five-floor dungeons with a rest-or-push decision between floors, climb the endless tower, or discover a five-island raid. Raids have no timer; after an island, continue or leave. Clearing all five islands earns bonus rewards and raid tokens for permanent upgrades.
 - **Explore the Quiet Road in more depth.** Take four linked Wayrest jobs, meet mosslings, burrow rats, and lantern thieves, and choose how to handle an injured courier or fallen waystone. At level 3, finishing the jobs can reveal the optional Mossback Guardian. Those encounters teach early recipes for useful boots, charms, a buckler, and field stew.
 - **Find more stories off the main road.** The Broken Frontier has a scout mission and outrider materials. The Cathedral of Ash has a linked Bellkeeper quest and a hidden bell boss. Later regions hold the Archive's Index Hound, three regional surveys, and the optional Lost Cartographer hunt.
@@ -34,6 +38,7 @@ The game runs in the browser and saves progress automatically. Use the **music v
 | Command | What it does |
 | --- | --- |
 | **explore** | Travel, meet encounters, make choices, and advance the campaign |
+| **revisit [region]** | Return to a completed region for its keepsake and story echoes |
 | **map** | View campaign regions, active trails, and route history |
 | **route** | Pick a safe road or a risky shortcut once in each chapter |
 | **story** / **guide** | Review the current objective or get progression guidance |
@@ -48,6 +53,7 @@ The game runs in the browser and saves progress automatically. Use the **music v
 | **inventory** / **equip (item name)** | Manage supplies and gear |
 | **craft (item name) (amount)** / **recipes** | Craft items or browse and track recipes |
 | **party** | Review companions and choose your active ally |
+| **challenge [glass\|iron\|frenzy]** | Fight three opponents under a custom rule for a special reward |
 | **dungeon** / **tower** / **raids** | Enter an optional combat challenge |
 | **town** | Rest, trade, upgrade equipment, or train |
 | **save** / **saves** | Save now or manage local save slots |
