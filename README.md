@@ -115,6 +115,7 @@ See [ENEMY_MUSIC_GUIDE.md](ENEMY_MUSIC_GUIDE.md) for the soundtrack layout and p
 - **index.html** — page layout, styles, and script loading
 - **index.js**, **commands.js**, **helpers.js** — startup, command input, and shared helpers
 - **story.js**, **dialogue.js**, **rpgSystems.js** — campaign, exploration, quests, raids, dungeons, and tower
+- **scenes.js** — central monster openings and attack-to-scene mappings
 - **combat.js**, **monsters.js**, **effects.js** — battles, enemy data, and combat effects
 - **items.js**, **playerGear.js**, **crafting.js** — items, stats, equipment, and crafting
 - **saves.js**, **admin.js**, **typewriter.js** — save handling, developer utilities, and text display
@@ -125,3 +126,7 @@ See [ENEMY_MUSIC_GUIDE.md](ENEMY_MUSIC_GUIDE.md) for the soundtrack layout and p
 
 For a code change, edit the current source files, keep item, enemy, and recipe names consistent across their data files, and update the script version query in **index.html** when a browser cache refresh is needed.
 
+
+### Scene authoring
+
+All combat scene triggers live in **scenes.js**. Add an entry under GAME_SCENES.attacks[monster][attack] to make an attack play a scene, and define that scene under GAME_SCENES.attackVisuals. Monster opening text and opening cinematics use the same file, so scene routing stays in one place.
