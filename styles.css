@@ -561,3 +561,47 @@ body.access-reduced-motion *::after {
   @keyframes attack-redline{0%{opacity:0;transform:translateX(-20vw) scaleX(.1)}18%,62%{opacity:1;transform:translateX(0) scaleX(1)}100%{opacity:0;transform:translateX(20vw) scaleX(.2)}}
   @keyframes attack-void-glyph{0%{opacity:0;transform:scale(.2) rotate(-30deg)}25%,65%{opacity:.9}100%{opacity:0;transform:translate(var(--attack-drift,20px),20vh) scale(1.6) rotate(90deg)}}
   @media(prefers-reduced-motion:reduce){.boss-attack-scene::before,.boss-attack-mark{animation:none!important}.boss-attack-scene::before{opacity:.72}.boss-attack-mark{opacity:.8}}
+
+
+/* =======================================================================
+   INCIDENT MODE — original danmaku arena
+   ======================================================================= */
+.danmaku-root{
+  position:fixed; inset:0; z-index:40;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:8px; padding:18px; box-sizing:border-box;
+  background:
+    radial-gradient(circle at 50% 18%, #2b1d45 0%, #090811 52%, #03040a 100%);
+  color:#f7f0ff; font-family:inherit;
+}
+.danmaku-hud{
+  width:min(920px,96vw); display:flex; justify-content:space-between; gap:18px;
+  font-size:12px; letter-spacing:.04em; text-transform:uppercase;
+}
+.danmaku-hud-left,.danmaku-hud-right{display:flex; gap:14px; flex-wrap:wrap}
+.danmaku-hud-left span:first-child{font-weight:800}
+.danmaku-stage{
+  position:relative; width:min(760px,96vw); aspect-ratio:760/520;
+  border:1px solid #bda8e855; box-shadow:0 0 34px #000b,0 0 10px #bda8e822 inset;
+  overflow:hidden;
+}
+#danmakuCanvas{display:block; width:100%; height:100%; background:#070812}
+.danmaku-overlay{
+  position:absolute; inset:0; display:grid; place-items:center; pointer-events:none;
+  opacity:0; transition:opacity .12s ease;
+}
+.danmaku-overlay.is-visible{opacity:1}
+.danmaku-card{
+  width:min(530px,78%); padding:18px 22px; text-align:center;
+  border:1px solid #e8d7ff88; background:#090a12d9; backdrop-filter:blur(3px);
+  box-shadow:0 0 26px #000c;
+}
+#dkOverlayTitle{font-weight:900; letter-spacing:.16em; text-transform:uppercase; font-size:18px}
+#dkOverlayText{margin-top:7px; color:#dccff5; font-size:13px}
+.danmaku-controls{width:min(920px,96vw); text-align:center; font-size:11px; color:#b8accd}
+.danmaku-root + .terminal{filter:blur(1px); opacity:.25}
+@media (max-width:700px){
+  .danmaku-root{padding:10px}
+  .danmaku-hud{font-size:10px}
+  .danmaku-controls{font-size:9px}
+}
