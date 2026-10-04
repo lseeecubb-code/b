@@ -1,20 +1,19 @@
 /*
  * THE LAST SAVE — 2.5D hard boot.
- * The old terminal must never remain the primary presentation.
- * This guard hides it immediately, initializes the RPG state if necessary,
- * and provides a small emergency 2.5D renderer if the main presentation
- * fails to mount. The normal game2_5d.js remains the preferred renderer.
+ * The 2.5D world is the primary presentation, while the original terminal
+ * input is retained as a compact command bar at the bottom of the screen.
  */
 (function () {
   "use strict";
 
   const TERMINAL = ".terminal";
 
-  function hideTerminal() {
+  function restoreCommandBar() {
     const terminal = document.querySelector(TERMINAL);
     if (terminal) {
-      terminal.style.setProperty("display", "none", "important");
-      terminal.setAttribute("aria-hidden", "true");
+      terminal.style.setProperty("display", "block", "important");
+      terminal.removeAttribute("aria-hidden");
+      terminal.classList.add("command-bar-25d");
     }
     document.documentElement.classList.add("last-save-25d");
     document.body.classList.add("last-save-25d");
@@ -81,12 +80,6 @@
       for(let y=0;y<mh;y++) for(let x=0;x<mw;x++) {
         const p=iso(x,y);
         diamond(p,(x+y)%4===0?"#1b2030":"#17182b","#39314f");
-        if((x*7+y*11)%29===0){
-          const t=iso(x,y,8); ctx.fillStyle="#bca4d6aa"; ctx.beginPath(); ctx.arc(t.x,t.y,13,0,Math.PI*2); ctx.fill();
-        }
-      }
-      for(const n of [[4.5,4.2,"#d8b3ff"],[11.7,3.6,"#8fd9cf"],[13.2,9.8,"#ffbd9c"]]){
-        const p=iso(n[0],n[1],14); ctx.fillStyle=n[2]; ctx.beginPath(); ctx.arc(p.x,p.y-10,7,0,Math.PI*2); ctx.fill(); ctx.fillRect(p.x-6,p.y-3,12,18);
       }
       const p=iso(px,py,18); ctx.fillStyle="#0008"; ctx.beginPath(); ctx.ellipse(p.x,p.y+17,13,6,0,0,Math.PI*2); ctx.fill();
       ctx.fillStyle="#e8c986"; ctx.beginPath(); ctx.moveTo(p.x-10,p.y+14);ctx.lineTo(p.x-7,p.y-7);ctx.quadraticCurveTo(p.x,p.y-16,p.x+7,p.y-7);ctx.lineTo(p.x+10,p.y+14);ctx.closePath();ctx.fill();
@@ -115,12 +108,11 @@
     resize(); draw();
   }
 
-  hideTerminal();
+  restoreCommandBar();
   ensureState();
 
-  // Give the normal renderer a moment to mount. If it does not, never fall back to the terminal.
   setTimeout(() => {
-    hideTerminal();
+    restoreCommandBar();
     if (!document.getElementById("world25d")) emergencyRenderer();
   }, 1200);
 })();
