@@ -3,6 +3,10 @@ const SAVE_KEY = "the-last-save.autosave.v1";
 const termScreen = document.getElementById("screen");
 const termInput = document.getElementById("command");
 const termStatus = document.getElementById("settingsButton");
+
+// Shows GAME_VERSION (set in helpers.js) in the footer.
+const versionLabel = document.getElementById("gameVersion");
+if (versionLabel) versionLabel.textContent = "THE LAST SAVE · " + GAME_VERSION;
 let pendingInput = null,
   pendingChoices = [],
   pendingChoiceIndex = -1;
