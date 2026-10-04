@@ -516,6 +516,84 @@ const FX = (() => {
       }
       noise(0.25, { vol: 0.05, f0: 6000, f1: 500, q: 0.4, wet: 0.05 });
     },
+
+    // --- enemy opening scenes ---
+    openFrost: () => {
+      noise(1.7, { vol: 0.07, f0: 400, f1: 2800, q: 0.7, attack: 0.9, wet: 0.3 });
+      tone(880, 1.2, { type: "sine", vol: 0.03, delay: 0.2, attack: 0.6, wet: 0.5 });
+      noise(0.07, { vol: 0.13, f0: 6500, f1: 2200, q: 0.5, delay: 1.0, wet: 0.2 });
+      noise(0.07, { vol: 0.1, f0: 7000, f1: 2500, q: 0.5, delay: 1.25, wet: 0.2 });
+      bell(2093, 0.9, { vol: 0.04, delay: 1.9 });
+      sparkle(5, 1800, 1.5, 0.03);
+    },
+    openEmber: () => {
+      noise(1.9, { vol: 0.1, type: "lowpass", f0: 200, f1: 2000, attack: 1.2, wet: 0.2 });
+      tone(55, 1.9, { type: "sawtooth", vol: 0.07, slideTo: 90, lp: 320, attack: 0.9, wet: 0.2 });
+      for (let i = 0; i < 9; i++) noise(0.03, { vol: 0.07, f0: rand(2500, 6000), q: 3, delay: 0.2 + i * 0.17, wet: 0.05 });
+      noise(0.5, { vol: 0.12, f0: 3000, f1: 400, delay: 1.9, wet: 0.2 });
+      thump(0.25, 90, 1.9);
+    },
+    openQuake: () => {
+      noise(2.2, { vol: 0.08, type: "lowpass", f0: 160, f1: 60, attack: 0.3, wet: 0.2 });
+      [0.3, 0.9, 1.5].forEach((t, i) => {
+        thump(0.3 + i * 0.1, 85 - i * 10, t);
+        crunch(0.12, t);
+      });
+    },
+    openUmbra: () => {
+      tone(58, 2.4, { type: "sawtooth", vol: 0.06, lp: 300, attack: 0.9, wet: 0.5 });
+      tone(61, 2.4, { type: "sawtooth", vol: 0.045, lp: 300, attack: 0.9, wet: 0.5 });
+      noise(1.6, { vol: 0.04, f0: 1400, f1: 900, q: 6, attack: 0.8, wet: 0.5 });
+      bell(311, 1.4, { vol: 0.035, delay: 1.5, wet: 0.5 });
+    },
+    openCrown: () => {
+      tone(98, 1.6, { type: "sawtooth", vol: 0.05, lp: 500, attack: 0.5, wet: 0.4 });
+      noise(1.2, { vol: 0.05, f0: 600, f1: 4000, q: 1, attack: 0.9, wet: 0.3 });
+      [392, 494, 587, 784].forEach((f, i) =>
+        tone(f, 0.9, { type: "triangle", vol: 0.05, delay: 1.5 + i * 0.12, attack: 0.05, wet: 0.5 })
+      );
+      bell(1568, 1.1, { vol: 0.05, delay: 1.6 });
+    },
+    openRedline: () => {
+      for (let i = 0; i < 4; i++) {
+        slash(0.1, 0.5 + i * 0.45);
+        for (let j = 0; j < 5; j++)
+          tone(rand(900, 1400), 0.02, { type: "square", vol: 0.014, delay: 0.85 + i * 0.45 + j * 0.05, wet: 0 });
+      }
+      bell(660, 0.8, { vol: 0.03, delay: 2.3 });
+    },
+    openFang: () => {
+      whoosh(0.09, true, 0.5);
+      [0.55, 0.68, 0.81].forEach((t) => slash(0.15, t));
+      thump(0.32, 110, 0.8);
+      tone(210, 1.0, { type: "sawtooth", slideTo: 80, vol: 0.05, lp: 700, delay: 0.85, attack: 0.1, wet: 0.2 });
+    },
+    openEcho: () => {
+      for (let i = 0; i < 6; i++)
+        tone(660 - i * 70, 0.22, { type: "square", vol: 0.035, delay: i * 0.2, wet: 0.5, detune: i * 8, lp: 2400 });
+      tone(60, 1.8, { type: "sawtooth", vol: 0.04, lp: 250, delay: 1, attack: 0.5, wet: 0.4 });
+      noise(0.5, { vol: 0.05, f0: 6000, f1: 500, q: 0.4, delay: 1.2, wet: 0.1 });
+    },
+    openPage: () => {
+      noise(0.5, { vol: 0.06, f0: 800, f1: 3500, q: 0.7, delay: 0.3 });
+      tone(330, 1.6, { type: "triangle", vol: 0.04, delay: 0.6, attack: 0.5, wet: 0.6 });
+      bell(1320, 1.2, { vol: 0.04, delay: 1.5 });
+      noise(1.0, { vol: 0.05, type: "lowpass", f0: 2000, f1: 100, delay: 1.6, wet: 0.3 });
+    },
+
+    openToll: () => {
+      [[0.5, 196], [1.05, 175], [1.6, 156], [2.15, 131]].forEach(([t, f]) => {
+        bell(f, 1.6, { vol: 0.09, delay: t, wet: 0.5 });
+        thump(0.18, 80, t);
+      });
+      tone(65, 2.6, { type: "sine", vol: 0.04, attack: 1.2, wet: 0.5 });
+    },
+    openMap: () => {
+      for (let i = 0; i < 9; i++) noise(0.1, { vol: 0.04, f0: rand(2500, 4500), q: 2, delay: i * 0.12, wet: 0.05 });
+      tone(440, 2.2, { type: "triangle", slideTo: 880, vol: 0.03, delay: 0.3, attack: 0.5, wet: 0.5 });
+      sparkle(4, 1400, 1.0, 0.025);
+      tone(330, 0.9, { type: "sawtooth", slideTo: 70, vol: 0.05, lp: 700, delay: 2.4, wet: 0.4 });
+    },
   };
 
   // How long (seconds) each sound occupies the queue before the next one may start. Short
@@ -526,10 +604,12 @@ const FX = (() => {
     area: 0.8, warning: 0.55, heal: 0.4, glitch: 0.35, encounter: 0.5, craftDone: 0.4,
     hammer: 0.5, intent: 0.4, telegraph: 0.4, crit: 0.3, burn: 0.35, poison: 0.3, run: 0.4,
     skill: 0.3, heavy: 0.2, potion: 0.4,
+    openFrost: 2.5, openEmber: 2.5, openQuake: 2.5, openUmbra: 2.5, openCrown: 2.5, openRedline: 2.5, openFang: 2.5, openEcho: 2.5, openPage: 2.5, openToll: 2.5, openMap: 2.5,
   };
   const IMPORTANT = new Set([
     "levelUp", "victory", "defeat", "chapter", "questComplete", "phoenix", "unlock", "hurt",
     "hurtBig", "crit", "warning", "encounter", "enter",
+    "openFrost", "openEmber", "openQuake", "openUmbra", "openCrown", "openRedline", "openFang", "openEcho", "openPage", "openToll", "openMap",
   ]);
 
   // Plays a named sound. Sounds triggered in the same instant are lined up one after another
@@ -963,6 +1043,322 @@ const FX = (() => {
     }, reduceMotion ? 360 : style.duration));
   }
 
+  // ---------- Enemy opening scenes ----------
+  // A short cinematic that plays before a fight starts: letterbox bars, a themed effect, then the
+  // enemy's name card. Each scene builds its own DOM, injects its own CSS the first time it is
+  // used (no stylesheet changes needed) and has its own synthesized sound (see SOUNDS.open*).
+  //
+  // Enemies opt in with a `scene` on their opening in monsters.js, e.g.
+  //   opening: { title, lines, effect, scene: "frost", color: "#bfe8ff", sub: "…" }
+  // (color and sub are optional overrides). Preview any scene from the browser console with
+  //   FX.openingScene("frost", { name: "Frost Giant" })
+  // Enter / Space / Escape / a click skips it.
+  const OPENINGS = {
+    frost: { color: "#bfe8ff", sub: "The air forgets how to move.", ms: 3100, sound: "openFrost" },
+    ember: { color: "#ff8a3c", sub: "Something old is still burning.", ms: 3100, sound: "openEmber" },
+    quake: { color: "#d6c1a0", sub: "The ground remembers its weight.", ms: 3100, sound: "openQuake" },
+    umbra: { color: "#b48cff", sub: "It was watching before you arrived.", ms: 3300, sound: "openUmbra" },
+    crown: { color: "#ffd45e", sub: "Every throne is a promise someone broke.", ms: 3500, sound: "openCrown" },
+    redline: { color: "#ff6b6b", sub: "Your story is under revision.", ms: 3500, sound: "openRedline" },
+    fang: { color: "#e9edff", sub: "The hunt began before your first step.", ms: 2700, sound: "openFang" },
+    echo: { color: "#7fffe0", sub: "You have been here before.", ms: 3500, sound: "openEcho" },
+    page: { color: "#ffffff", sub: "Something was removed from this chapter.", ms: 3500, sound: "openPage" },
+    toll: { color: "#ffb36b", sub: "Something rang. Nothing struck it.", ms: 3400, sound: "openToll" },
+    map: { color: "#8fe3c0", sub: "Every road ends where you stop looking.", ms: 3500, sound: "openMap" },
+  };
+  // mk("class", "text", { "--css-var": "value" }) -> <div>
+  function mk(cls, text = "", vars = {}) {
+    const el = document.createElement("div");
+    el.className = cls;
+    if (text) el.textContent = text;
+    for (const key in vars) el.style.setProperty(key, vars[key]);
+    return el;
+  }
+
+  // Jagged lines that draw themselves outward from a point (ice cracks, ground fissures).
+  function crackSvg(count, color, cx = 50, cy = 32) {
+    let paths = "";
+    for (let b = 0; b < count; b++) {
+      let a = (b / count) * Math.PI * 2 + rand(-0.3, 0.3);
+      let x = cx;
+      let y = cy;
+      const pts = [`${x},${y}`];
+      for (let s = 0; s < 6; s++) {
+        a += rand(-0.55, 0.55);
+        const len = rand(5, 11);
+        x += Math.cos(a) * len;
+        y += Math.sin(a) * len * 0.62;
+        pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+      }
+      paths += `<polyline points="${pts.join(" ")}" pathLength="1" style="animation-delay:${(0.9 + b * 0.05).toFixed(2)}s"/>`;
+    }
+    const wrap = mk("fo-cracks");
+    wrap.innerHTML = `<svg viewBox="0 0 100 64" preserveAspectRatio="none" style="--cc:${color}">${paths}</svg>`;
+    return wrap;
+  }
+
+  const pct = (a, b) => rand(a, b).toFixed(1) + "%";
+  const secs = (a, b) => rand(a, b).toFixed(2) + "s";
+
+  // One builder per scene. `o` is the overlay, `ctx.later(fn, ms)` schedules a timed effect that is
+  // cancelled automatically if the scene is skipped.
+  const BUILDERS = {
+    frost(o) {
+      o.append(mk("fo-frost-ring"), crackSvg(9, "#eaf8ff"));
+      for (let i = 0; i < 28; i++)
+        o.append(mk("fo-fall", ["❄", "✧", "❅"][i % 3], { "--x": pct(0, 100), "--d": secs(0, 1.6), "--t": secs(1.6, 2.8), "--s": rand(12, 26).toFixed(0) + "px" }));
+      o.append(mk("fo-pulse", "", { "--pc": "#eefaff", "--pd": "1.95s" }));
+    },
+    ember(o) {
+      o.append(mk("fo-ember-glow"));
+      for (let i = 0; i < 36; i++)
+        o.append(mk("fo-rise", ["•", "✦", "·", "▲"][i % 4], { "--x": pct(2, 98), "--d": secs(0, 1.8), "--t": secs(1.4, 2.5), "--s": rand(10, 24).toFixed(0) + "px", "--dx": rand(-60, 60).toFixed(0) + "px" }));
+      o.append(mk("fo-pulse", "", { "--pc": "#ffb066", "--pd": "1.9s" }));
+    },
+    quake(o, ctx) {
+      o.append(mk("fo-dust-veil"), crackSvg(8, "#ffb25c", 50, 58));
+      for (let i = 0; i < 24; i++)
+        o.append(mk("fo-fall rock", ["▲", "◆", "░", "▒"][i % 4], { "--x": pct(0, 100), "--d": secs(0.2, 2), "--t": secs(0.9, 1.7), "--s": rand(10, 24).toFixed(0) + "px" }));
+      [300, 900, 1500].forEach((ms) =>
+        ctx.later(() => {
+          shake(true);
+          flash("rgba(255, 200, 120, 0.16)");
+        }, ms)
+      );
+    },
+    umbra(o) {
+      o.append(mk("fo-iris"));
+      const eyes = mk("fo-eyes");
+      eyes.append(mk("fo-eye"), mk("fo-eye"));
+      o.append(eyes);
+      for (let i = 0; i < 12; i++)
+        o.append(mk("fo-whisper", ["…", "?", "∅", "…"][i % 4], { "--x": pct(5, 92), "--y": pct(15, 75), "--d": secs(0.4, 2) }));
+    },
+    crown(o, ctx) {
+      for (let i = 0; i < 30; i++) {
+        const a = rand(0, Math.PI * 2);
+        const r = rand(55, 95);
+        o.append(mk("fo-shard", ["◆", "╱", "✦", "▲"][i % 4], { "--sx": (Math.cos(a) * r).toFixed(0) + "vmin", "--sy": (Math.sin(a) * r * 0.8).toFixed(0) + "vmin", "--r": rand(-360, 360).toFixed(0) + "deg", "--d": secs(0, 0.9) }));
+      }
+      o.append(mk("fo-crown", "♛"), mk("fo-pulse", "", { "--pc": "#ffe9a0", "--pd": "1.5s", "--po": "0.3" }));
+      ctx.later(() => shake(false), 1550);
+    },
+    redline(o) {
+      const rows = [
+        ["> the hero arrives on the quiet road.", "> the hero was never here."],
+        ["> the hero is brave.", "> the hero is a placeholder."],
+        ["> the ending is yours to choose.", "> the ending was chosen for you."],
+        ["> you are the author.", "> you are a character."],
+      ];
+      const paper = mk("fo-paper");
+      rows.forEach(([oldText, newText], i) => {
+        const row = mk("fo-row", "", { "--d": (0.55 + i * 0.45).toFixed(2) + "s" });
+        row.append(mk("fo-old", oldText), mk("fo-strike"), mk("fo-new", newText));
+        paper.append(row);
+      });
+      o.append(paper);
+    },
+    fang(o, ctx) {
+      o.append(mk("fo-moon", "☾"));
+      [0, 1, 2].forEach((i) => o.append(mk("fo-claw", "", { "--top": 16 + i * 8 + "%", "--d": (0.55 + i * 0.13).toFixed(2) + "s" })));
+      ctx.later(() => {
+        shake(true);
+        flash("rgba(255, 255, 255, 0.26)");
+      }, 780);
+    },
+    echo(o) {
+      o.append(mk("fo-scan"));
+      const list = mk("fo-attempts");
+      const verdict = ["FAILED", "FAILED", "SAVED", "FAILED", "LOST"];
+      for (let i = 0; i < 14; i++)
+        list.append(mk("fo-attempt", `ATTEMPT ${String(i + 1).padStart(2, "0")} · ${verdict[i % 5]}`, { "--d": (i * 0.11).toFixed(2) + "s" }));
+      o.append(list);
+    },
+    page(o) {
+      const sheet = mk("fo-sheet");
+      sheet.append(mk("fo-sheet-head", "p. ▒▒"));
+      for (let i = 0; i < 9; i++) sheet.append(mk("fo-sheet-line", "", { "--w": rand(55, 100).toFixed(0) + "%" }));
+      sheet.append(mk("fo-hole"));
+      o.append(sheet);
+    },
+  };
+
+  BUILDERS.toll = (o, ctx) => {
+    o.append(mk("fo-bell", "🔔"));
+    [0.5, 1.05, 1.6, 2.15].forEach((t) => {
+      o.append(mk("fo-ring", "", { "--d": t + "s" }));
+      ctx.later(() => {
+        shake(false);
+        flash("rgba(255, 170, 90, 0.12)");
+      }, t * 1000);
+    });
+  };
+
+  BUILDERS.map = (o) => {
+    let svg = "";
+    for (let i = 1; i < 10; i++) svg += `<polyline class="g" points="${i * 10},0 ${i * 10},64" pathLength="1" style="--gd:${(i * 0.06).toFixed(2)}s"/>`;
+    for (let i = 1; i < 6; i++) svg += `<polyline class="g" points="0,${i * 10.6} 100,${i * 10.6}" pathLength="1" style="--gd:${(i * 0.08).toFixed(2)}s"/>`;
+    svg += '<polyline class="r" points="6,54 18,46 30,50 42,36 55,40 68,24 80,28 93,12 104,3" pathLength="1"/>';
+    const wrap = mk("fo-map");
+    wrap.innerHTML = `<svg viewBox="0 0 100 64" preserveAspectRatio="none">${svg}</svg>`;
+    o.append(wrap, mk("fo-compass", "🧭"), mk("fo-pulse", "", { "--pc": "#8fe3c0", "--pd": "2.2s" }));
+  };
+
+  const OPENING_CSS = `
+.fx-open{position:absolute;inset:0;z-index:60;overflow:hidden;pointer-events:none;background:rgba(0,0,4,.82);animation:fo-fade-in .4s ease-out both}
+.fx-open.out{animation:fo-fade-out .45s ease-in forwards}
+@keyframes fo-fade-in{from{opacity:0}}
+@keyframes fo-fade-out{to{opacity:0}}
+.fx-open.calm *{animation:none!important}
+.fo-bar{position:absolute;left:0;right:0;height:14%;background:#000;z-index:5}
+.fo-bar.top{top:0;animation:fo-bar-t .55s cubic-bezier(.2,.8,.2,1) both}
+.fo-bar.bot{bottom:0;animation:fo-bar-b .55s cubic-bezier(.2,.8,.2,1) both}
+@keyframes fo-bar-t{from{transform:translateY(-100%)}}
+@keyframes fo-bar-b{from{transform:translateY(100%)}}
+.fo-title{position:absolute;left:0;right:0;bottom:19%;z-index:6;text-align:center;text-transform:uppercase;font-weight:700;letter-spacing:.32em;font-size:clamp(18px,4vw,38px);color:#fff;white-space:nowrap;text-shadow:0 0 3px #000,0 2px 10px #000,0 0 14px var(--oc),0 0 34px var(--oc);animation:fo-title-in 1.1s .75s cubic-bezier(.2,.8,.2,1) both}
+@keyframes fo-title-in{from{opacity:0;letter-spacing:.6em;filter:blur(8px)}}
+.fo-title.long{font-size:clamp(14px,3vw,28px);letter-spacing:.2em}
+.fo-sub{position:absolute;left:0;right:0;bottom:15.2%;z-index:6;text-align:center;font-size:clamp(10px,1.6vw,14px);letter-spacing:.22em;text-transform:uppercase;color:var(--oc);text-shadow:0 1px 6px #000,0 0 3px #000;opacity:.85;animation:fo-sub-in .8s 1.5s ease-out both}
+@keyframes fo-sub-in{from{opacity:0;transform:translateY(6px)}}
+.fo-fall,.fo-rise,.fo-whisper,.fo-shard{position:absolute}
+.fo-pulse{position:absolute;inset:0;background:var(--pc);opacity:0;animation:fo-pulse .6s var(--pd) ease-out both}
+@keyframes fo-pulse{0%{opacity:0}20%{opacity:var(--po,.7)}100%{opacity:0}}
+.fo-cracks{position:absolute;inset:0}
+.fo-cracks svg{width:100%;height:100%}
+.fo-cracks polyline{fill:none;stroke:var(--cc);stroke-width:2;vector-effect:non-scaling-stroke;stroke-dasharray:1;stroke-dashoffset:1;animation:fo-draw .35s ease-out forwards;filter:drop-shadow(0 0 4px var(--cc))}
+@keyframes fo-draw{to{stroke-dashoffset:0}}
+/* frost */
+.fo-frost-ring{position:absolute;inset:0;animation:fo-frost-grow 1.7s ease-out both}
+@keyframes fo-frost-grow{from{box-shadow:inset 0 0 0 0 rgba(200,235,255,0)}to{box-shadow:inset 0 0 150px 60px rgba(200,235,255,.8),inset 0 0 36px 8px #fff}}
+.fo-fall{left:var(--x);top:-8%;font-size:var(--s);color:#e8f6ff;opacity:0;animation:fo-fall var(--t) var(--d) linear infinite}
+.fo-fall.rock{color:#b8a58a;text-shadow:0 0 6px rgba(0,0,0,.6)}
+@keyframes fo-fall{0%{top:-8%;opacity:0;transform:rotate(0)}10%{opacity:.9}100%{top:108%;opacity:.3;transform:rotate(260deg)}}
+/* ember */
+.fo-ember-glow{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 120%,rgba(255,110,30,.75),rgba(180,30,0,.25) 45%,transparent 70%);animation:fo-glow 1.1s ease-in-out infinite alternate}
+@keyframes fo-glow{from{opacity:.55;transform:scale(1)}to{opacity:1;transform:scale(1.08)}}
+.fo-rise{left:var(--x);top:105%;font-size:var(--s);color:#ffb347;text-shadow:0 0 8px #ff6a00;opacity:0;animation:fo-rise var(--t) var(--d) ease-out infinite}
+@keyframes fo-rise{0%{top:105%;opacity:0;transform:translateX(0)}15%{opacity:1}100%{top:-8%;opacity:0;transform:translateX(var(--dx))}}
+/* quake */
+.fo-dust-veil{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(130,110,85,0),rgba(130,110,85,.38));animation:fo-fade-in 1.2s ease-out both}
+.fx-open-quake .fo-title{animation:fo-slam .5s .8s cubic-bezier(.2,.9,.3,1.3) both}
+@keyframes fo-slam{from{opacity:0;transform:scale(2.4)}}
+/* umbra */
+.fo-iris{position:absolute;left:50%;top:44%;width:70vmin;height:70vmin;margin:-35vmin 0 0 -35vmin;border-radius:50%;box-shadow:0 0 0 200vmax #000;animation:fo-iris 1.5s cubic-bezier(.5,0,.2,1) both}
+@keyframes fo-iris{from{transform:scale(3.2)}to{transform:scale(.3)}}
+.fo-eyes{position:absolute;left:50%;top:44%;display:flex;gap:7vmin;transform:translate(-50%,-50%)}
+.fo-eye{width:9vmin;height:2.4vmin;border-radius:50%;background:radial-gradient(ellipse,#fff 0,var(--oc) 40%,transparent 72%);box-shadow:0 0 22px var(--oc);transform:scaleY(0);animation:fo-eye .5s 1.5s ease-out forwards,fo-blink 2.4s 2.2s infinite}
+@keyframes fo-eye{to{transform:scaleY(1)}}
+@keyframes fo-blink{0%,92%,100%{transform:scaleY(1)}96%{transform:scaleY(.05)}}
+.fo-whisper{left:var(--x);top:var(--y);color:var(--oc);font-size:18px;opacity:0;animation:fo-whisper 2.2s var(--d) ease-in-out both}
+@keyframes fo-whisper{0%{opacity:0}40%{opacity:.5}100%{opacity:0;transform:translateY(-14px)}}
+/* crown */
+.fo-shard{left:50%;top:34%;color:#ffd45e;font-size:20px;text-shadow:0 0 10px #ffb800;opacity:0;animation:fo-shard 1.1s var(--d) cubic-bezier(.5,0,.3,1) both}
+@keyframes fo-shard{0%{opacity:0;transform:translate(var(--sx),var(--sy)) rotate(var(--r)) scale(1.4)}20%,85%{opacity:1}100%{opacity:0;transform:translate(0,0) rotate(0) scale(.4)}}
+.fo-crown{position:absolute;left:0;right:0;top:20%;text-align:center;font-size:clamp(60px,16vmin,130px);color:#ffd45e;text-shadow:0 0 24px #ffb800,0 0 70px #ff9d00;animation:fo-crown 1s 1.5s cubic-bezier(.2,.9,.3,1.2) both}
+@keyframes fo-crown{from{opacity:0;transform:translateY(-30px) scale(.4)}}
+/* redline */
+.fo-paper{position:absolute;left:50%;top:20%;transform:translateX(-50%);width:min(80%,520px);display:flex;flex-direction:column;gap:2.4vmin;font-size:clamp(11px,2vmin,16px);color:#d8d8d8}
+.fo-row{position:relative;padding:.2em 0}
+.fo-old{display:block;animation:fo-old-dim .4s calc(var(--d) + .3s) forwards}
+@keyframes fo-old-dim{to{opacity:.3}}
+.fo-strike{position:absolute;left:-2%;top:.7em;width:104%;height:2px;background:#ff3b3b;box-shadow:0 0 8px #ff3b3b;transform-origin:left;transform:scaleX(0);animation:fo-strike .3s var(--d) ease-out forwards}
+@keyframes fo-strike{to{transform:scaleX(1)}}
+.fo-new{display:block;color:#ff6b6b;opacity:0;margin-top:.15em;animation:fo-new-in .4s calc(var(--d) + .35s) forwards}
+@keyframes fo-new-in{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+/* fang */
+.fo-moon{position:absolute;right:12%;top:16%;font-size:clamp(50px,14vmin,110px);color:#eef2ff;text-shadow:0 0 30px #aab8ff,0 0 80px #6f7fff;animation:fo-moon 1.2s ease-out both}
+@keyframes fo-moon{from{opacity:0;transform:scale(.6)}}
+.fo-claw{position:absolute;left:-10%;top:var(--top);width:125%;height:5px;transform-origin:left center;background:linear-gradient(90deg,transparent,#fff 18%,#fff 72%,rgba(255,50,50,.9));box-shadow:0 0 14px #fff;opacity:0;animation:fo-claw .5s var(--d) ease-out both}
+@keyframes fo-claw{0%{opacity:1;transform:rotate(22deg) scaleX(0)}35%{opacity:1;transform:rotate(22deg) scaleX(1)}100%{opacity:.4;transform:rotate(22deg) scaleX(1)}}
+/* echo */
+.fo-scan{position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,.05) 0 1px,transparent 1px 3px);animation:fo-scan 6s linear infinite}
+@keyframes fo-scan{to{background-position:0 60px}}
+.fo-attempts{position:absolute;left:5%;top:20%;display:flex;flex-direction:column;gap:.5em;font-size:clamp(9px,1.6vmin,13px);color:var(--oc)}
+.fo-attempt{opacity:0;animation:fo-attempt .5s var(--d) steps(3) both}
+@keyframes fo-attempt{0%{opacity:0}50%{opacity:.9;transform:translateX(6px)}100%{opacity:.5}}
+.fx-open-echo .fo-title{animation:fo-title-in 1.1s .75s both,fo-echo .9s 1.9s steps(2) infinite}
+@keyframes fo-echo{0%,100%{text-shadow:3px 0 #ff2d6f,-3px 0 #00e5ff,0 0 14px var(--oc)}50%{text-shadow:-5px 0 #ff2d6f,5px 0 #00e5ff,0 0 24px var(--oc)}}
+/* missing page */
+.fo-sheet{position:absolute;left:50%;top:14%;width:min(32%,230px);height:58%;padding:6% 7%;box-sizing:border-box;background:#f4f1e8;color:#777;box-shadow:0 0 40px rgba(255,255,255,.55);clip-path:polygon(0 0,100% 0,100% 94%,88% 100%,74% 95%,60% 100%,46% 94%,32% 100%,18% 95%,6% 100%,0 96%);transform:translateX(-50%) rotate(-3deg);animation:fo-sheet 1.4s .3s cubic-bezier(.2,.8,.2,1) both}
+@keyframes fo-sheet{from{opacity:0;transform:translate(-50%,120%) rotate(8deg)}}
+.fo-sheet-head{font-size:clamp(9px,1.6vmin,13px);margin-bottom:8%}
+.fo-sheet-line{height:2.2%;margin:5% 0;width:var(--w);background:#b9b5a8}
+.fo-hole{position:absolute;left:55%;top:42%;width:10%;aspect-ratio:1;border-radius:50%;background:#05050a;transform:translate(-50%,-50%) scale(0);animation:fo-hole 1.1s 1.5s ease-in both}
+@keyframes fo-hole{to{transform:translate(-50%,-50%) scale(9)}}
+/* toll */
+.fo-bell{position:absolute;left:50%;top:18%;font-size:clamp(50px,13vmin,100px);transform-origin:50% 0;transform:translateX(-50%);filter:drop-shadow(0 0 16px var(--oc));animation:fo-swing 2.6s ease-out both}
+@keyframes fo-swing{0%{transform:translateX(-50%) rotate(-26deg)}18%{transform:translateX(-50%) rotate(22deg)}36%{transform:translateX(-50%) rotate(-15deg)}54%{transform:translateX(-50%) rotate(9deg)}72%{transform:translateX(-50%) rotate(-5deg)}100%{transform:translateX(-50%) rotate(0)}}
+.fo-ring{position:absolute;left:50%;top:38%;width:10vmin;height:10vmin;margin:-5vmin 0 0 -5vmin;border:2px solid var(--oc);border-radius:50%;opacity:0;animation:fo-ring 1.6s var(--d) ease-out both}
+@keyframes fo-ring{0%{opacity:.9;transform:scale(.2)}100%{opacity:0;transform:scale(14)}}
+/* map */
+.fo-map{position:absolute;inset:0}
+.fo-map svg{width:100%;height:100%}
+.fo-map polyline{fill:none;vector-effect:non-scaling-stroke;stroke:var(--oc);stroke-dasharray:1;stroke-dashoffset:1}
+.fo-map .g{stroke-width:1;opacity:.28;animation:fo-draw .6s var(--gd) ease-out forwards}
+.fo-map .r{stroke-width:2.4;filter:drop-shadow(0 0 5px var(--oc));animation:fo-draw 1.5s 1s ease-in-out forwards}
+.fo-compass{position:absolute;left:50%;top:22%;margin-left:-.6em;font-size:clamp(34px,9vmin,70px);filter:drop-shadow(0 0 12px var(--oc));animation:fo-spin 2.8s cubic-bezier(.3,0,.2,1) both}
+@keyframes fo-spin{from{opacity:0;transform:rotate(0) scale(.4)}20%{opacity:1}to{opacity:1;transform:rotate(1130deg) scale(1)}}
+`;
+
+  function injectOpeningStyles() {
+    if (document.getElementById("fx-open-styles")) return;
+    const style = document.createElement("style");
+    style.id = "fx-open-styles";
+    style.textContent = OPENING_CSS;
+    document.head.appendChild(style);
+  }
+
+  // Plays a scene by kind ("frost", "ember", …). Resolves when it finishes or is skipped.
+  // Options: { name: text for the name card, color, sub: overrides for the defaults }.
+  function openingScene(kind, { name = "", color = "", sub = "" } = {}) {
+    if (!terminal || !OPENINGS[kind]) return Promise.resolve();
+    const hit = { kind, name: String(name || kind) };
+
+    injectOpeningStyles();
+    const old = terminal.querySelector(".fx-open");
+    if (old) old.remove();
+
+    const cfg = OPENINGS[hit.kind];
+    const overlay = mk(`fx-open fx-open-${hit.kind}${reduceMotion ? " calm" : ""}`);
+    overlay.style.setProperty("--oc", color || cfg.color);
+    overlay.setAttribute("aria-hidden", "true");
+
+    const timers = [];
+    const ctx = { later: (fn, ms) => timers.push(setTimeout(fn, ms)) };
+    if (!reduceMotion) BUILDERS[hit.kind](overlay, ctx);
+    overlay.append(
+      mk("fo-bar top"),
+      mk("fo-bar bot"),
+      mk(hit.name.length > 18 ? "fo-title long" : "fo-title", hit.name.replace(/\b\w/g, (c) => c.toUpperCase())),
+      mk("fo-sub", sub || cfg.sub)
+    );
+    terminal.appendChild(overlay);
+    play(cfg.sound);
+
+    return new Promise((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        timers.forEach(clearTimeout);
+        window.removeEventListener("keydown", onKey, true);
+        window.removeEventListener("pointerdown", finish, true);
+        overlay.classList.add("out");
+        setTimeout(() => overlay.remove(), 450);
+        resolve();
+      };
+      const onKey = (e) => {
+        if (!["Enter", " ", "Escape"].includes(e.key)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        finish();
+      };
+      window.addEventListener("keydown", onKey, true);
+      window.addEventListener("pointerdown", finish, true);
+      timers.push(setTimeout(finish, reduceMotion ? 900 : cfg.ms));
+    });
+  }
+
   // Damage number that drifts up from the player (left) or the enemy (right).
   function floatNumber(text, side, kind) {
     if (reduceMotion) return;
@@ -1360,5 +1756,5 @@ const FX = (() => {
   setMusicVolume(musicVolume);
   setSound(soundOn);
 
-  return { renderLine, play, blip, startBattleMusic, stopBattleMusic, corrupt, realityCut, attackCutscene };
+  return { renderLine, play, blip, startBattleMusic, stopBattleMusic, corrupt, realityCut, attackCutscene, openingScene, openingKinds: () => Object.keys(OPENINGS) };
 })();
