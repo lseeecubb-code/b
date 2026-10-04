@@ -1,9 +1,9 @@
-/* Flatter, top-down 2.5D camera: mostly overhead with a small side angle. */
+/* Straight-on top-down 2.5D camera: no 45-degree isometric rotation. */
 (function () {
   "use strict";
   const TILE = 54;
-  const SIDE = { x: TILE, y: 12 };
-  const DOWN = { x: -15, y: 50 };
+  const SIDE = { x: TILE, y: 0 };
+  const DOWN = { x: 0, y: TILE };
   const MAP_W = 17, MAP_H = 13;
   const DPR = Math.min(2, window.devicePixelRatio || 1);
   const BIOMES = [
