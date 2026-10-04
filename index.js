@@ -4,8 +4,8 @@ const termScreen = document.getElementById("screen");
 const termInput = document.getElementById("command");
 const termStatus = document.getElementById("settingsButton");
 let pendingInput = null,
-  cmdHistory = [],
-  cmdIndex = 0;
+  pendingChoices = [],
+  pendingChoiceIndex = -1;
 
 function showLoadingIndicator(message = "Still working…") {
   termStatus.classList.add("is-loading");
@@ -74,6 +74,12 @@ async function input(prompt = "") {
   await Typewriter.idle();
   return new Promise((resolve) => {
     pendingInput = resolve;
+    const choiceMatch = String(prompt).match(/\[([^\]]*\/[^\]]*)\]/);
+    pendingChoices = choiceMatch
+      ? choiceMatch[1].split("/").map((choice) => choice.split(",")[0].trim()).filter(Boolean)
+      : [];
+    pendingChoiceIndex = -1;
+    termInput.placeholder = pendingChoices.length ? "↑/↓ select an option, or type your own..." : "Type a command...";
     termInput.focus();
   });
 }
@@ -93,28 +99,24 @@ termInput.addEventListener("keydown", (e) => {
     const value = termInput.value;
     termInput.value = "";
     if (!pendingInput) return;
-    if (value.trim()) {
-      cmdHistory.push(value);
-      if (cmdHistory.length > 100) cmdHistory.shift();
-      cmdIndex = cmdHistory.length;
-    }
+    termInput.placeholder = "Type a command...";
     write(value + "\n");
     const resolve = pendingInput;
     pendingInput = null;
+    pendingChoices = [];
+    pendingChoiceIndex = -1;
     showLoadingIndicator();
     requestAnimationFrame(() => setTimeout(() => resolve(value), 0));
   } else if (e.key === "ArrowUp") {
+    if (!pendingChoices.length || e.altKey || e.ctrlKey || e.metaKey) return;
     e.preventDefault();
-    if (cmdHistory.length) {
-      cmdIndex = Math.max(0, cmdIndex - 1);
-      termInput.value = cmdHistory[cmdIndex] || "";
-    }
+    pendingChoiceIndex = pendingChoiceIndex <= 0 ? pendingChoices.length - 1 : pendingChoiceIndex - 1;
+    termInput.value = pendingChoices[pendingChoiceIndex];
   } else if (e.key === "ArrowDown") {
+    if (!pendingChoices.length || e.altKey || e.ctrlKey || e.metaKey) return;
     e.preventDefault();
-    if (cmdHistory.length) {
-      cmdIndex = Math.min(cmdHistory.length, cmdIndex + 1);
-      termInput.value = cmdHistory[cmdIndex] || "";
-    }
+    pendingChoiceIndex = (pendingChoiceIndex + 1) % pendingChoices.length;
+    termInput.value = pendingChoices[pendingChoiceIndex];
   }
 });
 

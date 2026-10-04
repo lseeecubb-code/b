@@ -10,7 +10,7 @@
 2. Type **explore** and press **Enter** to travel and advance the story.
 3. Type **menu** to see every command. You can enter a command by name or select its number.
 
-The game runs in the browser and saves progress automatically. Use the **music volume slider** in the toolbar to adjust or mute background music. Sound effects have a separate setting. The input line supports command history with the up and down arrow keys.
+The game runs in the browser and saves progress automatically. Use the **music volume slider** in the toolbar to adjust or mute background music. Sound effects have a separate setting. At a choice prompt, use **↑/↓** to cycle through the listed options and **Enter** to confirm; you can also type a response.
 
 ## What you can do
 
