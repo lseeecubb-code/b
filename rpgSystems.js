@@ -7,6 +7,7 @@ const ACHIEVE_KEY = "the-last-save.achievements";
 const SLOT_KEY = (n) => `the-last-save.slot.${n}`;
 const COMPLETED_KEY = "the-last-save.completed";
 const SAVE_SLOTS = 3;
+const SLOT_NAME_KEY = (n) => `the-last-save.slot-name.${n}`;
 
 const STAT_INFO = [
   ["str", "Strength", "Physical damage"],
@@ -214,16 +215,19 @@ const COMPANION_BOND_LINES = {
     [20, "Mira admits she writes down the silences because she fears forgetting the people inside them.", "You promise to keep her pages safe", "You ask her to leave one page unwritten"],
     [50, "Mira shares the last letter she never sent home. The ink trembles, but her voice does not.", "You read it together", "You help her burn it"],
     [80, "Mira gives you her first field journal, filled with small victories from your travels.", "Keep it as a record of the road", "Add your own final page"],
+    [100, "Mira asks you to help open a free archive where anyone can leave a memory without fear of losing it.", "Build it as a shared home for stories", "Let each visitor keep their pages private"],
   ],
   kael: [
     [20, "Kael confesses he keeps listening for bells from a village that no longer exists.", "Listen with him", "Tell him the silence can be a kind of rest"],
     [50, "Kael removes the cracked bell from his shield and tells you the name of the friend who gave it to him.", "Carry the bell together", "Help him mend it"],
     [80, "Kael says he no longer fights to keep the past standing; he fights so others can have a future.", "Stand with him at the next dawn", "Let him choose his own road"],
+    [100, "Kael hangs the mended bell at the edge of the rebuilt road. Its first note is a welcome, not a warning.", "Ring it together for the travelers", "Leave the bell for the village to claim"],
   ],
   nyx: [
     [20, "Nyx tells you the Null Expanse erased their first name, and asks what you hear in the quiet.", "A name still waiting to be found", "A silence that belongs to you"],
     [50, "Nyx shows you a scrap of map that survived the Expanse. A single star is marked in the margin.", "Trace the route with them", "Let the star stay a secret"],
     [80, "Nyx speaks a chosen name aloud and asks you to remember it, even if the world forgets again.", "I will remember", "You can always choose another"],
+    [100, "Nyx finds a place beyond the map where the quiet no longer feels like an erasure.", "Stay and chart it together", "Help them make it a refuge for others"],
   ],
 };
 
@@ -484,6 +488,8 @@ function defaultSettings() {
     sound: true,
     largeText: false,
     reducedMotion: false,
+    relaxedSpacing: false,
+    reducedFlash: false,
   };
 }
 
@@ -526,6 +532,8 @@ function applyTextColor() {
   if (c) document.body.classList.add(c);
   document.body.classList.toggle("access-large", !!SETTINGS.largeText);
   document.body.classList.toggle("access-reduced-motion", !!SETTINGS.reducedMotion);
+  document.body.classList.toggle("access-spacing", !!SETTINGS.relaxedSpacing);
+  document.body.classList.toggle("access-reduced-flash", !!SETTINGS.reducedFlash);
 }
 
 function hasPerk(id) {
@@ -1460,7 +1468,7 @@ function showTutorial(arg = "") {
   const lessons = {
     exploration: ["explore — follow a lead, spare or fight an enemy, and advance the story.", "route — pick the safer supply road or risky shortcut once per region.", "map / story / guide — find your location, objective, and next step."],
     combat: ["Read the enemy intent and incoming damage before acting.", "Attack builds energy; heavy attacks and skills spend it. Guard, parry, or dodge to answer enemy moves.", "Action 10 or 'companion' gives an active ally an attack, guard, or heal order. 'target' switches enemies in a group."],
-    saves: ["Progress autosaves in this browser. 'saves' manages local slots.", "'copy' exports a portable save code; 'load' imports one on another browser.", "Settings include larger text, reduced motion, color themes, and music volume in the title bar."],
+    saves: ["Progress autosaves in this browser. 'saves' manages three named local slots.", "'copy' exports a portable save code; 'load' imports one on another browser.", "Settings include larger text, relaxed spacing, reduced motion and flashes, color themes, and music volume in the title bar."],
   };
   const keys = section && lessons[section] ? [section] : Object.keys(lessons);
   keys.forEach((key) => { print(`\n${title(key)}`); lessons[key].forEach((line) => print("• " + line)); });
@@ -1796,8 +1804,10 @@ async function showSettingsMenu() {
   print(`3. 🎨 Text colour: ${SETTINGS.textColor}`);
   print(`4. 🔎 Large text: ${SETTINGS.largeText ? "on" : "off"}`);
   print(`5. ✨ Reduced motion: ${SETTINGS.reducedMotion ? "on" : "off"}`);
-  print("6. Sound volume: use the volume slider in the title bar");
-  print("7. Text speed: use the Text button in the title bar");
+  print(`6. ↕️ Relaxed text spacing: ${SETTINGS.relaxedSpacing ? "on" : "off"}`);
+  print(`7. 💡 Reduced flashes: ${SETTINGS.reducedFlash ? "on" : "off"}`);
+  print("8. Sound volume: use the volume slider in the title bar");
+  print("9. Text speed: use the Text button in the title bar");
   print("0. Back");
   const raw = (await input("Change which setting? ")).trim().toLowerCase();
   if (["0", "back", ""].includes(raw)) return;
@@ -1825,6 +1835,12 @@ async function showSettingsMenu() {
   } else if (["5", "motion", "reduced motion"].includes(raw)) {
     SETTINGS.reducedMotion = !SETTINGS.reducedMotion; saveSettings();
     print(`Reduced motion ${SETTINGS.reducedMotion ? "on" : "off"}.`);
+  } else if (["6", "spacing", "relaxed spacing"].includes(raw)) {
+    SETTINGS.relaxedSpacing = !SETTINGS.relaxedSpacing; saveSettings();
+    print(`Relaxed text spacing ${SETTINGS.relaxedSpacing ? "on" : "off"}.`);
+  } else if (["7", "flash", "reduced flashes"].includes(raw)) {
+    SETTINGS.reducedFlash = !SETTINGS.reducedFlash; saveSettings();
+    print(`Reduced flashes ${SETTINGS.reducedFlash ? "on" : "off"}.`);
   }
 }
 
@@ -2034,6 +2050,8 @@ async function maybeExploreEvent(areaName, selectedKind = null, availableEncount
       table.push("mossback_lair");
   }
   if (STORY.chapter >= 1) table.push("townhint");
+  if (!WORLD.flags[`regional_story_${STORY.chapter}`]) table.push("regional_story", "regional_story");
+  if (!WORLD.flags[`regional_hazard_${STORY.chapter}`]) table.push("regional_hazard");
   if ((PLAYER.ngPlus || 0) > 0 && WORLD.flags.ngEchoChapter !== STORY.chapter) table.push("ng_echo", "ng_echo");
   if (availableEncounters.includes("index hound") && questState("unwritten_index").status === "active" && !WORLD.flags.archive_index_resolved) table.push("index_hound");
   if (availableEncounters.includes("glasswing moth") && !WORLD.flags.starfall_cache_opened) table.push("starfall");
@@ -2056,6 +2074,73 @@ async function maybeExploreEvent(areaName, selectedKind = null, availableEncount
       if (id) { WORLD.companions.affinity[id] = Math.min(100, (WORLD.companions.affinity[id] || 0) + 6); addItem("potion", 1); print(`${COMPANION_DEFS[id].name} keeps the echo. Your bond deepens (+6).`); }
       else print("You have no companion to share it with, so the echo fades kindly.");
     } else print("The echo fades without asking anything of you.");
+    return true;
+  }
+  if (kind === "regional_story") {
+    const scenes = [
+      ["A lantern keeper asks you to light three roadside lamps before the fog arrives.", "Light them with your own oil (+35 coin)", "Teach the keeper the safe path (+60 XP)"],
+      ["A bridge carpenter has saved a plank from every crossing the distortion erased.", "Help raise a new bridge (+1 iron)", "Leave a marker for those still searching (+70 XP)"],
+      ["A tired courier carries letters addressed to people who may no longer exist.", "Help deliver the letters (+50 coin)", "Read one aloud beside the road (+1 potion)"],
+      ["A village choir has forgotten its song, but each singer remembers a different verse.", "Gather the verses (+90 XP)", "Give them a new final line (+1 crystal)"],
+      ["An old gardener tends a patch of flowers growing through cracked stone.", "Help replant the patch (+2 moon herb)", "Save seeds for the next town (+60 XP)"],
+      ["A watch post flashes a signal that no one has answered for weeks.", "Answer with your own light (+1 crystal)", "Repair the signal mirror (+75 XP)"],
+      ["A ferryman offers passage across a river that appears only when someone tells the truth.", "Admit what you fear (+1 potion)", "Ask the ferryman what they remember (+85 XP)"],
+      ["A miner has found a pocket of warmth beneath the frozen road.", "Share the heat with travellers (+55 coin)", "Map the cavern (+1 iron)"],
+      ["A travelling puppeteer performs for an empty square and insists the audience is listening.", "Join the final scene (+80 XP)", "Leave a small gift for the unseen crowd (+1 crystal)"],
+      ["A mapmaker offers a blank map and asks what the world should remember here.", "Mark a place of shelter (+1 potion)", "Mark the road you survived (+100 XP)"],
+      ["A child has planted a flag at the edge of the world's last visible road.", "Promise the road will continue (+1 ancient crystal)", "Help plant another flag (+120 XP)"],
+    ];
+    const scene = scenes[Math.max(0, Math.min(scenes.length - 1, STORY.chapter))];
+    WORLD.flags[`regional_story_${STORY.chapter}`] = true;
+    print(`📜 ${scene[0]}\n1. ${scene[1]}\n2. ${scene[2]}`);
+    const answer = (await input("How do you help? [1/2]: ")).trim();
+    const reward = scene[answer === "2" ? 2 : 1];
+    const coin = Number(reward.match(/\+(\d+) coin/)?.[1] || 0);
+    const xp = Number(reward.match(/\+(\d+) XP/)?.[1] || 0);
+    if (coin) addItem("coin", coin);
+    else if (xp) grantXp(xp);
+    else { const item = reward.replace(/\)$/, "").match(/\+(\d+) (.+)$/); if (item) addItem(item[2], Number(item[1])); }
+    print(`The moment stays with this region. You gain ${reward.replace(/^.*\+/, "").replace(/\)$/, "")}.`);
+    recordStoryMoment(`You helped a local in ${areaName}: ${scene[0]}`, "discovery", `regional:${STORY.chapter}`);
+    return true;
+  }
+  if (kind === "regional_hazard") {
+    const hazards = [
+      "A sinkhole opens beneath the old road, its edge hidden by pale grass.",
+      "A storm of glass dust sweeps across the frontier trail.",
+      "Ash falls from the Cathedral roof and turns the stairs slick.",
+      "The Expanse folds the path into a loop that tightens with every step.",
+      "A half-rendered floor breaks apart above a field of floating stone.",
+      "The road outside the world ends in a long drop through static.",
+      "Loose pages rise in a cyclone, each one cutting like a blade.",
+      "A black tide spills from a crack in the Hollow Kingdom's wall.",
+      "The Margin narrows until the stone walls begin to scrape together.",
+      "A blank-white squall erases the trail markers as you watch.",
+      "The Last Autosave flickers; the ground tries to roll back beneath your feet.",
+    ];
+    WORLD.flags[`regional_hazard_${STORY.chapter}`] = true;
+    const stats = getStats();
+    print(`⚠️ ${hazards[Math.max(0, Math.min(hazards.length - 1, STORY.chapter))]}`);
+    print("1. Use a potion to find a safe way through.\n2. Push on through the hazard and salvage what you can.");
+    const answer = (await input("Choose [1/2]: ")).trim();
+    if (answer === "1") {
+      if ((inventory.potion || 0) > 0) {
+        addItem("potion", -1);
+        print("The potion buys you a safe passage through the hazard.");
+      } else {
+        const toll = Math.min(inventory.coin || 0, 25);
+        addItem("coin", -toll);
+        print(toll ? `You pay ${toll} coin for a guide through the danger.` : "You have no potion or coin to spare, but a narrow passage appears at last.");
+      }
+    } else {
+      const damage = Math.max(1, Math.ceil(stats.max_hp * (0.12 + Math.random() * 0.12)));
+      WORLD.flags.hazardWound = Math.min(stats.max_hp - 1, (WORLD.flags.hazardWound || 0) + damage);
+      const salvage = wchoice(["iron", "moon herb", "crystal", "clockwork spring"]);
+      addItem(salvage, 1);
+      grantXp(35 + STORY.chapter * 8);
+      print(`You force a path through, lose ${damage} HP, and salvage ${title(salvage)} with some experience.`);
+    }
+    recordStoryMoment(`You crossed a regional hazard in ${areaName}.`, "discovery", `hazard:${STORY.chapter}`);
     return true;
   }
   if (kind === "raid") {
@@ -2528,6 +2613,8 @@ async function maybeExploreEvent(areaName, selectedKind = null, availableEncount
 function rollExploreDiscovery(availableEncounters) {
   if (Math.random() > 0.38) return null;
   const table = ["chest", "trap", "merchant", "camp", "npc", "riddle", "cache", "scrap", "forage", "shrine", "echo"];
+  if (!WORLD.flags[`regional_story_${STORY.chapter}`]) table.push("regional_story", "regional_story");
+  if (!WORLD.flags[`regional_hazard_${STORY.chapter}`]) table.push("regional_hazard");
   if ((PLAYER.ngPlus || 0) > 0 && WORLD.flags.ngEchoChapter !== STORY.chapter) table.push("ng_echo", "ng_echo");
   if (STORY.chapter === 0 && availableEncounters.includes("mossling")) {
     if (!WORLD.flags.quiet_waystone_resolved) table.push("quiet_waystone", "quiet_waystone");
@@ -2554,6 +2641,8 @@ function rollExploreDiscovery(availableEncounters) {
 function exploreDiscoveryLabel(kind) {
   return ({
     chest: "open the half-buried chest", ng_echo: "follow a memory from your previous ending", trap: "cross the unstable ground", merchant: "visit the travelling merchant",
+    regional_story: "help someone whose home is in this region",
+    regional_hazard: "cross a hazard unique to this region",
     camp: "rest at the abandoned camp", npc: "talk to the traveller", riddle: "solve the roadside riddle",
     cache: "search the strange crate", scrap: "salvage the wreck", forage: "gather roadside supplies",
     shrine: "approach the roadside shrine", echo: "listen to the memory echo", townhint: "follow the smoke toward town",
@@ -2579,7 +2668,9 @@ async function saveSlotsMenu() {
       const c = localStorage.getItem(SLOT_KEY(i));
       if (c) {
         const s = await parseSave(c);
-        info = `Lv ${s.pl.level}  Ch ${s.st?.chapter ?? "?"}  ${s.pl.ngPlus ? "NG+" + s.pl.ngPlus : "NG"}  ${s.inv.coin || 0} coin`;
+        let slotName = "";
+        try { slotName = localStorage.getItem(SLOT_NAME_KEY(i)) || ""; } catch (e) {}
+        info = `${slotName ? `“${slotName}” · ` : ""}Lv ${s.pl.level}  Ch ${s.st?.chapter ?? "?"}  ${s.pl.ngPlus ? "NG+" + s.pl.ngPlus : "NG"}  ${s.inv.coin || 0} coin`;
       }
     } catch (e) {
       info = "(unreadable)";
@@ -2587,6 +2678,7 @@ async function saveSlotsMenu() {
     print(`  ${i}. ${info}`);
   }
   print("  s. 💾 Save your current progress");
+  print("  n. ✏️ Rename a save slot");
   print("  l. 📂 Load a saved adventure");
   print("  c. 🔁 Restore your latest completed run");
   print("  0. ↩️ Back");
@@ -2608,11 +2700,18 @@ async function saveSlotsMenu() {
       }
       try {
         localStorage.setItem(SLOT_KEY(n), saveCode());
-        print(`💾 Saved into slot ${n}.`);
+        const name = (await input("Name this save (optional, up to 24 characters): ")).trim().slice(0, 24);
+        try { if (name) localStorage.setItem(SLOT_NAME_KEY(n), name); } catch (e) {}
+        print(`💾 Saved${name ? ` “${name}”` : ""} into slot ${n}.`);
       } catch (e) {
         print("Could not write that slot.");
       }
     }
+  } else if (["n", "rename"].includes(raw)) {
+    const n = parseInt(await input(`Rename slot 1-${SAVE_SLOTS}: `), 10);
+    if (n < 1 || n > SAVE_SLOTS || !localStorage.getItem(SLOT_KEY(n))) { print("Choose a slot that already contains a save."); return; }
+    const name = (await input("New name (blank clears it, up to 24 characters): ")).trim().slice(0, 24);
+    try { if (name) localStorage.setItem(SLOT_NAME_KEY(n), name); else localStorage.removeItem(SLOT_NAME_KEY(n)); print(name ? `Slot ${n} is now “${name}”.` : `Slot ${n} name cleared.`); } catch (e) { print("Could not update that slot name."); }
   } else if (raw === "l" || raw === "load") {
     const n = parseInt(await input(`Load slot 1-${SAVE_SLOTS}: `), 10);
     if (n >= 1 && n <= SAVE_SLOTS) {
@@ -2669,6 +2768,9 @@ async function startNewGamePlus() {
   print("Carry your level, attributes, perks, spells, gear, coin, and companions into a fresh run.");
   print("The campaign begins again, and enemies are more dangerous.");
   print("Your completed run remains saved separately.");
+  print("Choose a New Game+ rule: standard / ironbound (harder to kill) / swift (fast, fragile) / volatile (glass-cannon foes).");
+  const modifier = (await input("Rule [standard/ironbound/swift/volatile]: ")).trim().toLowerCase();
+  const chosenModifier = ["ironbound", "swift", "volatile"].includes(modifier) ? modifier : "standard";
   const y = (await input("Begin New Game+? (y/n): ")).trim().toLowerCase();
   if (y !== "y" && y !== "yes") return;
   try {
@@ -2692,6 +2794,7 @@ async function startNewGamePlus() {
   WORLD.upgrades = worldKeep.upgrades;
   WORLD.rarity = worldKeep.rarity;
   WORLD.companions = worldKeep.companions;
+  WORLD.flags.ngPlusModifier = chosenModifier;
   WORLD.usedCombatItem = false;
   if (typeof recordStoryMoment === "function") recordStoryMoment(`New Game+ began with an echo of the "${PLAYER.ngPlusEnding}" ending.`, "ending", PLAYER.ngPlusEnding);
   if (PLAYER.ngPlusEnding === "remember") {
@@ -2705,6 +2808,7 @@ async function startNewGamePlus() {
     print("✒️ Ending bonus: Rewrite — Static Bind is available from the beginning.");
   }
   print(`\n🔁 New Game+ ${PLAYER.ngPlus} begins. This is not your completed file.`);
+  print(`Enemy rule: ${title(chosenModifier)}.`);
   print("🗺️ Type 'explore' to begin again. The Quiet Road remembers you.");
   unlockAchievement("ng");
   storyIntro();
@@ -2873,6 +2977,60 @@ async function runDungeon() {
   print(`🏆 Dungeon cleared! Bonus reward: ${reward} coin.`);
   WORLD.flags.dungeonCleared = (WORLD.flags.dungeonCleared || 0) + 1;
   if (typeof checkAchievements === "function") checkAchievements();
+}
+
+async function runArena() {
+  if (WORLD.dungeonRun?.active || WORLD.towerRun?.active || WORLD.raidRun?.active || WORLD.challengeRun?.active) {
+    print("Finish your current expedition before entering the regional arena.");
+    return;
+  }
+  const pool = Object.keys(monsters).filter((name) => monsters[name].chance > 0 && PLAYER.level >= enemyRequiredLevel(name) && (!monsters[name].secret_flag || STORY.flags.has(monsters[name].secret_flag)));
+  if (!pool.length) { print("No arena opponents are available at your current level."); return; }
+  if (!WORLD.arenaRun?.active) {
+    const stats = getStats();
+    WORLD.arenaRun = { active: true, round: 0, hp: stats.max_hp, energy: Math.min(C.START_ENERGY, maxEnergy()) };
+    print("\n🏟️ THE WAYFARER ARENA — five bouts, one local record");
+    print("Your HP and energy carry between bouts. The final opponent is always an elite.");
+  } else print(`Resuming the arena at bout ${WORLD.arenaRun.round + 1}/5.`);
+  const run = WORLD.arenaRun;
+  while (run.round < 5 && run.hp > 0) {
+    const bout = run.round + 1;
+    const foe = run.pendingFoe || (bout === 5
+      ? pool.reduce((best, name) => monsters[name].hp > monsters[best].hp ? name : best, pool[0])
+      : wchoice(pool, pool.map((name) => monsters[name].chance)));
+    run.pendingFoe = foe;
+    print(`\n━━ ARENA BOUT ${bout}/5 · ${bout === 5 ? "CHAMPION" : "REGIONAL FOE"} ━━`);
+    const before = WORLD.totalKills || 0;
+    await fightMonster(foe, bout === 5);
+    if (run.hp <= 0 || (WORLD.totalKills || 0) <= before) {
+      WORLD.arenaRun = null;
+      print(`The arena run ends after ${run.round} bout${run.round === 1 ? "" : "s"}.`);
+      break;
+    }
+    run.round = bout;
+    delete run.pendingFoe;
+    if (bout < 5) {
+      const stats = getStats();
+      run.hp = Math.min(stats.max_hp, run.hp + Math.floor(stats.max_hp * 0.12));
+      run.energy = Math.min(maxEnergy(), run.energy + 1);
+      print(`The stewards restore a little strength: ${run.hp}/${stats.max_hp} HP · ${run.energy} energy.`);
+    }
+  }
+  const score = run.round;
+  if (WORLD.arenaRun) WORLD.arenaRun = null;
+  if (score > 0) {
+    const key = "the-last-save.arena-leaderboard.v1";
+    try {
+      const board = JSON.parse(localStorage.getItem(key) || "[]");
+      board.push({ bouts: score, level: PLAYER.level, chapter: STORY.chapter, date: new Date().toISOString() });
+      board.sort((a, b) => b.bouts - a.bouts || a.level - b.level || a.date.localeCompare(b.date));
+      const top = board.slice(0, 10);
+      localStorage.setItem(key, JSON.stringify(top));
+      print("\n📜 WAYFARER ARENA RECORDS (this browser)");
+      top.forEach((entry, i) => print(`${i + 1}. ${entry.bouts}/5 bouts · Lv ${entry.level} · Chapter ${entry.chapter}`));
+    } catch (e) { print(`Arena record: ${score}/5 bouts (browser storage unavailable).`); }
+    if (score === 5) { addItem("coin", 200 + STORY.chapter * 25); grantXp(120 + STORY.chapter * 20); print("🏅 Champion's purse: bonus coin and XP for clearing all five bouts."); }
+  }
 }
 
 async function runTower() {

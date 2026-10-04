@@ -72,6 +72,7 @@ function defaultWorld() {
     companions: { recruited: [], active: [], hp: {}, affinity: {}, personal: {} },
     dungeonRun: null,
     towerRun: null,
+    arenaRun: null,
     raidRun: null,
     challengeRun: null,
     memories: { reloads: 0, quitsMidFight: 0, lastSeenAt: 0 },

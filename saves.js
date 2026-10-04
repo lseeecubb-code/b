@@ -182,6 +182,18 @@ function applySave({ inv, eq, pl, st, world }) {
         }
       : null;
   }
+  if (typeof WORLD !== "undefined" && WORLD.arenaRun) {
+    const run = WORLD.arenaRun;
+    WORLD.arenaRun = run && typeof run === "object" && run.active
+      ? {
+          active: true,
+          round: Math.max(0, Math.min(5, parseInt(run.round) || 0)),
+          hp: Math.max(0, Number.isFinite(run.hp) ? run.hp : 1),
+          energy: Math.max(0, Number.isFinite(run.energy) ? run.energy : 0),
+          pendingFoe: typeof run.pendingFoe === "string" && monsters[run.pendingFoe] ? run.pendingFoe : null,
+        }
+      : null;
+  }
   if (typeof WORLD !== "undefined") {
     WORLD.flags.practiceMode = false;
     const factionIds = ["wayfarers", "archivists", "wardens"];

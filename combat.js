@@ -1237,7 +1237,7 @@ function newFight(n, extras = []) {
   const names = Array.isArray(n) ? n : [n, ...extras];
   const s = getStats();
   if (WORLD.challengeRun?.active && WORLD.challengeRun.rule === "glass") s.max_hp = Math.max(1, int(s.max_hp * 0.65));
-  const expedition = WORLD.challengeRun?.active ? WORLD.challengeRun : WORLD.raidRun?.active ? WORLD.raidRun : WORLD.dungeonRun?.active ? WORLD.dungeonRun : WORLD.towerRun?.active ? WORLD.towerRun : null;
+  const expedition = WORLD.challengeRun?.active ? WORLD.challengeRun : WORLD.raidRun?.active ? WORLD.raidRun : WORLD.dungeonRun?.active ? WORLD.dungeonRun : WORLD.towerRun?.active ? WORLD.towerRun : WORLD.arenaRun?.active ? WORLD.arenaRun : null;
   const f = {
     enemies: names.map((nm) =>
       typeof makeEnemyState === "function" ? makeEnemyState(nm) : { name: nm, displayName: nm, monster: monsters[nm], hp: monsters[nm].hp, effects: [], guarding: false, stance: null, stun_turns: 0, stun_immune: 0, staggered: false, last_move: null, intent: null, phase: 0, phases: [] }
@@ -1300,7 +1300,7 @@ function playerDown(f) {
 }
 function saveDungeonVitals(f) {
   if (WORLD.memories) WORLD.memories.inCombat = false;
-  const run = WORLD.challengeRun?.active ? WORLD.challengeRun : WORLD.raidRun?.active ? WORLD.raidRun : WORLD.dungeonRun?.active ? WORLD.dungeonRun : WORLD.towerRun?.active ? WORLD.towerRun : null;
+  const run = WORLD.challengeRun?.active ? WORLD.challengeRun : WORLD.raidRun?.active ? WORLD.raidRun : WORLD.dungeonRun?.active ? WORLD.dungeonRun : WORLD.towerRun?.active ? WORLD.towerRun : WORLD.arenaRun?.active ? WORLD.arenaRun : null;
   if (run) {
     run.hp = Math.max(0, f.player_hp);
     run.energy = Math.max(0, f.energy);
@@ -1467,8 +1467,31 @@ async function fightMonster(arg = "", elite = false) {
   if (!requested.every(checkEnemyLevel)) return;
   const f = newFight(name);
   f.weaponName = equipment.weapon || null;
+  if (WORLD.flags.hazardWound) {
+    const wound = Math.min(f.player_hp - 1, WORLD.flags.hazardWound);
+    f.player_hp -= wound;
+    WORLD.flags.hazardWound = 0;
+    print(`The regional hazard still weighs on you: -${wound} starting HP.`);
+  }
+  const ngModifier = WORLD.flags.ngPlusModifier;
   if (WORLD.memories) WORLD.memories.inCombat = true;
   if (elite && f.enemies) f.enemies = f.enemies.map((e) => makeEnemyState(e.name, true));
+  if ((PLAYER.ngPlus || 0) > 0 && ngModifier && ngModifier !== "standard" && f.enemies?.length) {
+    f.enemies.forEach((e) => {
+      const hpScale = ngModifier === "ironbound" ? 1.22 : ngModifier === "swift" ? 0.92 : 0.86;
+      const dmgScale = ngModifier === "ironbound" ? 1.08 : ngModifier === "swift" ? 1.24 : 1.35;
+      e.hp = Math.ceil(e.hp * hpScale);
+      e.totalBossHp = Math.ceil((e.totalBossHp || e.hp) * hpScale);
+      const tune = (form) => {
+        form.hp = Math.ceil(form.hp * hpScale);
+        if (form.basic_attack?.damage) form.basic_attack.damage = scaleRange(form.basic_attack.damage, dmgScale);
+        for (const move of Object.values(form.abilities || {})) if (move.damage) move.damage = scaleRange(move.damage, dmgScale);
+      };
+      tune(e.monster);
+      (e.phases || []).forEach(tune);
+    });
+    print(`🌀 New Game+ rule: ${title(ngModifier)} alters this encounter.`);
+  }
   const battleEnemies = Array.isArray(name) ? name : [name];
   const bossEncounter = elite || battleEnemies.some((enemy) => monsters[enemy]?.chance <= 0);
   if (!elite && !bossEncounter && !WORLD.challengeRun?.active && Math.random() < 0.07) {

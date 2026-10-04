@@ -451,7 +451,7 @@ async function showEnding() {
     const risky = routes.filter((x) => x === "risky").length;
     if (safe || risky) print(`\nYour roads left a mark: ${safe} safe passage${safe === 1 ? "" : "s"}, ${risky} dangerous shortcut${risky === 1 ? "" : "s"}. ${safe > risky ? "Travelers remember the shelter you helped preserve." : risky > safe ? "The paths you forced open remain scars and warnings." : "People remember how you balanced caution and courage."}`);
     const bond = WORLD.flags.companionBondChoices || {};
-    Object.entries(bond).forEach(([id]) => { if ((WORLD.companions.personal[id]?.moments || []).length >= 3) print(`${COMPANION_DEFS[id]?.name || title(id)} stands beside you, carrying the stories you shared.`); });
+    Object.entries(bond).forEach(([id]) => { if ((WORLD.companions.personal[id]?.moments || []).length >= (COMPANION_BOND_LINES[id]?.length || 3)) print(`${COMPANION_DEFS[id]?.name || title(id)} stands beside you, carrying the stories you shared, including the future you chose together.`); });
     if (FACTIONS[WORLD.flags.faction]) {
       const faction = FACTIONS[WORLD.flags.faction];
       print(`The ${faction.name} remember your pledge and keep your chosen roads supplied.`);
