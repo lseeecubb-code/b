@@ -750,3 +750,24 @@ Object.assign(SHOP_SELL, {
 });
 
 
+
+Object.assign(ITEMS, {
+  "iron fist": {
+    id: "weapon",
+    damage: 1,
+    crit: 0,
+    description: "A bare-knuckle starter weapon. Short range, but always ready.",
+    skills: ["quick jab", "heavy punch"],
+    projectile: {
+      style: "fist",
+      range: 135,
+      speed: 250,
+      radius: 7,
+      color: "#f0d0bd",
+      count: 1,
+      spread: 0,
+      homing: false,
+      melee: true,
+    },
+  },
+});
