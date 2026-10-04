@@ -1182,7 +1182,7 @@ const FX = (() => {
     { match: /🚫 The .* can't attack/, run: () => play("error") },
 
     // ----- enemy intent (the slow, dialogue-style section) -----
-    { match: /ENEMY INTENT — READ THE TELEGRAPH|=== ENEMY INTENT ===/, cls: "fx-intent-head", run: () => play("intent") },
+    { match: /ENEMY INTENT/, cls: "fx-intent-head", run: () => play("intent") },
     { match: /WARNING!/, cls: "fx-warning", run: () => play("warning") },
     { match: /^✓ /, cls: "fx-can", run: () => play("yes") },
     { match: /^✗ /, cls: "fx-cant", run: () => play("no") },
@@ -1190,7 +1190,7 @@ const FX = (() => {
 
     // ----- turns and menus -----
     { match: /🟢 YOUR TURN/, cls: "fx-turn-player", run: () => play("turnPlayer") },
-    { match: /🔴 THE .* TURN/, cls: "fx-turn-enemy", run: () => play("turnEnemy") },
+    { match: /🔴 (THE .*|ENEMY) TURN/, cls: "fx-turn-enemy", run: () => play("turnEnemy") },
     { match: /^===== Turn \d+ =====$/, cls: "fx-dim", run: () => play("turnTick") },
     { match: /^\s*--- .+ ---$|^📋 CHOOSE YOUR ACTION$|^🧭 YOUR ADVENTURE/, run: () => play("menuOpen") },
 
@@ -1252,13 +1252,13 @@ const FX = (() => {
   // dialogue-style look, and the first description line gets its own rising "telegraph" sound.
   let inIntent = false;
   let intentOpening = false;
-  const INTENT_START = /=== ENEMY INTENT ===/;
+  const INTENT_START = /ENEMY INTENT/;
   const INTENT_END = /YOUR TURN|=== YOUR ACTION ===|^===== Turn|THE .*'S TURN/;
 
   // ---------- Status bars ----------
 
   // "You:   [#######-----] 70/100" -> colored bar whose color follows how much HP is left.
-  const HP_BAR = /^(.*?)\[(#*)(-*)\] (\d+)\/(\d+)\s*$/;
+  const HP_BAR = /^(.*?)\[(#*)(-*)\] (\d+)\/(\d+)(\s*<)?\s*$/;
   // "Energy:   ●●●○○○ 3/6" -> colored dots.
   const ENERGY_BAR = /^(\s*Energy:\s+)(●*)(○*)(.*)$/;
 
@@ -1303,7 +1303,7 @@ const FX = (() => {
       const level = ratio > 0.5 ? "bar-good" : ratio > 0.25 ? "bar-warn" : "bar-low";
       const wrapper = document.createElement("span");
       wrapper.append(span(hp[1] + "["), span(hp[2], level), span(hp[3], "bar-empty"));
-      wrapper.append(span(`] ${hp[4]}/${hp[5]}`));
+      wrapper.append(span(`] ${hp[4]}/${hp[5]}${hp[6] || ""}`));
       return wrapper;
     }
     const energy = line.match(ENERGY_BAR);
