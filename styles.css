@@ -35,10 +35,7 @@ html, body { margin: 0; height: 100%; }
 body {
   font-family: var(--mono);
   color: var(--text);
-  background:
-    radial-gradient(ellipse 70% 40% at 50% -8%, #3a1a5a55, transparent 70%),
-    radial-gradient(ellipse 50% 35% at 50% 108%, #5a122255, transparent 70%),
-    var(--void);
+  background: #000;
 }
 
 /* ---------- the terminal fills the window ---------- */

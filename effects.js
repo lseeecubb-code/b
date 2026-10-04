@@ -1008,17 +1008,7 @@ const FX = (() => {
   }
 
   function attackCutscene(kind) {
-    const styles = {
-      "logo-fall": { glyphs: ["THE LAST SAVE", "LAST SAVE", "LS"], count: 18, duration: 2250 },
-      "crown-shards": { glyphs: ["♛", "◆", "╱", "✦"], count: 26, duration: 1800 },
-      "moon-pounce": { glyphs: ["☾", "╱", "／", "✧"], count: 12, duration: 1450 },
-      "core-eruption": { glyphs: ["◆", "▲", "✦", "●"], count: 24, duration: 1900 },
-      "whiteout": { glyphs: ["❄", "✧", "░", "❅"], count: 30, duration: 1900 },
-      "cinder-collapse": { glyphs: ["✦", "•", "▲", "╱"], count: 28, duration: 2100 },
-      "page-storm": { glyphs: ["▤", "§", "¶", "▧"], count: 20, duration: 1900 },
-      "redline-slice": { glyphs: [""], count: 7, duration: 1350 },
-      "void-pulse": { glyphs: ["#", "0", "?", "∅"], count: 26, duration: 1800 },
-    };
+    const styles = typeof GAME_SCENES !== "undefined" ? GAME_SCENES.attackVisuals || {} : {};
     const style = styles[kind];
     if (!terminal || !style) return Promise.resolve();
     const scene = document.createElement("div");
@@ -1053,19 +1043,7 @@ const FX = (() => {
   // (color and sub are optional overrides). Preview any scene from the browser console with
   //   FX.openingScene("frost", { name: "Frost Giant" })
   // Enter / Space / Escape / a click skips it.
-  const OPENINGS = {
-    frost: { color: "#bfe8ff", sub: "The air forgets how to move.", ms: 3100, sound: "openFrost" },
-    ember: { color: "#ff8a3c", sub: "Something old is still burning.", ms: 3100, sound: "openEmber" },
-    quake: { color: "#d6c1a0", sub: "The ground remembers its weight.", ms: 3100, sound: "openQuake" },
-    umbra: { color: "#b48cff", sub: "It was watching before you arrived.", ms: 3300, sound: "openUmbra" },
-    crown: { color: "#ffd45e", sub: "Every throne is a promise someone broke.", ms: 3500, sound: "openCrown" },
-    redline: { color: "#ff6b6b", sub: "Your story is under revision.", ms: 3500, sound: "openRedline" },
-    fang: { color: "#e9edff", sub: "The hunt began before your first step.", ms: 2700, sound: "openFang" },
-    echo: { color: "#7fffe0", sub: "You have been here before.", ms: 3500, sound: "openEcho" },
-    page: { color: "#ffffff", sub: "Something was removed from this chapter.", ms: 3500, sound: "openPage" },
-    toll: { color: "#ffb36b", sub: "Something rang. Nothing struck it.", ms: 3400, sound: "openToll" },
-    map: { color: "#8fe3c0", sub: "Every road ends where you stop looking.", ms: 3500, sound: "openMap" },
-  };
+  const OPENINGS = typeof GAME_SCENES !== "undefined" ? GAME_SCENES.openingVisuals || {} : {};
   // mk("class", "text", { "--css-var": "value" }) -> <div>
   function mk(cls, text = "", vars = {}) {
     const el = document.createElement("div");

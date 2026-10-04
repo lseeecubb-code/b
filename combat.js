@@ -206,7 +206,7 @@ function showIntent(f) {
     print(`   It will heal ${a.heal[0]}-${a.heal[1]} HP.`);
     return;
   }
-  if (a.cutscene) print("🎬 This signature attack triggers a brief visual scene.");
+  if (getCombatAttackScene(f, a)) print("🎬 This signature attack triggers a brief visual scene.");
   if (a.warning) {
     print("🔥 WARNING!");
     print(`The ${name} ${a.telegraph} ${an}!`);
@@ -1210,8 +1210,9 @@ async function monsterTurn(f) {
     const a = it.attack;
     speakEnemy(f, "attack", a);
     print(`✨ The ${name} uses ${a.name.toUpperCase()}!`);
-    if (a.cutscene && typeof FX !== "undefined" && typeof FX.attackCutscene === "function")
-      await FX.attackCutscene(a.cutscene);
+    const attackScene = getCombatAttackScene(f, a);
+    if (attackScene && typeof FX !== "undefined" && typeof FX.attackCutscene === "function")
+      await FX.attackCutscene(attackScene);
     const journalEnemy = f.enemies?.[f.target];
     if (journalEnemy && typeof noteBestiaryMove === "function") noteBestiaryMove(journalEnemy.name.replace(/^elite /, ""), a.name);
     f.last_move = a.name.toUpperCase();
@@ -1606,9 +1607,14 @@ function checkEnemyLevel(name) {
   return false;
 }
 // Runs a whole fight, turn by turn, until someone wins or the player runs away.
+function getCombatAttackScene(f, attack) {
+  const enemyName = f.enemies?.[f.target]?.name || f.monster?.id || f.name;
+  return typeof getAttackScene === "function" ? getAttackScene(enemyName, attack?.name) : null;
+}
+
 async function playBossOpening(f) {
-  const enemy = (f.enemies || []).find((e) => monsters[e.name]?.opening);
-  const scene = monsters[enemy?.name]?.opening;
+  const enemy = (f.enemies || []).find((e) => typeof getMonsterOpening === "function" && getMonsterOpening(e.name));
+  const scene = typeof getMonsterOpening === "function" ? getMonsterOpening(enemy?.name) : null;
   if (!scene) return;
   print("\n\n╔══ " + scene.title + " ══╗");
   if (scene.terminal_cut && typeof FX !== "undefined" && typeof FX.realityCut === "function")

@@ -1,23 +1,10 @@
-// MONSTER_OPENINGS - every monster opening in one table.
+// Central scene registry for THE LAST SAVE.
 //
-// HOW TO INSTALL: in monsters.js, delete the whole existing block that starts with
-//     const BOSS_OPENINGS = {
-// and ends with the loop
-//     for (const [name, opening] of Object.entries(BOSS_OPENINGS)) {
-//       if (monsters[name]) monsters[name].opening = opening;
-//     }
-// then paste this entire file in its place. (It must stay below the code that builds `monsters`.)
-//
-// Each entry:
-//   title / lines : the text opening the combat engine already shows
-//   effect        : optional terminal corruption - "glitch", "fracture" or "tear"
-//   terminal_cut  : optional full-screen reality cut (The Last Save)
-//   scene         : cinematic that plays first (frost, ember, quake, umbra, crown, redline,
-//                   fang, echo, page, toll, map) - defined in effects.js
-//   color / sub   : optional colour and subtitle overrides for the scene
-// To give another monster an opening, add one entry here. Nothing else needs to change.
+// All monster openings, opening cinematics, attack triggers, and attack visual recipes live here.
+// Monsters stay focused on combat data; this file decides which scene a combat event triggers.
 
-const MONSTER_OPENINGS = {
+const GAME_SCENES = {
+  openings: {
   // ===== Chapter bosses =====
   "goblin king": {
     title: "THE CROWN BREAKS",
@@ -316,11 +303,69 @@ const MONSTER_OPENINGS = {
     ],
     scene: "frost",
   },
+};,
+
+  openingVisuals: {
+    frost: { color: "#bfe8ff", sub: "The air forgets how to move.", ms: 3100, sound: "openFrost" },
+    ember: { color: "#ff8a3c", sub: "Something old is still burning.", ms: 3100, sound: "openEmber" },
+    quake: { color: "#d6c1a0", sub: "The ground remembers its weight.", ms: 3100, sound: "openQuake" },
+    umbra: { color: "#b48cff", sub: "It was watching before you arrived.", ms: 3300, sound: "openUmbra" },
+    crown: { color: "#ffd45e", sub: "Every throne is a promise someone broke.", ms: 3500, sound: "openCrown" },
+    redline: { color: "#ff6b6b", sub: "Your story is under revision.", ms: 3500, sound: "openRedline" },
+    fang: { color: "#e9edff", sub: "The hunt began before your first step.", ms: 2700, sound: "openFang" },
+    echo: { color: "#7fffe0", sub: "You have been here before.", ms: 3500, sound: "openEcho" },
+    page: { color: "#ffffff", sub: "Something was removed from this chapter.", ms: 3500, sound: "openPage" },
+    toll: { color: "#ffb36b", sub: "Something rang. Nothing struck it.", ms: 3400, sound: "openToll" },
+    map: { color: "#8fe3c0", sub: "Every road ends where you stop looking.", ms: 3500, sound: "openMap" },
+  },
+
+  // Monster name -> attack name -> attack scene key.
+  attacks: {
+    "goblin king": { "crown cleaver": "crown-shards" },
+    "alpha wolf": { "lunar pounce": "moon-pounce" },
+    "ancient golem": { "molten fist": "core-eruption" },
+    "frost giant king": { whiteout: "whiteout" },
+    "ash demon": { "cinder eruption": "cinder-collapse" },
+    "the editor": { "delete the target": "redline-slice" },
+    "the author": { "rewrite reality": "page-storm" },
+    "the last save": {
+      "erase the timeline": "logo-fall",
+      "forced shutdown": "void-pulse",
+    },
+    "the missing page": { "burn the margins": "redline-slice" },
+    "the echo of attempts": {
+      "repeat the ending": "void-pulse",
+      "overwrite the attempt": "logo-fall",
+    },
+  },
+
+  // Visual recipe for attack scenes. Effects code renders these recipes.
+  attackVisuals: {
+    "logo-fall": { glyphs: ["THE LAST SAVE", "LAST SAVE", "LS"], count: 18, duration: 2250 },
+    "crown-shards": { glyphs: ["♛", "◆", "╱", "✦"], count: 26, duration: 1800 },
+    "moon-pounce": { glyphs: ["☾", "╱", "／", "✧"], count: 12, duration: 1450 },
+    "core-eruption": { glyphs: ["◆", "▲", "✦", "●"], count: 24, duration: 1900 },
+    whiteout: { glyphs: ["❄", "✧", "░", "❅"], count: 30, duration: 1900 },
+    "cinder-collapse": { glyphs: ["✦", "•", "▲", "╱"], count: 28, duration: 2100 },
+    "page-storm": { glyphs: ["▤", "§", "¶", "▧"], count: 20, duration: 1900 },
+    "redline-slice": { glyphs: [""], count: 7, duration: 1350 },
+    "void-pulse": { glyphs: ["#", "0", "?", "∅"], count: 26, duration: 1800 },
+  },
 };
 
-// Attach each opening to its monster (this is what the combat engine and terminal.js read).
-for (const [name, opening] of Object.entries(MONSTER_OPENINGS)) {
-  if (monsters[name]) monsters[name].opening = opening;
+function normalizeSceneKey(value) {
+  return String(value || "").replace(/^elite\s+/i, "").trim().toLowerCase();
 }
-// Old name kept so any other file that still says BOSS_OPENINGS keeps working.
+
+function getMonsterOpening(monsterName) {
+  return GAME_SCENES.openings[normalizeSceneKey(monsterName)] || null;
+}
+
+function getAttackScene(monsterName, attackName) {
+  const monsterScenes = GAME_SCENES.attacks[normalizeSceneKey(monsterName)];
+  if (!monsterScenes) return null;
+  return monsterScenes[normalizeSceneKey(attackName)] || null;
+}
+
+const MONSTER_OPENINGS = GAME_SCENES.openings;
 const BOSS_OPENINGS = MONSTER_OPENINGS;
