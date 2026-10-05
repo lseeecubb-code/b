@@ -11,7 +11,7 @@
   };
   const LABELS = {
     attack: "Attack",
-    skill1: "Skill 1", skill2: "Skill 2", skill3: "Skill 3", skill4: "Skill 5", skill5: "Skill 5", skill6: "Skill 6", skill7: "Skill 7",
+    skill1: "Skill 1", skill2: "Skill 2", skill3: "Skill 3", skill4: "Skill 4", skill5: "Skill 5", skill6: "Skill 6", skill7: "Skill 7",
     dodge: "Dodge",
     parry: "Parry",
   };
