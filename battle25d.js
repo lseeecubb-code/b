@@ -25,6 +25,7 @@
     ENEMY_DMG: 0.7,
     IFRAMES: 1.4,
     MAX_BULLETS: 650,
+    DEATH_FX: true, // burst + "DEFEATED" text when an enemy dies (set false for the original look)
   };
   const TAU = Math.PI * 2;
   const THEMES = [
@@ -311,6 +312,7 @@
 
       function spawnDeath(e) {
         e.dead = true;
+        if (!RT.DEATH_FX) return;
         const col = e.monster.chance <= 0 ? "#d88cff" : "#ff6b9e";
         for (let i = 0; i < 26; i++) { const a = Math.random() * TAU, v = 40 + Math.random() * 140; fx.push({ k: "p", x: e.x, y: e.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: .7, max: .7, col }); }
         fx.push({ k: "r", x: e.x, y: e.y, life: .6, max: .6, col });
@@ -460,7 +462,7 @@
         g.fillStyle = "#2a2233"; g.beginPath(); g.arc(pp.x, pp.y - 10 * u, 6 * u, Math.PI, 0); g.fill();
         g.globalAlpha = 1;
         if (keys.has("shift")) { g.fillStyle = "#ffffff"; g.strokeStyle = "#ff4d6d"; g.lineWidth = 1.5; g.beginPath(); g.arc(pp.x, pp.y, Math.max(2.5, RT.HIT_R * pp.s), 0, TAU); g.fill(); g.stroke(); }
-        for (const e of f.enemies) { const p = pr(e.x, e.y, 0); g.globalAlpha = e.fade; g.fillStyle = e.flash > 0 ? "#fff" : (e.monster.chance <= 0 ? "#d88cff" : "#ff6b9e"); g.beginPath(); g.arc(p.x, p.y, Math.max(9, (e.monster.chance <= 0 ? 20 : 15) * p.s), 0, TAU); g.fill(); if (e.hp > 0) bar(p.x, p.y - 25 * p.s, 44 * p.s, e.hp / e.monster.hp, "#ff5f7a"); if (e.rt?.label && t - e.rt.labelT < 1.2) text(e.rt.label, p.x, p.y - 33 * p.s, "#fff", 11); }
+        for (const e of f.enemies) { const p = pr(e.x, e.y, 0); g.globalAlpha = e.fade; g.fillStyle = e.flash > 0 ? "#fff" : (e.monster.chance <= 0 ? "#d88cff" : "#ff6b9e"); g.beginPath(); g.arc(p.x, p.y, Math.max(9, (e.monster.chance <= 0 ? 20 : 15) * p.s), 0, TAU); g.fill(); bar(p.x, p.y - 25 * p.s, 44 * p.s, e.hp / e.monster.hp, "#ff5f7a"); if (e.rt?.label && t - e.rt.labelT < 1.2) text(e.rt.label, p.x, p.y - 33 * p.s, "#fff", 11); }
         g.globalAlpha = 1;
         for (const sw of sl) {
           const q = Math.min(1, sw.age / sw.dur), p = 1 - (1 - q) * (1 - q), fade = sw.age > sw.dur ? Math.max(0, 1 - (sw.age - sw.dur) / .08) : 1;
