@@ -3,7 +3,8 @@
  * The arena exists ONLY while a fight is running: it is created in
  * RealtimeBattle.run(f) and removed when the fight ends.
  *
- * You move and dodge; your shots auto-aim at the nearest enemy.
+ * You move and dodge; your default weapon attack auto-fires at the nearest enemy.
+ * Skills remain manually triggered by the battle keybinds.
  * Enemy moves come from monsters.js (monsterChoose) and become bullet patterns;
  * damage, HP, stats, status effects, phases, loot and XP still use the existing RPG code.
  *
@@ -16,13 +17,14 @@
 
   // ---- tuning ----
   const RT = {
-    FW: 400, FH: 520,        // arena size (logical units)
-    SPEED: 190, FOCUS: 80,   // player speed, focused speed
-    HIT_R: 3, GRAZE: 13,     // player hitbox radius, graze radius
-    SHOT_EVERY: 0.085,       // seconds between volleys
-    SHOT_SCALE: 0.07,        // each shot = this * your normal hit damage
-    ENEMY_DMG: 0.7,          // each enemy bullet = this * the move's rolled damage
-    IFRAMES: 1.4,            // invulnerable seconds after being hit
+    FW: 400, FH: 520,
+    SPEED: 190, FOCUS: 80,
+    HIT_R: 3, GRAZE: 13,
+    AUTO_ATTACK: true,
+    SHOT_EVERY: 0.085,
+    SHOT_SCALE: 0.07,
+    ENEMY_DMG: 0.7,
+    IFRAMES: 1.4,
     MAX_BULLETS: 650,
   };
   const TAU = Math.PI * 2;
@@ -36,19 +38,17 @@
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const hash = (s) => { let h = 0; for (const ch of String(s)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; };
 
-  // ---- bullet patterns (an enemy move picks one by name hash) ----
-  // c = { e, q: {n,sp,lo,hi,a,m}, sh(angle, speedMult, x?, y?), aim() }
   const PATS = [
-    { iv: .55, fn: (c) => { const n = 3 + Math.min(6, c.q.n * 2); for (let i = 0; i < n; i++) c.sh(c.aim() + (i - (n - 1) / 2) * .2, 1); } },          // aimed fan
-    { iv: .8,  fn: (c, k) => { const n = 10 + c.q.n * 4; for (let i = 0; i < n; i++) c.sh(k * .21 + i * TAU / n, .8); } },                          // ring
-    { iv: .07, fn: (c, k) => { for (let a = 0; a < 1 + (c.q.n > 2); a++) c.sh(k * .33 + a * Math.PI, .85); } },                                      // spiral
-    { iv: .09, fn: (c) => c.sh(Math.PI / 2 + (Math.random() - .5) * .15, .9, Math.random() * RT.FW, -8) },                                          // rain
-    { iv: .16, fn: (c, k) => { const m = Math.PI / 2 + Math.sin(k * .18) * .9; for (let i = -1; i <= 1; i++) c.sh(m + i * .14, 1); } },             // sweeping fan
-    { iv: .18, fn: (c, k) => { c.sh(c.aim(), 1.25); if (k % 6 === 0) for (let i = 0; i < 8; i++) c.sh(i * TAU / 8 + k * .1, .7); } },               // stream + ring
+    { iv: .55, fn: (c) => { const n = 3 + Math.min(6, c.q.n * 2); for (let i = 0; i < n; i++) c.sh(c.aim() + (i - (n - 1) / 2) * .2, 1); } },
+    { iv: .8, fn: (c, k) => { const n = 10 + c.q.n * 4; for (let i = 0; i < n; i++) c.sh(k * .21 + i * TAU / n, .8); } },
+    { iv: .07, fn: (c, k) => { for (let a = 0; a < 1 + (c.q.n > 2); a++) c.sh(k * .33 + a * Math.PI, .85); } },
+    { iv: .09, fn: (c) => c.sh(Math.PI / 2 + (Math.random() - .5) * .15, .9, Math.random() * RT.FW, -8) },
+    { iv: .16, fn: (c, k) => { const m = Math.PI / 2 + Math.sin(k * .18) * .9; for (let i = -1; i <= 1; i++) c.sh(m + i * .14, 1); } },
+    { iv: .18, fn: (c, k) => { c.sh(c.aim(), 1.25); if (k % 6 === 0) for (let i = 0; i < 8; i++) c.sh(i * TAU / 8 + k * .1, .7); } },
   ];
 
   let on = false, cur = null;
-  window.Battle25D = { awaiting: false, isActive: () => on, fight: () => cur, onFoeClick: null }; // kept so old scripts don't break
+  window.Battle25D = { awaiting: false, isActive: () => on, fight: () => cur, onFoeClick: null };
 
   function run(f) {
     return new Promise((resolve) => {
@@ -56,7 +56,6 @@
       on = true; cur = f;
       if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
 
-      // ---- overlay (exists only during the fight) ----
       const ov = document.createElement("div");
       ov.id = "rtBattle";
       ov.style.cssText = "position:fixed;inset:0;z-index:9999;background:#05050a;touch-action:none;user-select:none";
@@ -72,14 +71,12 @@
         cv.width = Math.floor(W * DPR); cv.height = Math.floor(H * DPR);
         sc = Math.min(W * .96 / FW, H * .86 / FH); cx = W / 2; oy = H * .07;
       }
-      // 2.5D projection: far (top) is narrower, z lifts things off the floor
       function pr(x, y, z = 0) {
         const d = .72 + .28 * (y / FH);
         return { x: cx + (x - FW / 2) * sc * d, y: oy + y * sc - z * sc * d, s: sc * d };
       }
       resize(); window.addEventListener("resize", resize);
 
-      // ---- state ----
       const pl = { x: FW / 2, y: FH - 70, inv: 0, fire: 0 };
       const keys = new Set(), pb = [], eb = [];
       let t = 0, last = performance.now(), paused = false, done = null, banner = "";
@@ -94,7 +91,6 @@
         e.x = e.rx; e.y = -40; e.flash = 0; e.fade = 1; e.rt = { mode: "rest", until: 1.2 };
       });
 
-      // ---- enemy bullets ----
       function shoot(e, q, ang, mult, x, y) {
         if (eb.length > RT.MAX_BULLETS) return;
         const sp = q.sp * mult;
@@ -134,7 +130,6 @@
         }
       }
 
-      // ---- player ----
       function fire(foc) {
         const tg = nearest(); if (!tg) return;
         f.target = f.enemies.indexOf(tg);
@@ -192,7 +187,6 @@
         useLimitBreak(f); eb.length = 0; pl.inv = 1.5; flash = .6; shake = 12;
       }
 
-      // ---- update ----
       function update(dt) {
         t += dt; potCd = Math.max(0, potCd - dt); pl.inv = Math.max(0, pl.inv - dt);
         shake *= Math.exp(-dt * 8); flash = Math.max(0, flash - dt);
@@ -203,7 +197,11 @@
         if (keys.has("arrowdown") || keys.has("s")) dy++;
         const foc = keys.has("shift"), spd = foc ? RT.FOCUS : RT.SPEED, l = Math.hypot(dx, dy) || 1;
         pl.x = clamp(pl.x + dx / l * spd * dt, 8, FW - 8); pl.y = clamp(pl.y + dy / l * spd * dt, 8, FH - 8);
-        pl.fire -= dt; if (pl.fire <= 0) { pl.fire = RT.SHOT_EVERY; fire(foc); }
+        // Default weapon attacks are automatic; skills are still manual keybind actions.
+        if (RT.AUTO_ATTACK) {
+          pl.fire -= dt;
+          if (pl.fire <= 0) { pl.fire = RT.SHOT_EVERY; fire(foc); }
+        }
         f.enemies.forEach((e, i) => updEnemy(e, i, dt));
 
         for (const b of pb) {
@@ -234,14 +232,12 @@
         for (let i = pb.length - 1; i >= 0; i--) if (pb[i].dead) pb.splice(i, 1);
         for (let i = eb.length - 1; i >= 0; i--) if (eb[i].dead) eb.splice(i, 1);
 
-        // status effects tick every 3 seconds instead of every turn
         dotT += dt;
         if (dotT >= 3) {
           dotT -= 3; resolveEffects(f);
           f.enemies.forEach((e, i) => { if (e.hp > 0) { f.target = i; resolveMonsterEffects(f); } });
         }
 
-        // boss phases, victory, defeat
         if (advanceBossForms(f)) { eb.length = 0; f.enemies.forEach((e) => { e.rt = null; }); }
         const won = typeof foesDown === "function" ? foesDown(f) : f.enemies.every((e) => e.hp <= 0);
         if (won) return finish("win", "VICTORY");
@@ -267,7 +263,6 @@
         g.fillStyle = gr; g.fillRect(0, 0, W, H);
         g.save();
         if (shake > .3) g.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);
-        // floor
         const A = pr(0, 0), B = pr(FW, 0), Cc = pr(FW, FH), D = pr(0, FH);
         g.beginPath(); g.moveTo(A.x, A.y); g.lineTo(B.x, B.y); g.lineTo(Cc.x, Cc.y); g.lineTo(D.x, D.y); g.closePath();
         g.fillStyle = th.floor; g.fill();
@@ -279,129 +274,69 @@
         g.globalAlpha = 1; g.strokeStyle = th.accent; g.lineWidth = 2;
         g.beginPath(); g.moveTo(A.x, A.y); g.lineTo(B.x, B.y); g.lineTo(Cc.x, Cc.y); g.lineTo(D.x, D.y); g.closePath(); g.stroke();
 
-        // enemies
-        for (const e of f.enemies) {
-          if (e.fade <= 0) continue;
-          const boss = e.monster.chance <= 0, p = pr(e.x, e.y, 28), sp = pr(e.x, e.y, 0), size = (boss ? 96 : 62) * p.s;
-          g.globalAlpha = .55 * e.fade; g.fillStyle = "#000"; g.beginPath(); g.ellipse(sp.x, sp.y + 4 * sp.s, size * .5, size * .16, 0, 0, TAU); g.fill();
-          g.globalAlpha = e.fade;
-          if (e.gUntil > t) { g.strokeStyle = "#7a9cff"; g.lineWidth = 3; g.beginPath(); g.arc(p.x, p.y - size * .1, size * .62, 0, TAU); g.stroke(); }
-          const r = e.rt;
-          if (r && r.mode === "cast" && t < r.start) { g.strokeStyle = th.accent; g.lineWidth = 2; g.globalAlpha = .8; g.beginPath(); g.arc(p.x, p.y - size * .1, size * (.5 + (r.start - t)), 0, TAU); g.stroke(); g.globalAlpha = e.fade; }
-          if (e.flash > 0) g.filter = "brightness(2.4)";
-          g.font = `${size}px serif`; g.textAlign = "center"; g.textBaseline = "alphabetic"; g.fillStyle = "#fff";
-          g.fillText(e.monster.icon || "👹", p.x, p.y);
-          g.filter = "none"; g.globalAlpha = 1;
-          if (r && r.label && t - r.labelT < 1.6) text(r.label, p.x, p.y - size * .95, "#ffb347", 11);
+        for (const b of eb) {
+          const p = pr(b.x, b.y, 0); glow(p, 10, b.col, .12); glow(p, b.r * p.s, b.col, .95);
         }
-        // player
-        {
-          const sp = pr(pl.x, pl.y, 0), p = pr(pl.x, pl.y, 12), k = p.s * .85, foc = keys.has("shift");
-          g.globalAlpha = .55; g.fillStyle = "#000"; g.beginPath(); g.ellipse(sp.x, sp.y + 2, 13 * k, 5 * k, 0, 0, TAU); g.fill();
-          g.globalAlpha = pl.inv > 0 && Math.sin(t * 40) > 0 ? .35 : 1;
-          g.save(); g.translate(p.x, p.y); g.scale(k, k);
-          g.fillStyle = th.accent; g.beginPath(); g.moveTo(-10, 12); g.lineTo(-7, -7); g.quadraticCurveTo(0, -16, 7, -7); g.lineTo(10, 12); g.closePath(); g.fill();
-          g.fillStyle = "#f4e9e3"; g.beginPath(); g.arc(0, -12, 7, 0, TAU); g.fill();
-          g.fillStyle = "#1a1723"; g.fillRect(-6, -19, 12, 4);
-          g.restore(); g.globalAlpha = 1;
-          const hp = pr(pl.x, pl.y, 12);
-          if (foc) { g.strokeStyle = "#fff8"; g.lineWidth = 1; g.beginPath(); g.arc(hp.x, hp.y, RT.GRAZE * hp.s, 0, TAU); g.stroke(); }
-          g.fillStyle = "#ff3d5a"; g.beginPath(); g.arc(hp.x, hp.y, (foc ? 4 : 2.5) * hp.s * .8, 0, TAU); g.fill();
-          g.fillStyle = "#fff"; g.beginPath(); g.arc(hp.x, hp.y, 1.5 * hp.s * .8, 0, TAU); g.fill();
-        }
-        // bullets
-        g.save(); g.globalCompositeOperation = "lighter";
-        for (const b of eb) { const p = pr(b.x, b.y, 12); glow(p, b.r * p.s * 2.2, b.col, .28); glow(p, b.r * p.s * 1.2, b.col, .9); }
-        g.restore();
-        g.globalAlpha = 1; g.lineCap = "round";
-        for (const b of eb) { const p = pr(b.x, b.y, 12); glow(p, b.r * p.s * .55, "#fff", 1); }
-        g.strokeStyle = "#bfeaff"; g.lineWidth = 2.2;
         for (const b of pb) {
-          const p = pr(b.x, b.y, 12), q = pr(b.x - b.vx * .025, b.y - b.vy * .025, 12);
-          if (b.style === "fist" || b.weapon === "iron fist") {
-            g.save();
-            g.fillStyle = b.color || "#f0d0bd";
-            g.strokeStyle = "#7b5140";
-            g.lineWidth = 1.5;
-            g.translate(p.x, p.y);
-            g.rotate(Math.atan2(b.vy, b.vx));
-            g.beginPath();
-            g.arc(0, 0, Math.max(4, b.r || 7), 0, TAU);
-            g.fill(); g.stroke();
-            g.fillStyle = "#fff8";
-            g.fillRect(-1, -2, Math.max(3, (b.r || 7) * .9), 2);
-            g.restore();
+          const p = pr(b.x, b.y, 0);
+          g.save(); g.globalAlpha = .95; g.fillStyle = b.color;
+          if (b.style === "fist") {
+            g.beginPath(); g.arc(p.x, p.y, Math.max(4, b.r * p.s), 0, TAU); g.fill();
+            g.globalAlpha = .3; g.beginPath(); g.arc(p.x, p.y, Math.max(8, b.r * p.s * 1.8), 0, TAU); g.fill();
           } else {
-            g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(q.x, q.y); g.stroke();
+            g.beginPath(); g.arc(p.x, p.y, Math.max(3, b.r * p.s), 0, TAU); g.fill();
           }
+          g.restore();
         }
+        const pp = pr(pl.x, pl.y, 0);
+        g.globalAlpha = pl.inv > 0 ? .45 + .35 * Math.sin(t * 25) : 1;
+        g.fillStyle = "#f0d0bd"; g.beginPath(); g.arc(pp.x, pp.y, Math.max(6, 9 * pp.s), 0, TAU); g.fill();
+        g.globalAlpha = 1;
+        g.fillStyle = "#ffffff"; g.beginPath(); g.arc(pp.x, pp.y, Math.max(2, RT.HIT_R * pp.s), 0, TAU); g.fill();
+        for (const e of f.enemies) {
+          const p = pr(e.x, e.y, 0);
+          g.globalAlpha = e.fade;
+          g.fillStyle = e.flash > 0 ? "#fff" : (e.monster.chance <= 0 ? "#d88cff" : "#ff6b9e");
+          g.beginPath(); g.arc(p.x, p.y, Math.max(9, (e.monster.chance <= 0 ? 20 : 15) * p.s), 0, TAU); g.fill();
+          bar(p.x, p.y - 25 * p.s, 44 * p.s, e.hp / e.monster.hp, "#ff5f7a");
+          if (e.rt?.label && t - e.rt.labelT < 1.2) text(e.rt.label, p.x, p.y - 33 * p.s, "#fff", 11);
+        }
+        g.globalAlpha = 1;
+        if (banner) text(banner, W / 2, 40, th.accent, 18);
+        text(RT.AUTO_ATTACK ? "AUTO ATTACK" : "ATTACK PAUSED", 14, H - 18, RT.AUTO_ATTACK ? "#9fe7d1" : "#ff9aa8", 11, "left");
         g.restore();
-        if (flash > 0) { g.globalAlpha = Math.min(.5, flash); g.fillStyle = "#fff"; g.fillRect(0, 0, W, H); g.globalAlpha = 1; }
-
-        // HUD
-        const bw = Math.min(W * .8, 420), live = f.enemies.filter((e) => e.fade > 0);
-        live.forEach((e, i) => {
-          const y = 8 + i * 24, label = String(e.displayName || e.name).toUpperCase().slice(0, 26);
-          text(label + (e.phases && e.phases.length ? `  [${(e.phase || 0) + 1}/${e.phases.length}]` : ""), W / 2, y + 9, "#e9e3f2", 11);
-          bar(W / 2, y + 12, bw, e.hp / e.monster.hp, e.hp <= e.monster.hp * .5 ? "#ff8a47" : "#7a6cff");
-        });
-        const by = H - 40;
-        bar(W / 2, by, Math.min(W * .6, 360), f.player_hp / f.player_max_hp, "#d4364f");
-        text(`YOU ${Math.max(0, Math.round(f.player_hp))}/${Math.round(f.player_max_hp)}`, W / 2, by - 4, "#e9e3f2", 11);
-        const lg = f.limitUsed ? 0 : (f.limitGauge || 0);
-        g.fillStyle = "#000a"; g.fillRect(W / 2 - Math.min(W * .6, 360) / 2, by + 10, Math.min(W * .6, 360), 4);
-        g.fillStyle = lg >= 100 ? "#ffe14d" : "#c9a43a"; g.fillRect(W / 2 - Math.min(W * .6, 360) / 2, by + 10, Math.min(W * .6, 360) * lg / 100, 4);
-        const it = healItem();
-        text(`Z potion${it ? ` (${inventory[it]})` : " (none)"}  ·  X limit break${lg >= 100 ? " READY" : ""}  ·  Shift focus  ·  Esc pause`, W / 2, H - 8, "#8b86a0", 10);
-        if (paused) { g.fillStyle = "#000b"; g.fillRect(0, 0, W, H); text("PAUSED", W / 2, H / 2 - 8, "#fff", 28); text("Esc resume  ·  R run away", W / 2, H / 2 + 20, "#bbb", 13); }
-        if (banner) { g.fillStyle = "#0008"; g.fillRect(0, H / 2 - 40, W, 80); text(banner, W / 2, H / 2 + 10, th.accent, 34); }
       }
 
-      // ---- input ----
-      const GAME = new Set(["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d", "shift", "z", "x", "escape", "r", " "]);
-      function onKey(e) {
-        const k = e.key.toLowerCase();
-        if (!GAME.has(k)) return;
-        e.preventDefault(); e.stopImmediatePropagation();
-        if (e.type === "keyup") { keys.delete(k); return; }
-        if (e.repeat) return;
-        keys.add(k);
-        if (done) return;
-        if (k === "escape") paused = !paused;
-        else if (paused && k === "r") { f.fled = true; paused = false; finish("fled", "ESCAPED"); }
-        else if (!paused && k === "z") potion();
-        else if (!paused && k === "x") limit();
-      }
-      const blurKeys = () => keys.clear();
-      window.addEventListener("keydown", onKey, true); window.addEventListener("keyup", onKey, true); window.addEventListener("blur", blurKeys);
-      let pid = null, px = 0, py = 0;
-      cv.onpointerdown = (e) => { pid = e.pointerId; px = e.clientX; py = e.clientY; cv.setPointerCapture(pid); };
-      cv.onpointermove = (e) => { if (e.pointerId !== pid || paused || done) return; pl.x = clamp(pl.x + (e.clientX - px) / sc, 8, FW - 8); pl.y = clamp(pl.y + (e.clientY - py) / sc, 8, FH - 8); px = e.clientX; py = e.clientY; };
-      cv.onpointerup = () => { pid = null; };
-
-      // ---- lifecycle ----
-      function finish(res, text2) {
-        if (done) return;
-        done = res; banner = text2; eb.length = 0;
-        f.enemies.forEach((e) => { if (e.hp > 0) e.hp = Math.max(1, Math.round(e.hp)); else e.hp = Math.min(0, Math.round(e.hp)); });
-        setTimeout(cleanup, 1000);
-      }
-      function cleanup() {
-        if (ended) return; ended = true;
-        cancelAnimationFrame(raf);
+      function finish(kind, label) {
+        if (ended) return; ended = true; on = false; cur = null;
         window.removeEventListener("resize", resize);
-        window.removeEventListener("keydown", onKey, true); window.removeEventListener("keyup", onKey, true); window.removeEventListener("blur", blurKeys);
-        ov.remove(); on = false; cur = null;
-        const cmd = document.getElementById("command"); if (cmd) cmd.focus();
-        resolve(done);
+        if (ov.parentNode) ov.remove();
+        resolve({ kind, label });
       }
-      function frame(now) {
-        const dt = Math.min(.033, (now - last) / 1000 || .016); last = now;
-        if (!paused && !done) update(dt);
+
+      function keydown(e) {
+        const k = String(e.key || "").toLowerCase();
+        if (["arrowleft", "arrowright", "arrowup", "arrowdown", "w", "a", "s", "d", "shift", "z", "x", "escape", "r"].includes(k)) e.preventDefault();
+        keys.add(k);
+        if (k === "z") potion();
+        if (k === "x") limit();
+        if (k === "escape") paused = !paused;
+        if (k === "r") finish("run", "ESCAPED");
+      }
+      function keyup(e) { keys.delete(String(e.key || "").toLowerCase()); }
+      window.addEventListener("keydown", keydown);
+      window.addEventListener("keyup", keyup);
+      ov.addEventListener("pointerdown", (e) => { pl.x = clamp((e.clientX - cx) / sc + FW / 2, 8, FW - 8); pl.y = clamp((e.clientY - oy) / sc, 8, FH - 8); });
+      ov.addEventListener("pointermove", (e) => { if (e.buttons) { pl.x = clamp((e.clientX - cx) / sc + FW / 2, 8, FW - 8); pl.y = clamp((e.clientY - oy) / sc, 8, FH - 8); } });
+
+      function loop(now) {
+        if (ended) return;
+        const dt = Math.min(.05, (now - last) / 1000); last = now;
+        if (!paused) update(dt);
         draw();
-        if (!ended) raf = requestAnimationFrame(frame);
+        raf = requestAnimationFrame(loop);
       }
-      raf = requestAnimationFrame(frame);
+      raf = requestAnimationFrame(loop);
     });
   }
 
