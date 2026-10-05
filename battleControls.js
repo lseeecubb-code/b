@@ -8,12 +8,14 @@
     skill1: "2", skill2: "3", skill3: "4", skill4: "5", skill5: "6", skill6: "7", skill7: "8",
     dodge: "v",
     parry: "c",
+    dash: "space",
   };
   const LABELS = {
     attack: "Attack",
     skill1: "Skill 1", skill2: "Skill 2", skill3: "Skill 3", skill4: "Skill 4", skill5: "Skill 5", skill6: "Skill 6", skill7: "Skill 7",
     dodge: "Dodge",
     parry: "Parry",
+    dash: "Accessory Dash",
   };
   function load() {
     try { return { ...DEFAULTS, ...(JSON.parse(localStorage.getItem(KEY) || "{}")) }; }
