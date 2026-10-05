@@ -888,6 +888,6 @@ Object.assign(ITEMS, {
     crit: 0,
     description: "A bare-knuckle starter weapon. Short range, but always ready.",
     skills: ["quick jab", "heavy punch"],
-    projectile: { behavior: "slash", damage: 5.2, size: 1, speed: 5, range: 150, color: "#f7fbff" },
+    projectile: { behavior: "slash", damage: 2, size: 1, speed: 1, range: 150, color: "#f7fbff" },
   },
 });
