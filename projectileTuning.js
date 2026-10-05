@@ -16,7 +16,8 @@
       count: 3,
       spread: 0.16,
       homing: true,
-      color: "#f0d0bd"
+      color: "rgba(0,0,0,0)",
+      slashVisual: true
     };
   }
 })();
