@@ -8,6 +8,13 @@
  * Enemy moves come from monsters.js (monsterChoose) and become bullet patterns;
  * damage, HP, stats, status effects, phases, loot and XP still use the existing RPG code.
  *
+ * CALAMITY-STYLE BOSS MECHANICS (ported from combat.js, data in calamity_bosses.js):
+ *   - pattern rotations   : bosses follow a looping move order instead of pure random picks
+ *   - charged attacks     : the boss winds up (orange ring + bar), then fires a bigger volley.
+ *                           Deal enough damage during the wind-up to INTERRUPT it and stagger the boss.
+ *   - HP thresholds       : at set HP marks the boss shouts a line, clears the screen and powers up
+ *   - enrage timer        : bosses that drag on too long ramp up damage and bullet speed
+ *
  * Controls: WASD / arrows move . Shift focus (slow, tight shots, shows hitbox)
  *           Z potion . X Limit Break (clears bullets) . Esc pause (R = run away)
  *           Touch: drag on the arena.
@@ -26,7 +33,15 @@
     IFRAMES: 1.4,
     MAX_BULLETS: 650,
     DEATH_FX: true, // burst + "DEFEATED" text when an enemy dies (set false for the original look)
+    // ---- Calamity tuning ----
+    CHARGE_TIME: 1.8, // seconds a boss spends winding up a charged attack
+    CHARGE_BREAK_RATIO: 0.6, // damage needed to interrupt = this x your recent damage-per-second x wind-up time
+    CHARGE_BREAK_MIN: 25, // ...but never less than this
+    STAGGER_TIME: 2.0, // seconds a boss is stunned (and takes +25% damage) after an interrupt
+    ENRAGE_SEC_PER_TURN: 4, // "enrage_turns" in monster data are converted to seconds with this
   };
+  // Shared Calamity numbers live in combat.js (CALAMITY). Fall back to defaults if it isn't loaded.
+  const cal = (k, d) => (typeof CALAMITY !== "undefined" && CALAMITY[k] != null ? CALAMITY[k] : d);
   const TAU = Math.PI * 2;
   const THEMES = [
     { sky: "#14162a", floor: "#17182b", edge: "#39314f", accent: "#e8c986" },
@@ -156,18 +171,41 @@
 
       const pl = { x: FW / 2, y: FH - 70, inv: 0, fire: 0 };
       const keys = new Set(), pb = [], eb = [], sl = [];
-      let t = 0, last = performance.now(), paused = false, banner = "";
+      let t = 0, last = performance.now(), paused = false, banner = "", bannerUntil = 0;
       let acc = 0, potCd = 0, dotT = 0, shake = 0, flash = 0, raf = 0, ended = false;
       let endKind = null, endT = 0; const fx = [];
+      const dmgLog = []; // [time, damage] of recent player hits, used to scale interrupt thresholds
+      const say = (msg, secs = 3) => { banner = msg; bannerUntil = t + secs; };
       const dmgBase = () => (C.PLAYER_DAMAGE[0] + C.PLAYER_DAMAGE[1]) / 2 + f.stats.damage + (f.temporary_damage || 0);
       const alive = () => f.enemies.filter((e) => e.hp > 0);
       const nearest = () => alive().sort((a, b) => Math.hypot(a.x - pl.x, a.y - pl.y) - Math.hypot(b.x - pl.x, b.y - pl.y))[0];
       const healItem = () => Object.keys(USABLE_ITEMS).find((n) => USABLE_ITEMS[n].heal && (inventory[n] || 0) > 0);
+      const nameOf = (e) => String(e.displayName || e.name || "Enemy");
 
       f.enemies.forEach((e, i) => {
         e.rx = FW * (i + 1) / (f.enemies.length + 1); e.ry = 70 + (i % 2) * 30;
         e.x = e.rx; e.y = -40; e.flash = 0; e.fade = 1; e.rt = { mode: "rest", until: 1.2 };
+        e.formT = 0; e.enrageSaid = false;
       });
+
+      // combat.js helpers read f.monster, which follows f.target. Point it at the enemy we mean.
+      function asTarget(e, fn) {
+        const prev = f.target;
+        f.target = Math.max(0, f.enemies.indexOf(e));
+        try { return fn(); } finally { f.target = prev; }
+      }
+      // Bosses that stall too long ramp up (damage and bullet speed). Returns 0..CALAMITY.BERSERK_MAX.
+      function berserkOf(e) {
+        const boss = e.monster.chance <= 0;
+        const turns = e.monster.enrage_turns ?? (boss ? cal("BOSS_ENRAGE_TURNS", 10) : Infinity);
+        if (!Number.isFinite(turns)) return 0;
+        const over = (e.formT || 0) - turns * RT.ENRAGE_SEC_PER_TURN;
+        return over > 0 ? Math.min(cal("BERSERK_MAX", .5), over / RT.ENRAGE_SEC_PER_TURN * cal("BERSERK_STEP", .1)) : 0;
+      }
+      function dpsRecent() {
+        while (dmgLog.length && dmgLog[0][0] < t - 6) dmgLog.shift();
+        return dmgLog.reduce((s, x) => s + x[1], 0) / 6;
+      }
 
       function shoot(e, q, ang, mult, x, y, homing) {
         if (eb.length > RT.MAX_BULLETS) return;
@@ -184,17 +222,72 @@
           speed: sp,
         });
       }
+      // Starts a bullet volley. `mult` is the charge damage multiplier, `charged` makes it bigger and louder.
+      function startCast(e, r, a, dm, enr, berserk, mult = 1, charged = false) {
+        const n = a.hits || 1, [lo, hi] = a.damage;
+        const q = {
+          n: charged ? n + 1 : n,
+          sp: Math.min(170, 80 + (e.monster.level || 1) * 3 + n * 6) * (enr ? 1.1 : 1) * (1 + berserk * .5) * (charged ? 1.12 : 1),
+          lo, hi, a, m: dm * mult,
+        };
+        r.mode = "cast"; r.pat = PATS[hash(a.name) % PATS.length]; r.k = 0; r.charged = charged;
+        r.c = { e, q, sh: (ang, m, x, y, hom) => shoot(e, q, ang, m, x, y, hom), aim: () => Math.atan2(pl.y - e.y, pl.x - e.x) };
+        r.start = t + (charged ? .35 : .6); r.next = r.start; r.end = r.start + Math.min(5, 2.4 + n * .5) + (charged ? .8 : 0);
+        r.label = String(a.name).toUpperCase(); r.labelT = t;
+      }
+      // Starts a charge: the boss holds still and glows. Enough damage in the window interrupts it.
+      function startCharge(e, r, a, info, dm, enr, berserk) {
+        r.mode = "charge"; r.t0 = t; r.dur = RT.CHARGE_TIME;
+        r.a = a; r.info = info; r.dm = dm; r.berserk = berserk; r.taken = 0;
+        r.breakAt = Math.max(RT.CHARGE_BREAK_MIN, dpsRecent() * RT.CHARGE_TIME * RT.CHARGE_BREAK_RATIO);
+        r.name = String(a.name).toUpperCase(); r.label = ""; r.labelT = t;
+        say(`${nameOf(e)} ${info.charge_text || "gathers overwhelming power for"} ${r.name}!`, 2.4);
+        shake = Math.max(shake, 3);
+        print(`🔥 ${nameOf(e)} is charging ${r.name}! Deal damage to interrupt it.`);
+      }
+      function releaseCharge(e, r, enr) {
+        const info = r.info, a = r.a, dm = r.dm, bz = r.berserk;
+        startCast(e, r, a, dm, enr, bz, info.charge_mult || cal("CHARGE_MULT", 1.6), true);
+        r.ringDone = false;
+        shake = Math.max(shake, 6); flash = Math.max(flash, .2);
+      }
+      function interrupt(e) {
+        const r = e.rt;
+        if (!r || r.mode !== "charge") return;
+        const p = { x: e.x, y: e.y };
+        e.rt = { mode: "rest", until: t + RT.STAGGER_TIME, label: "INTERRUPTED!", labelT: t };
+        e.vuln = t + RT.STAGGER_TIME; e.flash = .25;
+        shake = Math.max(shake, 9); flash = Math.max(flash, .25);
+        fx.push({ k: "r", x: p.x, y: p.y, life: .6, max: .6, col: "#ffb347" });
+        for (let i = 0; i < 16; i++) { const a = Math.random() * TAU, v = 60 + Math.random() * 120; fx.push({ k: "p", x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: .5, max: .5, col: "#ffb347" }); }
+        print(`💥 ${nameOf(e)}'s charged attack is interrupted!`);
+      }
+      // A HP-threshold event fired in combat.js (checkBossThresholds). Show it on the battlefield.
+      function onThreshold(e, key) {
+        const at = Number(String(key).split(":")[1]);
+        const rule = (e.monster.thresholds || []).find((x) => x.at === at);
+        say(rule?.message ? `${nameOf(e)}: “${rule.message}”` : `${nameOf(e)} surges with power!`, 3.4);
+        eb.length = 0; // breathing room
+        const idle = e.forceIdle;
+        e.forceIdle = null;
+        e.rt = { mode: "rest", until: t + (idle ? 2.2 : 1), label: idle ? String(idle).toUpperCase() : "", labelT: t };
+        fx.push({ k: "r", x: e.x, y: e.y, life: .8, max: .8, col: "#ff4d6d" });
+        fx.push({ k: "t", x: e.x, y: e.y - 18, life: 1.4, max: 1.4, col: "#fff", s: `${Math.round(at * 100)}%` });
+        shake = Math.max(shake, 8); flash = Math.max(flash, .3);
+      }
+
       function pick(e, r, enr) {
-        const ch = monsterChoose(e.monster, null);
+        const berserk = berserkOf(e);
+        const dm = (enr ? 1.25 : 1) * (e.dmgMult || 1) * (1 + berserk);
+        // Boss rotation first (monster.pattern); off-script rolls and normal enemies use the old random pick.
+        const scripted = typeof patternChoose === "function" ? asTarget(e, () => patternChoose(f, e)) : null;
+        const ch = scripted || monsterChoose(e.monster, null);
         r.label = ""; r.labelT = t;
         if (ch.kind === "attack" && ch.attack && ch.attack.damage) {
-          const a = ch.attack, n = a.hits || 1, [lo, hi] = a.damage;
-          const q = { n, sp: Math.min(170, 80 + (e.monster.level || 1) * 3 + n * 6) * (enr ? 1.1 : 1), lo, hi, a, m: enr ? 1.25 : 1 };
-          r.mode = "cast"; r.pat = PATS[hash(a.name) % PATS.length]; r.k = 0;
-          r.c = { e, q, sh: (ang, m, x, y, hom) => shoot(e, q, ang, m, x, y, hom), aim: () => Math.atan2(pl.y - e.y, pl.x - e.x) };
-          r.start = t + .6; r.next = r.start; r.end = r.start + Math.min(5, 2.4 + n * .5);
-          r.label = String(a.name).toUpperCase();
-          return;
+          const a = ch.attack;
+          const info = typeof chargeInfo === "function" ? asTarget(e, () => chargeInfo(f, a)) : null;
+          if (info) return startCharge(e, r, a, info, dm, enr, berserk);
+          return startCast(e, r, a, dm, enr, berserk, 1, false);
         }
         r.mode = "rest"; r.until = t + 1.4;
         if (ch.kind === "heal" && ch.attack) { e.hp = Math.min(e.monster.hp, e.hp + randint(...ch.attack.heal)); r.label = "HEAL"; }
@@ -205,14 +298,24 @@
       function updEnemy(e, i, dt) {
         if (e.hp <= 0) { e.fade = Math.max(0, e.fade - dt * 2); return; }
         e.fade = 1;
+        e.formT = (e.formT || 0) + dt;
         const boss = e.monster.chance <= 0, enr = e.hp <= e.monster.hp * .5;
-        e.x = e.rx + Math.sin(t * (boss ? .5 : .8) + i * 2) * (boss ? 90 : 55);
+        const bz = berserkOf(e);
+        if (bz > 0 && !e.enrageSaid) { e.enrageSaid = true; say(`${nameOf(e)} is losing patience!`, 2.6); shake = Math.max(shake, 5); }
+        const charging = e.rt?.mode === "charge";
+        // A charging boss plants itself so the wind-up reads clearly.
+        e.x = e.rx + Math.sin(t * (boss ? .5 : .8) + i * 2) * (boss ? 90 : 55) * (charging ? .25 : 1);
         e.y += (e.ry + Math.sin(t * 1.3 + i) * 10 - e.y) * Math.min(1, dt * 3);
         e.flash = Math.max(0, e.flash - dt);
         const r = e.rt || (e.rt = { mode: "rest", until: t + 1 });
         if (r.mode === "rest") { if (t >= r.until) pick(e, r, enr); }
+        else if (r.mode === "charge") { if (t - r.t0 >= r.dur) releaseCharge(e, r, enr); }
         else {
-          if (t >= r.start && t >= r.next) { r.pat.fn(r.c, r.k++); r.next = t + r.pat.iv / (enr ? 1.25 : 1); }
+          if (t >= r.start && t >= r.next) {
+            // The moment a charged attack lands, it opens with a slow radial burst.
+            if (r.charged && !r.ringDone) { r.ringDone = true; for (let k2 = 0; k2 < 16; k2++) r.c.sh(k2 * TAU / 16, .7); }
+            r.pat.fn(r.c, r.k++); r.next = t + r.pat.iv / (enr ? 1.25 : 1);
+          }
           if (t >= r.end) { r.mode = "rest"; r.until = t + (enr ? .8 : 1.3); }
         }
       }
@@ -289,6 +392,12 @@
         if (e.gUntil > t) d *= e.gf;
         if (e.vuln > t) d *= 1.25;
         e.hp -= d; e.flash = .07; acc += d / 8;
+        dmgLog.push([t, d]);
+        // Hitting a boss during its wind-up counts toward interrupting the charge.
+        if (e.hp > 0 && e.rt?.mode === "charge") {
+          e.rt.taken += d;
+          if (e.rt.taken >= e.rt.breakAt) interrupt(e);
+        }
         if (acc >= 1) { chargeLimit(f, Math.floor(acc)); acc %= 1; }
       }
       function hurt(b) {
@@ -308,6 +417,8 @@
       function limit() {
         if ((f.limitGauge || 0) < 100 || f.limitUsed) return;
         useLimitBreak(f); eb.length = 0; pl.inv = 1.5; flash = .6; shake = 12;
+        // A Limit Break always shatters any charge in progress.
+        f.enemies.forEach((e) => { if (e.hp > 0 && e.rt?.mode === "charge") interrupt(e); });
       }
 
       function spawnDeath(e) {
@@ -416,7 +527,29 @@
           dotT -= 3; resolveEffects(f);
           f.enemies.forEach((e, i) => { if (e.hp > 0) { f.target = i; resolveMonsterEffects(f); } });
         }
-        if (!endKind && advanceBossForms(f)) { eb.length = 0; f.enemies.forEach((e) => { e.rt = null; }); }
+        if (!endKind) {
+          // advanceBossForms also runs the HP-threshold events (checkBossThresholds) in combat.js.
+          const firedBefore = f.enemies.map((e) => (e.firedThresholds || []).length);
+          const phaseBefore = f.enemies.map((e) => e.phase || 0);
+          const changed = advanceBossForms(f);
+          f.enemies.forEach((e, i) => {
+            if ((e.phase || 0) !== phaseBefore[i]) return;
+            const fired = e.firedThresholds || [];
+            for (let k = firedBefore[i]; k < fired.length; k++) onThreshold(e, fired[k]);
+          });
+          if (changed) {
+            eb.length = 0;
+            f.enemies.forEach((e, i) => {
+              e.rt = null;
+              if ((e.phase || 0) !== phaseBefore[i]) {
+                e.formT = 0; e.enrageSaid = false;
+                say(String(e.displayName || e.name).toUpperCase(), 3.2);
+                fx.push({ k: "r", x: e.x, y: e.y, life: .9, max: .9, col: "#d88cff" });
+                shake = Math.max(shake, 10); flash = Math.max(flash, .4);
+              }
+            });
+          }
+        }
         const won = typeof foesDown === "function" ? foesDown(f) : f.enemies.every((e) => e.hp <= 0);
         if (won && !endKind) { endKind = "win"; endT = 1.8; eb.length = 0; banner = "VICTORY"; pl.inv = 99; flash = Math.max(flash, .3); }
         if (endKind) { endT -= dt; if (endT <= 0) return finish("win", "VICTORY"); return; }
@@ -462,7 +595,21 @@
         g.fillStyle = "#2a2233"; g.beginPath(); g.arc(pp.x, pp.y - 10 * u, 6 * u, Math.PI, 0); g.fill();
         g.globalAlpha = 1;
         if (keys.has("shift")) { g.fillStyle = "#ffffff"; g.strokeStyle = "#ff4d6d"; g.lineWidth = 1.5; g.beginPath(); g.arc(pp.x, pp.y, Math.max(2.5, RT.HIT_R * pp.s), 0, TAU); g.fill(); g.stroke(); }
-        for (const e of f.enemies) { const p = pr(e.x, e.y, 0); g.globalAlpha = e.fade; g.fillStyle = e.flash > 0 ? "#fff" : (e.monster.chance <= 0 ? "#d88cff" : "#ff6b9e"); g.beginPath(); g.arc(p.x, p.y, Math.max(9, (e.monster.chance <= 0 ? 20 : 15) * p.s), 0, TAU); g.fill(); bar(p.x, p.y - 25 * p.s, 44 * p.s, e.hp / e.monster.hp, "#ff5f7a"); if (e.rt?.label && t - e.rt.labelT < 1.2) text(e.rt.label, p.x, p.y - 33 * p.s, "#fff", 11); }
+        for (const e of f.enemies) {
+          const p = pr(e.x, e.y, 0);
+          g.globalAlpha = e.fade; g.fillStyle = e.flash > 0 ? "#fff" : (e.monster.chance <= 0 ? "#d88cff" : "#ff6b9e"); g.beginPath(); g.arc(p.x, p.y, Math.max(9, (e.monster.chance <= 0 ? 20 : 15) * p.s), 0, TAU); g.fill();
+          bar(p.x, p.y - 25 * p.s, 44 * p.s, e.hp / e.monster.hp, "#ff5f7a");
+          if (e.rt?.mode === "charge" && e.hp > 0) {
+            // Wind-up telegraph: a ring that closes in, plus a bar that fills as you damage it toward an interrupt.
+            const q = clamp((t - e.rt.t0) / e.rt.dur, 0, 1);
+            g.save(); g.strokeStyle = "#ffb347"; g.lineWidth = 2 + 3 * q; g.globalAlpha = .55 + .4 * Math.sin(t * 22);
+            g.beginPath(); g.arc(p.x, p.y, (1 - q) * 70 * p.s + 20 * p.s, 0, TAU); g.stroke(); g.restore();
+            g.globalAlpha = e.fade;
+            bar(p.x, p.y - 25 * p.s - 10, 44 * p.s, e.rt.taken / e.rt.breakAt, "#ffb347");
+            text(`CHARGING ${e.rt.name}`, p.x, p.y - 25 * p.s - 15, "#ffb347", 11);
+          } else if (e.rt?.label && t - e.rt.labelT < 1.2) text(e.rt.label, p.x, p.y - 33 * p.s, "#fff", 11);
+          if (e.vuln > t && e.hp > 0) text("EXPOSED", p.x, p.y + 30 * p.s, "#ffe14d", 10);
+        }
         g.globalAlpha = 1;
         for (const sw of sl) {
           const q = Math.min(1, sw.age / sw.dur), p = 1 - (1 - q) * (1 - q), fade = sw.age > sw.dur ? Math.max(0, 1 - (sw.age - sw.dur) / .08) : 1;
@@ -500,7 +647,7 @@
           else { text(q.s, p.x, p.y - (1 - a) * 30, q.col, 13); } }
         g.globalAlpha = 1;
         if (endKind) text("VICTORY", W / 2, H * .45, th.accent, Math.max(28, Math.min(56, W * .09)));
-        else if (banner) text(banner, W / 2, 40, th.accent, 18); text(RT.AUTO_ATTACK ? "AUTO ATTACK" : "ATTACK PAUSED", 14, H - 18, RT.AUTO_ATTACK ? "#9fe7d1" : "#ff9aa8", 11, "left"); g.restore();
+        else if (banner && t < bannerUntil) text(banner, W / 2, 40, th.accent, clamp(W / (banner.length * .62), 10, 18)); text(RT.AUTO_ATTACK ? "AUTO ATTACK" : "ATTACK PAUSED", 14, H - 18, RT.AUTO_ATTACK ? "#9fe7d1" : "#ff9aa8", 11, "left"); g.restore();
       }
 
       function finish(kind, label) { if (ended) return; ended = true; on = false; cur = null; cancelAnimationFrame(raf); window.removeEventListener("resize", resize); window.removeEventListener("keydown", keydown); window.removeEventListener("keyup", keyup); if (ov.parentNode) ov.remove(); /* combat.js expects "win" / "fled" / "lose" strings, not an object */ resolve(kind === "run" ? "fled" : kind); }
