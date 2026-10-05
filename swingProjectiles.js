@@ -1,7 +1,6 @@
-/* Visible slash/swing effect for the fictional 2.5D iron-fist projectile. */
+/* Visible slash/swing effect for the fictional 2.5D iron-fist attack. */
 (function () {
   "use strict";
-  const TAU = Math.PI * 2;
   let lastSwing = 0;
 
   function arenaPoint(x, y) {
@@ -23,29 +22,16 @@
     const el = document.createElement("div");
     el.style.cssText = `position:fixed;left:${p.x - size / 2}px;top:${p.y - size / 2}px;width:${size}px;height:${size}px;pointer-events:none;z-index:10001;transform:rotate(${angle}rad);opacity:0;filter:drop-shadow(0 0 7px #fff);`;
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("viewBox", "0 0 100 100");
-    svg.setAttribute("width", "100%");
-    svg.setAttribute("height", "100%");
-    svg.style.overflow = "visible";
+    svg.setAttribute("viewBox", "0 0 100 100"); svg.setAttribute("width", "100%"); svg.setAttribute("height", "100%"); svg.style.overflow = "visible";
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("d", "M 18 78 A 55 55 0 0 1 82 18");
-    path.setAttribute("fill", "none");
-    path.setAttribute("stroke", "#f7fbff");
-    path.setAttribute("stroke-width", "9");
-    path.setAttribute("stroke-linecap", "round");
-    svg.appendChild(path);
-    el.appendChild(svg);
-    document.getElementById("rtBattle")?.appendChild(el);
-
-    const start = performance.now();
-    const duration = 155;
+    path.setAttribute("d", "M 18 78 A 55 55 0 0 1 82 18"); path.setAttribute("fill", "none"); path.setAttribute("stroke", "#f7fbff"); path.setAttribute("stroke-width", "9"); path.setAttribute("stroke-linecap", "round");
+    svg.appendChild(path); el.appendChild(svg); document.getElementById("rtBattle")?.appendChild(el);
+    const start = performance.now(), duration = 155;
     function tick(now) {
-      const q = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - q, 3);
+      const q = Math.min(1, (now - start) / duration), eased = 1 - Math.pow(1 - q, 3);
       el.style.opacity = q < .18 ? String(q / .18) : String(1 - Math.max(0, q - .45) / .55);
       el.style.transform = `rotate(${angle + (-.55 + eased * 1.1)}rad) scale(${.7 + eased * .45})`;
-      if (q < 1) requestAnimationFrame(tick);
-      else el.remove();
+      if (q < 1) requestAnimationFrame(tick); else el.remove();
     }
     requestAnimationFrame(tick);
   }
@@ -59,10 +45,9 @@
       for (const item of items) {
         if (!item || item.weapon !== "iron fist") continue;
         const now = performance.now();
-        if (now - lastSwing < 110) break;
+        if (now - lastSwing < 90) continue;
         lastSwing = now;
         makeSlash(item.x, item.y, Math.atan2(item.vy, item.vx));
-        break;
       }
     }
     return result;
