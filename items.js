@@ -1,97 +1,209 @@
 // Items, weapon skills, consumables, crafting recipes and shop prices.
+//
+// WEAPON PROJECTILE DATA (used by the real-time battle, battle25d.js):
+//   projectile: { behavior, damage, size, speed, ...optional }
+//     behavior : "slash" (melee swing) | "straight" | "homing" | "ring" (circle burst, then homes)
+//                | "boomerang" | "pierce" | "spiral" | "split"
+//     damage   : damage per hit (player damage stats add a small bonus)
+//     size     : 1 = normal projectile size (slash: reach multiplier)
+//     speed    : 1-10 scale, 5 = fast (x100 px/s); 50+ is read as px/s. slash: 5 = normal swing speed
+//     optional : count, spread, pierce, cooldown (s), range (px), hold, into, turn, curve, style ("arrow"/"orb"), color
+//     aim      : "up" (default for projectiles, Touhou style) or "target" (auto-aim at nearest enemy). slash defaults to "target"
 
 const ITEMS = {
-  "wooden sword": { id: "weapon", damage: 3, skills: ["twin slash", "quick jab"] },
-  "rusty sword": { id: "weapon", damage: 5, skills: ["twin slash", "guard breaker"] },
-  sword: { id: "weapon", damage: 6, skills: ["twin slash", "guard breaker"] },
-  "iron sword": { id: "weapon", damage: 9, skills: ["twin slash", "guard breaker"] },
-  "steel sword": { id: "weapon", damage: 12, skills: ["precision cut", "rending slash"] },
-  "knight sword": { id: "weapon", damage: 14, crit: 4, skills: ["precision cut", "guard breaker"] },
-  "ember blade": { id: "weapon", damage: 14, crit: 8, skills: ["flame slash", "inferno strike"] },
-  "frost sword": { id: "weapon", damage: 15, parry: 5, skills: ["precision cut", "rending slash"] },
-  "fire sword": { id: "weapon", damage: 16, crit: 5, skills: ["flame slash", "inferno strike"] },
+  "wooden sword": {
+    id: "weapon", damage: 3, skills: ["twin slash", "quick jab"],
+    projectile: { behavior: "slash", damage: 4.9, size: 0.9, speed: 6, color: "#f7fbff" },
+  },
+  "rusty sword": {
+    id: "weapon", damage: 5, skills: ["twin slash", "guard breaker"],
+    projectile: { behavior: "slash", damage: 6.2, size: 0.95, speed: 5.5, color: "#f7fbff" },
+  },
+  sword: {
+    id: "weapon", damage: 6, skills: ["twin slash", "guard breaker"],
+    projectile: { behavior: "slash", damage: 7.4, size: 1, speed: 5, color: "#f7fbff" },
+  },
+  "iron sword": {
+    id: "weapon", damage: 9, skills: ["twin slash", "guard breaker"],
+    projectile: { behavior: "slash", damage: 8.7, size: 1, speed: 5, color: "#f7fbff" },
+  },
+  "steel sword": {
+    id: "weapon", damage: 12, skills: ["precision cut", "rending slash"],
+    projectile: { behavior: "slash", damage: 10, size: 1.05, speed: 5, color: "#f7fbff" },
+  },
+  "knight sword": {
+    id: "weapon", damage: 14, crit: 4, skills: ["precision cut", "guard breaker"],
+    projectile: { behavior: "slash", damage: 10.8, size: 1.1, speed: 5, color: "#f7fbff" },
+  },
+  "ember blade": {
+    id: "weapon", damage: 14, crit: 8, skills: ["flame slash", "inferno strike"],
+    projectile: { behavior: "slash", damage: 10.8, size: 1.1, speed: 5, color: "#ff7a45" },
+  },
+  "frost sword": {
+    id: "weapon", damage: 15, parry: 5, skills: ["precision cut", "rending slash"],
+    projectile: { behavior: "slash", damage: 11.3, size: 1.1, speed: 5, color: "#9bd8ff" },
+  },
+  "fire sword": {
+    id: "weapon", damage: 16, crit: 5, skills: ["flame slash", "inferno strike"],
+    projectile: { behavior: "slash", damage: 11.7, size: 1.15, speed: 5, color: "#ff7a45" },
+  },
   "soul scythe": {
     id: "weapon",
     damage: 18,
     crit: 12,
     max_hp: -10,
     skills: ["soul reap", "grim embrace"],
+    projectile: { behavior: "ring", damage: 2.5, size: 1, speed: 6, count: 8, cooldown: 0.9, color: "#b07cff" },
   },
-  greatsword: { id: "weapon", damage: 20, max_hp: -5, skills: ["executioner swing", "whirlwind"] },
-  "demon sword": { id: "weapon", damage: 20, crit: 8, skills: ["rending slash", "soul reap"] },
+  greatsword: {
+    id: "weapon", damage: 20, max_hp: -5, skills: ["executioner swing", "whirlwind"],
+    projectile: { behavior: "slash", damage: 17.4, size: 1.3, speed: 4, color: "#f7fbff" },
+  },
+  "demon sword": {
+    id: "weapon", damage: 20, crit: 8, skills: ["rending slash", "soul reap"],
+    projectile: { behavior: "slash", damage: 13.5, size: 1.2, speed: 5, color: "#d05cff" },
+  },
   "dragon slayer": {
     id: "weapon",
     damage: 24,
     crit: 7,
     skills: ["precision cut", "executioner swing"],
+    projectile: { behavior: "slash", damage: 17.2, size: 1.3, speed: 4.5, color: "#ffd9a0" },
   },
-  "ancient blade": { id: "weapon", damage: 27, crit: 12, skills: ["precision cut", "arcane bolt"] },
+  "ancient blade": {
+    id: "weapon", damage: 27, crit: 12, skills: ["precision cut", "arcane bolt"],
+    projectile: { behavior: "slash", damage: 16.5, size: 1.3, speed: 5, color: "#bfe3ff" },
+  },
   "void weapon": {
     id: "weapon",
     damage: 30,
     crit: 15,
     dodge: 5,
     skills: ["arcane bolt", "mana siphon"],
+    projectile: { behavior: "ring", damage: 1.2, size: 1.1, speed: 6, count: 14, cooldown: 1, hold: 0.65, color: "#7a52c8" },
   },
-  "stone axe": { id: "weapon", damage: 7, skills: ["cleave", "reckless chop"] },
-  axe: { id: "weapon", damage: 10, skills: ["cleave", "reckless chop"] },
-  "iron axe": { id: "weapon", damage: 11, skills: ["cleave", "reckless chop"] },
-  "battle axe": { id: "weapon", damage: 15, skills: ["cleave", "guard breaker"] },
-  "heavy axe": { id: "weapon", damage: 19, max_hp: 5, skills: ["cleave", "shatter"] },
+  "stone axe": {
+    id: "weapon", damage: 7, skills: ["cleave", "reckless chop"],
+    projectile: { behavior: "slash", damage: 10.1, size: 1, speed: 4, color: "#d9cdb8" },
+  },
+  axe: {
+    id: "weapon", damage: 10, skills: ["cleave", "reckless chop"],
+    projectile: { behavior: "slash", damage: 11.8, size: 1.05, speed: 4, color: "#e8e8e8" },
+  },
+  "iron axe": {
+    id: "weapon", damage: 11, skills: ["cleave", "reckless chop"],
+    projectile: { behavior: "slash", damage: 12.3, size: 1.1, speed: 4, color: "#e8e8e8" },
+  },
+  "battle axe": {
+    id: "weapon", damage: 15, skills: ["cleave", "guard breaker"],
+    projectile: { behavior: "slash", damage: 14.6, size: 1.15, speed: 4, color: "#f2f2f2" },
+  },
+  "heavy axe": {
+    id: "weapon", damage: 19, max_hp: 5, skills: ["cleave", "shatter"],
+    projectile: { behavior: "slash", damage: 19.5, size: 1.25, speed: 3.5, color: "#f2f2f2" },
+  },
   "berserker axe": {
     id: "weapon",
     damage: 22,
     max_hp: -5,
     crit: 8,
     skills: ["cleave", "reckless chop"],
+    projectile: { behavior: "slash", damage: 18.5, size: 1.3, speed: 4, color: "#ff5c5c" },
   },
-  "blood axe": { id: "weapon", damage: 25, crit: 10, skills: ["cleave", "soul reap"] },
-  "infernal axe": { id: "weapon", damage: 26, crit: 10, skills: ["flame slash", "reckless chop"] },
-  warhammer: { id: "weapon", damage: 15, max_hp: 10, skills: ["skull crusher", "shatter"] },
+  "blood axe": {
+    id: "weapon", damage: 25, crit: 10, skills: ["cleave", "soul reap"],
+    projectile: { behavior: "slash", damage: 20.2, size: 1.3, speed: 4, color: "#ff5b69" },
+  },
+  "infernal axe": {
+    id: "weapon", damage: 26, crit: 10, skills: ["flame slash", "reckless chop"],
+    projectile: { behavior: "slash", damage: 20.7, size: 1.35, speed: 4, color: "#ff7a45" },
+  },
+  warhammer: {
+    id: "weapon", damage: 15, max_hp: 10, skills: ["skull crusher", "shatter"],
+    projectile: { behavior: "slash", damage: 16.9, size: 1.2, speed: 3.5, color: "#e6b3ff" },
+  },
   "thunder hammer": {
     id: "weapon",
     damage: 24,
     max_hp: 10,
     max_energy: 1,
     skills: ["skull crusher", "arcane bolt"],
+    projectile: { behavior: "split", damage: 6, size: 1.2, speed: 6, cooldown: 0.55, into: 4, color: "#ffe14d" },
   },
-  spear: { id: "weapon", damage: 8, parry: 5, skills: ["piercing thrust", "quick jab"] },
-  "iron spear": { id: "weapon", damage: 10, parry: 3, skills: ["piercing thrust", "quick jab"] },
-  "steel spear": { id: "weapon", damage: 14, parry: 5, skills: ["piercing thrust", "quick jab"] },
-  "war spear": { id: "weapon", damage: 17, parry: 7, skills: ["piercing thrust", "whirlwind"] },
+  spear: {
+    id: "weapon", damage: 8, parry: 5, skills: ["piercing thrust", "quick jab"],
+    projectile: { behavior: "pierce", damage: 6.6, size: 1, speed: 7, count: 1, spread: 0, pierce: 2, cooldown: 0.3, color: "#dcefff" },
+  },
+  "iron spear": {
+    id: "weapon", damage: 10, parry: 3, skills: ["piercing thrust", "quick jab"],
+    projectile: { behavior: "pierce", damage: 7.3, size: 1, speed: 7, count: 1, spread: 0, pierce: 3, cooldown: 0.3, color: "#dcefff" },
+  },
+  "steel spear": {
+    id: "weapon", damage: 14, parry: 5, skills: ["piercing thrust", "quick jab"],
+    projectile: { behavior: "pierce", damage: 8.1, size: 1.1, speed: 7.5, count: 1, spread: 0, pierce: 3, cooldown: 0.28, color: "#dcefff" },
+  },
+  "war spear": {
+    id: "weapon", damage: 17, parry: 7, skills: ["piercing thrust", "whirlwind"],
+    projectile: { behavior: "pierce", damage: 9, size: 1.2, speed: 7.5, count: 1, spread: 0, pierce: 4, cooldown: 0.28, color: "#dcefff" },
+  },
   "dragon spear": {
     id: "weapon",
     damage: 23,
     parry: 8,
     skills: ["piercing thrust", "inferno strike"],
+    projectile: { behavior: "pierce", damage: 9.5, size: 1.3, speed: 8, count: 1, spread: 0, pierce: 6, cooldown: 0.25, color: "#ffb36b" },
   },
-  longbow: { id: "weapon", damage: 7, dodge: 5, crit: 8, skills: ["aimed shot", "volley"] },
-  "hunter bow": { id: "weapon", damage: 8, crit: 5, dodge: 3, skills: ["aimed shot", "volley"] },
+  longbow: {
+    id: "weapon", damage: 7, dodge: 5, crit: 8, skills: ["aimed shot", "volley"],
+    projectile: { behavior: "pierce", damage: 10.1, size: 1, speed: 8, count: 1, spread: 0, pierce: 1, cooldown: 0.45, color: "#e6d6a8" },
+  },
+  "hunter bow": {
+    id: "weapon", damage: 8, crit: 5, dodge: 3, skills: ["aimed shot", "volley"],
+    projectile: { behavior: "straight", damage: 6.6, size: 1, speed: 7, count: 1, cooldown: 0.3, style: "arrow", color: "#e6d6a8" },
+  },
   "composite bow": {
     id: "weapon",
     damage: 12,
     crit: 7,
     dodge: 5,
     skills: ["aimed shot", "volley"],
+    projectile: { behavior: "pierce", damage: 4, size: 1, speed: 7.5, count: 2, spread: 0.07, pierce: 2, cooldown: 0.35, color: "#e6d6a8" },
   },
-  "war bow": { id: "weapon", damage: 17, crit: 9, dodge: 5, skills: ["aimed shot", "volley"] },
-  "dragon bow": { id: "weapon", damage: 23, crit: 12, dodge: 7, skills: ["aimed shot", "volley"] },
-  dagger: { id: "weapon", damage: 3, crit: 10, dodge: 3, skills: ["backstab", "poison cut"] },
+  "war bow": {
+    id: "weapon", damage: 17, crit: 9, dodge: 5, skills: ["aimed shot", "volley"],
+    projectile: { behavior: "pierce", damage: 3.3, size: 1, speed: 8, count: 3, spread: 0.09, pierce: 2, cooldown: 0.4, color: "#e6d6a8" },
+  },
+  "dragon bow": {
+    id: "weapon", damage: 23, crit: 12, dodge: 7, skills: ["aimed shot", "volley"],
+    projectile: { behavior: "pierce", damage: 4, size: 1.2, speed: 8.5, count: 3, spread: 0.09, pierce: 4, cooldown: 0.4, color: "#ff9a5c" },
+  },
+  dagger: {
+    id: "weapon", damage: 3, crit: 10, dodge: 3, skills: ["backstab", "poison cut"],
+    projectile: { behavior: "straight", damage: 1.2, size: 0.7, speed: 8, count: 2, spread: 0.1, cooldown: 0.22, color: "#e8f4ff" },
+  },
   "poison dagger": {
     id: "weapon",
     damage: 8,
     crit: 12,
     dodge: 5,
     skills: ["backstab", "poison cut"],
+    projectile: { behavior: "straight", damage: 1.6, size: 0.75, speed: 8, count: 2, spread: 0.1, cooldown: 0.22, color: "#8fe36b" },
   },
-  frostfang: { id: "weapon", damage: 18, parry: 6, skills: ["backstab", "rending slash"] },
-  flameblade: { id: "weapon", damage: 19, crit: 8, skills: ["flame slash", "inferno strike"] },
+  frostfang: {
+    id: "weapon", damage: 18, parry: 6, skills: ["backstab", "rending slash"],
+    projectile: { behavior: "straight", damage: 2, size: 0.8, speed: 8, count: 3, spread: 0.14, cooldown: 0.3, color: "#9bd8ff" },
+  },
+  flameblade: {
+    id: "weapon", damage: 19, crit: 8, skills: ["flame slash", "inferno strike"],
+    projectile: { behavior: "slash", damage: 11.6, size: 1.15, speed: 5.5, color: "#ff7a45" },
+  },
   "shadow blade": {
     id: "weapon",
     damage: 21,
     crit: 14,
     dodge: 8,
     skills: ["backstab", "mana siphon"],
+    projectile: { behavior: "boomerang", damage: 14.6, size: 1.1, speed: 7, cooldown: 0.75, color: "#a879ff" },
   },
   "mage staff": {
     id: "weapon",
@@ -100,6 +212,7 @@ const ITEMS = {
     max_energy: 1,
     crit: 5,
     skills: ["arcane bolt", "mana siphon"],
+    projectile: { behavior: "ring", damage: 1.4, size: 1, speed: 6, count: 6, cooldown: 0.6, hold: 0.3, color: "#9bc6ff" },
   },
   "cloth armor": { id: "armor", max_hp: 10, defense: 1 },
   "leather armor": { id: "armor", max_hp: 25, defense: 2 },
@@ -168,6 +281,7 @@ const ITEMS = {
     dodge: 10,
     description: "Forged from the boundary between two states of the game.",
     skills: ["precision cut", "arcane bolt"],
+    projectile: { behavior: "spiral", damage: 1.4, size: 1, speed: 6, count: 2, cooldown: 0.14, color: "#7ae7ff" },
   },
   "last light": {
     id: "weapon",
@@ -176,6 +290,7 @@ const ITEMS = {
     max_hp: 40,
     description: "It does not glow. Everything around it simply becomes darker.",
     skills: ["soul reap", "grim embrace"],
+    projectile: { behavior: "split", damage: 6.4, size: 1.3, speed: 6, cooldown: 0.5, into: 5, color: "#9a7bd8" },
   },
 };
 
@@ -647,6 +762,7 @@ Object.assign(ITEMS, {
     max_hp: 30,
     description: "Every strike is already written down somewhere.",
     skills: ["precision cut", "soul reap"],
+    projectile: { behavior: "homing", damage: 5.9, size: 1, speed: 6, count: 3, spread: 0.3, cooldown: 0.35, turn: 6, style: "arrow", color: "#e8f4ff" },
   },
   "hollow plate": {
     id: "armor",
@@ -662,6 +778,7 @@ Object.assign(ITEMS, {
     dodge: 8,
     description: "A blade drawn as a single strikethrough.",
     skills: ["precision cut", "executioner swing"],
+    projectile: { behavior: "spiral", damage: 2, size: 1.1, speed: 6, count: 2, cooldown: 0.14, color: "#ff5c5c" },
   },
   "inkbound seal": {
     id: "trinket",
@@ -677,6 +794,7 @@ Object.assign(ITEMS, {
     max_hp: 60,
     description: "The last thing in the file. It cuts like a full stop.",
     skills: ["soul reap", "arcane bolt"],
+    projectile: { behavior: "ring", damage: 1.4, size: 1.2, speed: 7, count: 16, cooldown: 1, hold: 0.55, color: "#fff1a8" },
   },
 });
 Object.assign(recipes, {
@@ -697,19 +815,31 @@ Object.assign(USABLE_ITEMS, {
   "field stew": { heal: 48 },
 });
 Object.assign(ITEMS, {
-  "trailbreaker bow": { id: "weapon", damage: 15, crit: 8, dodge: 5, skills: ["aimed shot", "volley"], description: "A frontier scout's bow rebuilt around a spring-steel limb." },
+  "trailbreaker bow": {
+    id: "weapon", damage: 15, crit: 8, dodge: 5, skills: ["aimed shot", "volley"], description: "A frontier scout's bow rebuilt around a spring-steel limb.",
+    projectile: { behavior: "straight", damage: 4, size: 1, speed: 7, count: 2, spread: 0.1, cooldown: 0.32, style: "arrow", color: "#cfe8a8" },
+  },
   bellguard: { id: "offhand", defense: 5, guard: 0.08, max_hp: 28, description: "A small shield that hums when danger is close." },
   "nullweave coat": { id: "armor", max_hp: 82, defense: 7, dodge: 4, parry: 3, description: "Cloth woven from a place the world tried to forget." },
   "archivist's ring": { id: "trinket", max_hp: 42, crit: 6, damage: 5, description: "A catalog mark that helps its wearer find the opening." },
   "indexer's lens": { id: "trinket", max_hp: 28, crit: 9, damage: 7, description: "A brass lens that brings the weak points in a story into focus." },
   "starfall aegis": { id: "offhand", max_hp: 38, defense: 6, guard: 0.08, description: "A shield cut from the glass shell of a fallen star." },
-  ashglass: { id: "weapon", damage: 21, crit: 10, skills: ["precision cut", "rending slash"], description: "A dark blade with a bright ember caught inside." },
+  ashglass: {
+    id: "weapon", damage: 21, crit: 10, skills: ["precision cut", "rending slash"], description: "A dark blade with a bright ember caught inside.",
+    projectile: { behavior: "slash", damage: 13.9, size: 1.2, speed: 5, color: "#ff9a5c" },
+  },
   "oathkeeper mail": { id: "armor", max_hp: 115, defense: 9, parry: 3, description: "The last guard's oath, hammered into a coat of black iron." },
   "cartographer's compass": { id: "trinket", max_hp: 58, damage: 10, crit: 8, dodge: 5, description: "It points toward the next choice, never the easiest one." },
-  "outrider's bow": { id: "weapon", damage: 12, crit: 7, dodge: 3, skills: ["aimed shot", "volley"], description: "A compact bow built for a long patrol and a quick retreat." },
+  "outrider's bow": {
+    id: "weapon", damage: 12, crit: 7, dodge: 3, skills: ["aimed shot", "volley"], description: "A compact bow built for a long patrol and a quick retreat.",
+    projectile: { behavior: "homing", damage: 8, size: 0.9, speed: 6, count: 1, cooldown: 0.3, turn: 5, style: "arrow", color: "#e6d6a8" },
+  },
   "choir veil": { id: "head", max_hp: 36, max_energy: 1, defense: 3, parry: 3, description: "A strip of ash-silk that dulls the Cathedral's dissonant chorus." },
   "reliquary guard": { id: "offhand", max_hp: 48, defense: 7, guard: 0.1, description: "A shield forged from the tongue-less bell's fractured rim." },
-  "bellshard maul": { id: "weapon", damage: 24, crit: 5, skills: ["executioner swing", "shatter"], description: "A two-handed weight of resonant metal. Each swing remembers the bell that made it." },
+  "bellshard maul": {
+    id: "weapon", damage: 24, crit: 5, skills: ["executioner swing", "shatter"], description: "A two-handed weight of resonant metal. Each swing remembers the bell that made it.",
+    projectile: { behavior: "slash", damage: 22.8, size: 1.35, speed: 3.5, color: "#d7c58a" },
+  },
   "mosswrap boots": { id: "boots", max_hp: 12, dodge: 4, description: "Soft boots braided from tough roadside moss. They grip loose stone without slowing you down." },
   "roadward charm": { id: "trinket", max_hp: 10, dodge: 2, description: "A brass pin recovered from an old waystone. It points toward the road home." },
   "lantern charm": { id: "trinket", max_hp: 14, crit: 3, description: "A shard of lantern glass that catches a glint just before danger moves." },
@@ -758,16 +888,6 @@ Object.assign(ITEMS, {
     crit: 0,
     description: "A bare-knuckle starter weapon. Short range, but always ready.",
     skills: ["quick jab", "heavy punch"],
-    projectile: {
-      style: "fist",
-      range: 135,
-      speed: 250,
-      radius: 7,
-      color: "#f0d0bd",
-      count: 1,
-      spread: 0,
-      homing: false,
-      melee: true,
-    },
+    projectile: { behavior: "slash", damage: 5.2, size: 1, speed: 5, range: 150, color: "#f7fbff" },
   },
 });
