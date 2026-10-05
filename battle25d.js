@@ -101,6 +101,7 @@
       const keys = new Set(), pb = [], eb = [];
       let t = 0, last = performance.now(), paused = false, banner = "";
       let acc = 0, potCd = 0, dotT = 0, shake = 0, flash = 0, raf = 0, ended = false;
+      let endKind = null, endT = 0; const fx = [];
       const dmgBase = () => (C.PLAYER_DAMAGE[0] + C.PLAYER_DAMAGE[1]) / 2 + f.stats.damage + (f.temporary_damage || 0);
       const alive = () => f.enemies.filter((e) => e.hp > 0);
       const nearest = () => alive().sort((a, b) => Math.hypot(a.x - pl.x, a.y - pl.y) - Math.hypot(b.x - pl.x, b.y - pl.y))[0];
@@ -174,10 +175,15 @@
         const homing = Boolean(proj.homing ?? (weaponName === "iron fist" ? false : !foc));
         const baseDamage = Math.max(1, dmgBase() * RT.SHOT_SCALE * (foc ? 1.3 : 1));
         const base = Math.atan2(tg.y - pl.y, tg.x - pl.x);
+        // FIX: shots used to expire (range/speed) before reaching enemies at the top of the arena.
+        // Make sure every shot can at least reach the target it was aimed at.
+        const reach = Math.max(range, Math.hypot(tg.x - pl.x, tg.y - pl.y) + 50);
+        // FIX: iron fist color was fully transparent, so its shots were invisible.
+        const shotColor = (!proj.color || /,\s*0\s*\)\s*$/.test(proj.color)) ? "#e8f4ff" : proj.color;
         for (let i = 0; i < count; i++) {
           const centered = i - (count - 1) / 2;
           const a = base + centered * spread;
-          pb.push({ x: pl.x, y: pl.y - 8, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, d: weaponName === "iron fist" ? Math.max(1, baseDamage * .75) : baseDamage, hom: homing ? 1 : 0, life: range / speed, r: radius, style, weapon: weaponName, color: proj.color || "#bfeaff" });
+          pb.push({ x: pl.x, y: pl.y - 8, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, d: weaponName === "iron fist" ? Math.max(1, baseDamage * .75) : baseDamage, hom: homing ? 1 : 0, spd: speed, life: reach / speed * (homing ? 1.35 : 1), r: radius, style, weapon: weaponName, color: shotColor });
         }
       }
       function hitEnemy(e, d) {
@@ -206,6 +212,16 @@
         useLimitBreak(f); eb.length = 0; pl.inv = 1.5; flash = .6; shake = 12;
       }
 
+      function spawnDeath(e) {
+        e.dead = true;
+        const col = e.monster.chance <= 0 ? "#d88cff" : "#ff6b9e";
+        for (let i = 0; i < 26; i++) { const a = Math.random() * TAU, v = 40 + Math.random() * 140; fx.push({ k: "p", x: e.x, y: e.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: .7, max: .7, col }); }
+        fx.push({ k: "r", x: e.x, y: e.y, life: .6, max: .6, col });
+        fx.push({ k: "t", x: e.x, y: e.y - 18, life: 1.4, max: 1.4, col: "#fff", s: "DEFEATED" });
+        shake = Math.max(shake, 6); flash = Math.max(flash, .15);
+        print(`☠️ ${String(e.monster.name || e.name || "Enemy").toUpperCase()} is defeated!`);
+      }
+
       function update(dt) {
         t += dt; potCd = Math.max(0, potCd - dt); pl.inv = Math.max(0, pl.inv - dt);
         shake *= Math.exp(-dt * 8); flash = Math.max(0, flash - dt);
@@ -216,8 +232,11 @@
         if (keys.has("arrowdown") || keys.has("s")) dy++;
         const foc = keys.has("shift"), spd = foc ? RT.FOCUS : RT.SPEED, l = Math.hypot(dx, dy) || 1;
         pl.x = clamp(pl.x + dx / l * spd * dt, 8, FW - 8); pl.y = clamp(pl.y + dy / l * spd * dt, 8, FH - 8);
-        if (RT.AUTO_ATTACK) { pl.fire -= dt; if (pl.fire <= 0) { pl.fire = RT.SHOT_EVERY; fire(foc); } }
+        if (RT.AUTO_ATTACK && !endKind) { pl.fire -= dt; if (pl.fire <= 0) { pl.fire = RT.SHOT_EVERY; fire(foc); } }
         f.enemies.forEach((e, i) => updEnemy(e, i, dt));
+        for (const e of f.enemies) if (e.hp <= 0 && !e.dead) spawnDeath(e);
+        for (const q of fx) { q.life -= dt; if (q.k === "p") { q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= .96; q.vy *= .96; } }
+        for (let i = fx.length - 1; i >= 0; i--) if (fx[i].life <= 0) fx.splice(i, 1);
 
         for (const b of pb) {
           if (b.hom) {
@@ -225,7 +244,7 @@
             if (tg) {
               let cur2 = Math.atan2(b.vy, b.vx), diff = Math.atan2(tg.y - b.y, tg.x - b.x) - cur2;
               diff = Math.atan2(Math.sin(diff), Math.cos(diff));
-              cur2 += clamp(diff, -6 * dt, 6 * dt); b.vx = Math.cos(cur2) * 420; b.vy = Math.sin(cur2) * 420;
+              cur2 += clamp(diff, -6 * dt, 6 * dt); b.vx = Math.cos(cur2) * (b.spd || 420); b.vy = Math.sin(cur2) * (b.spd || 420);
             }
           }
           b.x += b.vx * dt; b.y += b.vy * dt;
@@ -258,9 +277,10 @@
           dotT -= 3; resolveEffects(f);
           f.enemies.forEach((e, i) => { if (e.hp > 0) { f.target = i; resolveMonsterEffects(f); } });
         }
-        if (advanceBossForms(f)) { eb.length = 0; f.enemies.forEach((e) => { e.rt = null; }); }
+        if (!endKind && advanceBossForms(f)) { eb.length = 0; f.enemies.forEach((e) => { e.rt = null; }); }
         const won = typeof foesDown === "function" ? foesDown(f) : f.enemies.every((e) => e.hp <= 0);
-        if (won) return finish("win", "VICTORY");
+        if (won && !endKind) { endKind = "win"; endT = 1.8; eb.length = 0; banner = "VICTORY"; pl.inv = 99; flash = Math.max(flash, .3); }
+        if (endKind) { endT -= dt; if (endT <= 0) return finish("win", "VICTORY"); return; }
         if (f.player_hp <= 0) { if (playerDown(f)) return finish("lose", "DEFEATED"); eb.length = 0; pl.inv = 2; flash = .5; }
       }
 
@@ -280,11 +300,18 @@
         for (const b of eb) { const p = pr(b.x, b.y, 0); glow(p, 10, b.col, .12); glow(p, b.r * p.s, b.col, .95); }
         for (const b of pb) { const p = pr(b.x, b.y, 0); g.save(); g.globalAlpha = .95; g.fillStyle = b.color; if (b.style === "fist") { g.beginPath(); g.arc(p.x, p.y, Math.max(4, b.r * p.s), 0, TAU); g.fill(); g.globalAlpha = .3; g.beginPath(); g.arc(p.x, p.y, Math.max(8, b.r * p.s * 1.8), 0, TAU); g.fill(); } else { g.beginPath(); g.arc(p.x, p.y, Math.max(3, b.r * p.s), 0, TAU); g.fill(); } g.restore(); }
         const pp = pr(pl.x, pl.y, 0); g.globalAlpha = pl.inv > 0 ? .45 + .35 * Math.sin(t * 25) : 1; g.fillStyle = "#f0d0bd"; g.beginPath(); g.arc(pp.x, pp.y, Math.max(6, 9 * pp.s), 0, TAU); g.fill(); g.globalAlpha = 1; g.fillStyle = "#ffffff"; g.beginPath(); g.arc(pp.x, pp.y, Math.max(2, RT.HIT_R * pp.s), 0, TAU); g.fill();
-        for (const e of f.enemies) { const p = pr(e.x, e.y, 0); g.globalAlpha = e.fade; g.fillStyle = e.flash > 0 ? "#fff" : (e.monster.chance <= 0 ? "#d88cff" : "#ff6b9e"); g.beginPath(); g.arc(p.x, p.y, Math.max(9, (e.monster.chance <= 0 ? 20 : 15) * p.s), 0, TAU); g.fill(); bar(p.x, p.y - 25 * p.s, 44 * p.s, e.hp / e.monster.hp, "#ff5f7a"); if (e.rt?.label && t - e.rt.labelT < 1.2) text(e.rt.label, p.x, p.y - 33 * p.s, "#fff", 11); }
-        g.globalAlpha = 1; if (banner) text(banner, W / 2, 40, th.accent, 18); text(RT.AUTO_ATTACK ? "AUTO ATTACK" : "ATTACK PAUSED", 14, H - 18, RT.AUTO_ATTACK ? "#9fe7d1" : "#ff9aa8", 11, "left"); g.restore();
+        for (const e of f.enemies) { const p = pr(e.x, e.y, 0); g.globalAlpha = e.fade; g.fillStyle = e.flash > 0 ? "#fff" : (e.monster.chance <= 0 ? "#d88cff" : "#ff6b9e"); g.beginPath(); g.arc(p.x, p.y, Math.max(9, (e.monster.chance <= 0 ? 20 : 15) * p.s), 0, TAU); g.fill(); if (e.hp > 0) bar(p.x, p.y - 25 * p.s, 44 * p.s, e.hp / e.monster.hp, "#ff5f7a"); if (e.rt?.label && t - e.rt.labelT < 1.2) text(e.rt.label, p.x, p.y - 33 * p.s, "#fff", 11); }
+        g.globalAlpha = 1;
+        for (const q of fx) { const p = pr(q.x, q.y, 0), a = Math.max(0, q.life / q.max); g.globalAlpha = a;
+          if (q.k === "p") { g.fillStyle = q.col; g.beginPath(); g.arc(p.x, p.y, Math.max(2, 4 * p.s * a), 0, TAU); g.fill(); }
+          else if (q.k === "r") { g.strokeStyle = q.col; g.lineWidth = 3; g.beginPath(); g.arc(p.x, p.y, (1 - a) * 70 * p.s + 8, 0, TAU); g.stroke(); }
+          else { text(q.s, p.x, p.y - (1 - a) * 30, q.col, 13); } }
+        g.globalAlpha = 1;
+        if (endKind) text("VICTORY", W / 2, H * .45, th.accent, Math.max(28, Math.min(56, W * .09)));
+        else if (banner) text(banner, W / 2, 40, th.accent, 18); text(RT.AUTO_ATTACK ? "AUTO ATTACK" : "ATTACK PAUSED", 14, H - 18, RT.AUTO_ATTACK ? "#9fe7d1" : "#ff9aa8", 11, "left"); g.restore();
       }
 
-      function finish(kind, label) { if (ended) return; ended = true; on = false; cur = null; window.removeEventListener("resize", resize); if (ov.parentNode) ov.remove(); resolve({ kind, label }); }
+      function finish(kind, label) { if (ended) return; ended = true; on = false; cur = null; cancelAnimationFrame(raf); window.removeEventListener("resize", resize); window.removeEventListener("keydown", keydown); window.removeEventListener("keyup", keyup); if (ov.parentNode) ov.remove(); /* combat.js expects "win" / "fled" / "lose" strings, not an object */ resolve(kind === "run" ? "fled" : kind); }
       function keydown(e) { const k = String(e.key || "").toLowerCase(); if (["arrowleft", "arrowright", "arrowup", "arrowdown", "w", "a", "s", "d", "shift", "z", "x", "escape", "r"].includes(k)) e.preventDefault(); keys.add(k); if (k === "z") potion(); if (k === "x") limit(); if (k === "escape") paused = !paused; if (k === "r") finish("run", "ESCAPED"); }
       function keyup(e) { keys.delete(String(e.key || "").toLowerCase()); }
       window.addEventListener("keydown", keydown); window.addEventListener("keyup", keyup);
