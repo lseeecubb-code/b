@@ -26,6 +26,7 @@
     drops: {
       "star shard": { chance: 100, min_drop: 8, max_drop: 16 },
       "void crystal": { chance: 100, min_drop: 3, max_drop: 7 },
+      "ram drive": { chance: 100, min_drop: 1, max_drop: 1 },
       coin: { chance: 100, min_drop: 500, max_drop: 900 },
     },
     parry_chance: 5,
