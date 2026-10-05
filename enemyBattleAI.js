@@ -1,103 +1,30 @@
-/* THE LAST SAVE - dynamic enemy movement AI.
- * Game-only boss/enemy behavior: replaces static orbiting with readable,
- * stateful movement and gives the secret Abyssal Starwyrm a segmented chase.
- */
+/* THE LAST SAVE - dynamic enemy movement AI. */
 (function () {
   "use strict";
   if (window.__enemyBattleAIInstalled) return;
   window.__enemyBattleAIInstalled = true;
-
-  const FW = 400, FH = 520;
-  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const dist = (a,b) => Math.hypot((a.x||0)-(b.x||0),(a.y||0)-(b.y||0));
-  const states = new WeakMap();
-  let wormSegments = [];
-
-  function boss(e) { return !!e?.monster && (e.monster.chance <= 0 || e.monster.boss || e.monster.isBoss); }
-  function wyrm(e) { return boss(e) && /abyssal starwyrm/i.test(String(e.monster.name || "")); }
-  function state(e) {
-    let s=states.get(e);
-    if(!s){ s={phase:Math.random()*Math.PI*2, mode:"stalk", timer:.4+Math.random(), targetX:e.x||200,targetY:e.y||90, change:0, vx:0,vy:0}; states.set(e,s); }
-    return s;
+  const FW=400,FH=520,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),dist=(a,b)=>Math.hypot((a.x||0)-(b.x||0),(a.y||0)-(b.y||0));
+  const states=new WeakMap();let wormHead=null,wormSegments=[],svg=null;
+  const boss=e=>!!e?.monster&&(e.monster.chance<=0||e.monster.boss||e.monster.isBoss);
+  const wyrm=e=>boss(e)&&/abyssal starwyrm/i.test(String(e.monster.name||""));
+  function state(e){let s=states.get(e);if(!s){s={mode:"stalk",timer:.4+Math.random(),phase:Math.random()*6.28,vx:0,vy:0};states.set(e,s);}return s;}
+  function move(e,i,f,dt,t){
+    if(!e||e.hp<=0)return;
+    const s=state(e),p={x:Number(f._rtPlayer?.x||200),y:Number(f._rtPlayer?.y||450)},b=boss(e),w=wyrm(e);s.timer-=dt;
+    if(s.timer<=0){const d=dist(e,p);s.mode=w?(d>235?"approach":d<125?"retreat":Math.random()<.5?"orbit":"stalk"):b?(d<105?"retreat":Math.random()<.45?"strafe":"stalk"):(d<80?"retreat":Math.random()<.35?"strafe":"stalk");s.timer=(w?.45:b?.7:1)+Math.random()*.7;}
+    const sp0=(b?42:55)+Math.min(85,Number(e.monster?.level||1)*1.5);let tx=p.x,ty=p.y,sp=sp0;
+    if(s.mode==="retreat"){const a=Math.atan2(e.y-p.y,e.x-p.x)+Math.sin(t*.8+s.phase)*.3;tx=p.x+Math.cos(a)*(w?245:b?165:125);ty=p.y+Math.sin(a)*(w?245:b?165:125);sp*=1.3;}
+    else if(s.mode==="strafe"||s.mode==="orbit"){const a=Math.atan2(e.y-p.y,e.x-p.x)+Math.PI/2+Math.sin(t*.7+s.phase)*.45,r=w?185:b?145:105;tx=p.x+Math.cos(a)*r;ty=p.y+Math.sin(a)*r;sp*=.9;}
+    const ax=clamp(tx,30,FW-30)-e.x,ay=clamp(ty,30,210)-e.y,l=Math.hypot(ax,ay)||1;s.vx+=(ax/l*sp-s.vx)*Math.min(1,dt*3.5);s.vy+=(ay/l*sp-s.vy)*Math.min(1,dt*3.5);
+    const nx=clamp(e.x+s.vx*dt,24,FW-24),ny=clamp(e.y+s.vy*dt,25,225);const amp=b?90:55,rate=b?.5:.8;e.rx=nx-Math.sin(t*rate+i*2)*amp;e.ry=ny-Math.sin(t*1.3+i)*10;e.x=nx;e.y=ny;e._aiX=nx;e._aiY=ny;
+    if(w) updateWyrm(e,dt);
   }
-  function player(f){ return {x:Number(f?._rtPlayer?.x ?? 200), y:Number(f?._rtPlayer?.y ?? 450)}; }
-
-  function moveEnemy(e,f,dt,t,index){
-    if(e.hp<=0) return;
-    const s=state(e), p=player(f), isB=boss(e), isW=wyrm(e);
-    s.timer-=dt;
-    const speedBase=(isB?42:55) + Math.min(80,Number(e.monster?.level||1)*1.5);
-    if(s.timer<=0){
-      const d=dist(e,p);
-      if(isW) s.mode=d>230?"approach":d<120?"retreat":(Math.random()<.5?"orbit":"stalk");
-      else if(isB) s.mode=d<115?"retreat":(Math.random()<.35?"strafe":"stalk");
-      else s.mode=Math.random()<.25?"strafe":"stalk";
-      s.timer=(isW?.45: isB?.7:1.0)+Math.random()*.8;
-      s.change=Math.random()*Math.PI*2;
-    }
-    let tx=p.x,ty=p.y, sp=speedBase;
-    if(s.mode==="retreat"){
-      const a=Math.atan2(e.y-p.y,e.x-p.x)+Math.sin(t*.9+s.phase)*.35;
-      tx=e.x+Math.cos(a)*150; ty=e.y+Math.sin(a)*150; sp*=1.25;
-    } else if(s.mode==="strafe" || s.mode==="orbit"){
-      const a=Math.atan2(e.y-p.y,e.x-p.x)+(s.mode==="orbit"?1:-1)*(Math.PI/2+Math.sin(t*.7+s.phase)*.35);
-      const r=isW?180:(isB?145:105);
-      tx=p.x+Math.cos(a)*r; ty=p.y+Math.sin(a)*r; sp*=.9;
-    }
-    const ax=clamp(tx,35,FW-35)-e.x, ay=clamp(ty,35,210)-e.y;
-    const l=Math.hypot(ax,ay)||1;
-    s.vx += (ax/l*sp-s.vx)*Math.min(1,dt*3.5);
-    s.vy += (ay/l*sp-s.vy)*Math.min(1,dt*3.5);
-    e.x=clamp(e.x+s.vx*dt,24,FW-24); e.y=clamp(e.y+s.vy*dt,25,225);
-
-    if(isW) updateWyrm(e,f,dt,t,s);
+  function updateWyrm(head,dt){
+    if(wormHead!==head||wormSegments.length!==20){wormHead=head;wormSegments=Array.from({length:20},(_,i)=>({x:head.x,y:head.y,i}));}
+    let lead={x:head.x,y:head.y};for(const s of wormSegments){const dx=lead.x-s.x,dy=lead.y-s.y,d=Math.hypot(dx,dy)||1,gap=9.5;if(d>gap){const p=Math.min(1,dt*20);s.x+=dx*p;s.y+=dy*p;}lead={x:s.x-(dx/d)*gap,y:s.y-(dy/d)*gap};}
   }
-
-  function updateWyrm(head,f,dt,t,s){
-    const wanted=18;
-    if(wormSegments.length!==wanted || wormSegments[0]?.head!==head){
-      wormSegments=Array.from({length:wanted},(_,i)=>({head,x:head.x,y:head.y,angle:0,offset:i}));
-    }
-    let lead={x:head.x,y:head.y,angle:Math.atan2(s.vy,s.vx)};
-    for(let i=0;i<wormSegments.length;i++){
-      const seg=wormSegments[i];
-      const gap=9.5;
-      const dx=lead.x-seg.x,dy=lead.y-seg.y;
-      const d=Math.hypot(dx,dy)||1;
-      if(d>gap){
-        const pull=Math.min(1,dt*18);
-        seg.x += dx*pull; seg.y += dy*pull;
-      }
-      seg.angle=Math.atan2(lead.y-seg.y,lead.x-seg.x);
-      lead={x:seg.x-Math.cos(seg.angle)*gap,y:seg.y-Math.sin(seg.angle)*gap,angle:seg.angle};
-    }
-    head._wormSegments=wormSegments;
-  }
-
-  function renderWyrm(ctx,project){
-    const e=project,eSeg=e?._wormSegments;if(!eSeg)return;
-    ctx.save();
-    for(let i=eSeg.length-1;i>=0;i--){
-      const s=eSeg[i], r=Math.max(5,13-i*.32);
-      ctx.beginPath();ctx.arc(s.x,s.y,r,0,Math.PI*2);
-      ctx.fillStyle=i%2?"#6f4fa8":"#9b6cff";ctx.globalAlpha=Math.max(.35,1-i/eSeg.length*.55);ctx.fill();
-    }
-    ctx.restore();
-  }
-
-  window.EnemyBattleAI={moveEnemy,renderWyrm,state,reset:()=>{wormSegments=[]}};
-
-  function loop(){
-    if(window.Battle25D?.isActive?.()){
-      const f=window.Battle25D.fight?.();
-      if(f){
-        const t=performance.now()/1000;
-        const dt=Math.min(.05,1/60);
-        f._rtPlayer=f._rtPlayer||{x:200,y:450};
-        for(let i=0;i<(f.enemies||[]).length;i++) moveEnemy(f.enemies[i],f,dt,t,i);
-      }
-    }
-    requestAnimationFrame(loop);
-  }
-  requestAnimationFrame(loop);
+  function ensureSvg(){const ov=document.getElementById("rtBattle");if(!ov)return null;if(!svg){svg=document.createElementNS("http://www.w3.org/2000/svg","svg");svg.style.cssText="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3";ov.appendChild(svg);}return svg;}
+  function drawWyrm(){const root=ensureSvg();if(!root||!wormHead)return;while(root.firstChild)root.removeChild(root.firstChild);const W=innerWidth,H=innerHeight,sc=Math.min(W*.96/FW,H*.86/FH),cx=W/2,oy=H*.07,to=(x,y)=>({x:cx+(x-FW/2)*sc,y:oy+y*sc});for(let i=wormSegments.length-1;i>=0;i--){const s=wormSegments[i],p=to(s.x,s.y),c=document.createElementNS("http://www.w3.org/2000/svg","circle");c.setAttribute("cx",p.x);c.setAttribute("cy",p.y);c.setAttribute("r",String(Math.max(4,12-i*.34)));c.setAttribute("fill",i%2?"#7049a8":"#a46cff");c.setAttribute("opacity",String(Math.max(.35,1-i*.035)));root.appendChild(c);}}
+  function tick(){if(window.Battle25D?.isActive?.()){const f=window.Battle25D.fight?.();if(f){f._rtPlayer=f._rtPlayer||{x:200,y:450};const t=performance.now()/1000,dt=1/60;for(let i=0;i<(f.enemies||[]).length;i++)move(f.enemies[i],i,f,dt,t);drawWyrm();}}else if(svg){svg.remove();svg=null;wormHead=null;wormSegments=[];}requestAnimationFrame(()=>setTimeout(tick,0));}
+  window.EnemyBattleAI={state,reset:()=>{wormHead=null;wormSegments=[];}};tick();
 })();
