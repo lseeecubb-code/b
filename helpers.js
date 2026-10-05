@@ -43,7 +43,7 @@ const C = {
   RUN_MAX: 90,
   LVL_HP: 8,
   LVL_DMG: 1,
-  MAX_LEVEL: 25,
+  MAX_LEVEL: 75,
 };
 const START_INV = { coin: 100, iron: 5, wood: 5, "iron fist": 1 };
 const SLOTS = ["weapon", "offhand", "head", "armor", "feet", "trinket"];
