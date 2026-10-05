@@ -146,6 +146,7 @@ function showStatus(f) {
     const mark = f.enemies && i === f.target ? " <" : "";
     print(`${pad(cap(e.displayName || e.name), 18)} Lv ${e.monster.level || enemyRequiredLevel(e.name)} · ${title(e.role || enemyRole(e.monster))} ${hpBar(e.hp, e.monster.hp)}${mark}`);
     if (e.phases?.length) print(`   👑 Phase ${BOSS_PHASE_ROMAN[e.phase] || e.phase + 1}/${e.phases.length}`);
+    if (e.charging) print(`   🔥 CHARGING ${String(e.charging.name).toUpperCase()}!`);
     (e.effects || []).forEach(effLine);
     const weaknessValues = { ...(e.monster.weak || {}) };
     for (const [element, value] of Object.entries(e.monster.resist || {}))
@@ -201,13 +202,25 @@ function showIntent(f) {
   }
   const a = it.attack,
     an = a.name.toUpperCase();
+  if (k === "charge") {
+    const info = chargeInfo(f, a);
+    const big = scaleRange(a.damage, info?.charge_mult || CALAMITY.CHARGE_MULT);
+    print("🔥 WARNING! CHARGING!");
+    print(`${icon} The ${name} ${info?.charge_text || "gathers overwhelming power for"} ${an}!`);
+    print(`   Next turn it hits for ${big[0]}-${big[1]}${a.hits > 1 ? ` x${a.hits}` : ""}.`);
+    print("   ⚡ INTERRUPT IT: stun it or break its poise this turn, or brace for the hit!");
+    const nextMove = peekPattern(f);
+    if (nextMove) print(`🔁 Its rotation suggests ${title(nextMove)} may follow.`);
+    return;
+  }
   if (k === "heal") {
     print(`${icon} The ${name} is preparing ${an}!`);
     print(`   It will heal ${a.heal[0]}-${a.heal[1]} HP.`);
     return;
   }
   if (getCombatAttackScene(f, a)) print("🎬 This signature attack triggers a brief visual scene.");
-  if (a.warning) {
+  if (a.released) print(`💥 CHARGE COMPLETE! The ${name} unleashes ${an}!`);
+  else if (a.warning) {
     print("🔥 WARNING!");
     print(`The ${name} ${a.telegraph} ${an}!`);
   } else print(`${icon} The ${name} ${a.telegraph} ${an}!`);
@@ -249,6 +262,8 @@ function showIntent(f) {
         : "No defense works on this! Attack, recover energy, use an item or run."
     );
   }
+  const following = peekPattern(f);
+  if (following) print(`🔁 Its rotation suggests ${title(following)} may follow.`);
 }
 // Prints the numbered list of player actions.
 function showCombatMenu(f) {
@@ -1116,8 +1131,90 @@ function monsterDealDamage(f, a, inc) {
   applySpecialEffect(f, a);
   return t;
 }
+
+// ---------- CALAMITY-STYLE BOSS MECHANICS ----------
+// Optional monster fields (all safe to omit; monsters without them behave as before):
+//   pattern: ["basic", "ability name", "block", ...]  looping move rotation for a boss form
+//   pattern_variance: % chance to ignore the rotation and roll randomly (default CALAMITY.PATTERN_VARIANCE)
+//   thresholds: [{ at: 0.5, message, damage_mult, pattern, heal, pause }]  one-shot HP events per form
+//   enrage_turns: turns before damage ramps up (default CALAMITY.BOSS_ENRAGE_TURNS for bosses)
+// On an ability: charge: true, charge_mult: 1.5, charge_text: "raises its blade for"
+//   -> the boss telegraphs for a turn, then hits harder. Stun it or break its poise to cancel.
+const CALAMITY = {
+  CHARGE_MULT: 1.6, // damage multiplier on a released charged attack
+  PATTERN_VARIANCE: 15, // % chance a boss goes off-script
+  BOSS_ENRAGE_TURNS: 10, // bosses start ramping damage after this many turns in a form
+  BERSERK_STEP: 0.1, // +10% damage per turn past the limit...
+  BERSERK_MAX: 0.5, // ...capped at +50%
+};
+// Charge settings live on the raw ability in monsters.js, so look them up by name in case
+// makeAttack() doesn't copy unknown fields.
+function chargeInfo(f, a) {
+  const abilities = f.monster.abilities || {};
+  const raw = abilities[a.name] || abilities[String(a.name).toLowerCase()];
+  return raw?.charge ? raw : null;
+}
+// One step of a boss rotation -> an intent object (or null if the step isn't usable).
+function patternStep(f, step) {
+  const m = f.monster;
+  if (step === "block") return m.block_reduction ? { kind: "block", attack: null } : null;
+  if (step === "parry" || step === "dodge") return m[step + "_rate"] ? { kind: step + "_stance", attack: null } : null;
+  if (step === "idle") return { kind: "idle", attack: null };
+  if (step === "basic") return { kind: "attack", attack: makeAttack("basic attack", m.basic_attack) };
+  const key = Object.keys(m.abilities || {}).find((k) => k.toLowerCase() === step);
+  if (!key) return null;
+  const a = makeAttack(key, m.abilities[key]);
+  return { kind: "damage" in a ? "attack" : "heal", attack: a };
+}
+// Reads the next move from monster.pattern.
+function patternChoose(f, e) {
+  const p = f.monster.pattern;
+  if (!e || !Array.isArray(p) || !p.length) return null;
+  if (percent(f.monster.pattern_variance ?? CALAMITY.PATTERN_VARIANCE)) return null;
+  const i = e.patternIndex || 0;
+  const it = patternStep(f, String(p[i % p.length]).toLowerCase());
+  if (it) e.patternIndex = i + 1;
+  return it;
+}
+function peekPattern(f) {
+  const e = f.enemies?.[f.target];
+  const p = f.monster.pattern;
+  if (!e || !Array.isArray(p) || !p.length) return null;
+  return String(p[(e.patternIndex || 0) % p.length]);
+}
+// HP-threshold events: each fires once per form when the boss first drops to `at` x max HP.
+function checkBossThresholds(f) {
+  for (let i = 0; i < (f.enemies || []).length; i++) {
+    const e = f.enemies[i];
+    if (e.hp <= 0 || !Array.isArray(e.monster?.thresholds)) continue;
+    e.firedThresholds ||= [];
+    for (const t of e.monster.thresholds) {
+      const key = `${e.phase || 0}:${t.at}`;
+      if (e.firedThresholds.includes(key) || e.hp > e.monster.hp * t.at) continue;
+      e.firedThresholds.push(key);
+      const label = e.displayName || e.name;
+      print(`\n⚠️ ${title(label)} surges with power at ${Math.round(t.at * 100)}% health!`);
+      if (t.message) print(`   💬 “${t.message}”`);
+      if (t.damage_mult) e.dmgMult = (e.dmgMult || 1) * t.damage_mult;
+      if (t.pattern) {
+        e.monster = { ...e.monster, pattern: t.pattern };
+        e.patternIndex = 0;
+      }
+      if (t.heal) {
+        const before = e.hp;
+        e.hp = Math.min(e.monster.hp, e.hp + Math.floor(e.monster.hp * t.heal));
+        print(`   💚 It recovers ${e.hp - before} HP.`);
+      }
+      e.charging = null;
+      if (t.pause) e.forceIdle = t.pause; // its next turn is spent transforming
+      if (typeof clog === "function") clog(f, `${label} hit threshold ${t.at}`);
+    }
+  }
+}
+
 // Decides what the enemy will do on the coming turn.
 function rollIntent(f) {
+  const e = f.enemies?.[f.target] || null;
   let it;
   f.turnCount = (f.turnCount || 0) + 1;
   if (!f.enraged && f.monster_hp > 0 && f.monster_hp <= f.monster.hp * 0.5) f.enraged = true;
@@ -1126,14 +1223,33 @@ function rollIntent(f) {
     it = { kind: "stunned", attack: null };
   } else if (f.staggered) it = { kind: "staggered", attack: null };
   else {
-    it = monsterChoose(f.monster, f.choice);
-    if (it.kind === "idle") it.text = IDLE_LINES[randint(0, IDLE_LINES.length - 1)];
+    if (e?.forceIdle) {
+      it = { kind: "idle", attack: null, text: e.forceIdle };
+      e.forceIdle = null;
+    } else if (e?.charging) {
+      // The charge from last turn is released now, hitting harder.
+      const a = e.charging;
+      e.charging = null;
+      const mult = chargeInfo(f, a)?.charge_mult || CALAMITY.CHARGE_MULT;
+      it = { kind: "attack", attack: { ...a, damage: scaleRange(a.damage, mult), telegraph: "unleashes", warning: true, released: true } };
+    } else {
+      it = patternChoose(f, e) || monsterChoose(f.monster, f.choice);
+      if (it.kind === "idle" && !it.text) it.text = IDLE_LINES[randint(0, IDLE_LINES.length - 1)];
+      if (it.kind === "attack" && e && chargeInfo(f, it.attack)) {
+        e.charging = it.attack;
+        it = { kind: "charge", attack: it.attack };
+      }
+    }
     if (it.kind === "attack" && it.attack?.damage) {
       const pressure = Math.min(0.3, Math.max(0, Math.floor((f.turnCount - 2) / 3)) * 0.1);
-      const multiplier = (f.enraged ? 1.25 : 1) * (1 + pressure);
+      const boss = f.monster.chance <= 0;
+      const limit = f.monster.enrage_turns ?? (boss ? CALAMITY.BOSS_ENRAGE_TURNS : Infinity);
+      const berserk = Math.min(CALAMITY.BERSERK_MAX, Math.max(0, f.turnCount - limit) * CALAMITY.BERSERK_STEP);
+      const multiplier = (f.enraged ? 1.25 : 1) * (1 + pressure) * (1 + berserk) * (e?.dmgMult || 1);
       if (multiplier > 1) {
         it.attack = { ...it.attack, damage: scaleRange(it.attack.damage, multiplier) };
-        it.attack.telegraph = `${f.enraged ? "desperately " : "with gathering force "}${it.attack.telegraph || "attacks"}`;
+        const mood = berserk > 0 ? "in a frenzy, " : f.enraged ? "desperately " : "with gathering force ";
+        if (!it.attack.released) it.attack.telegraph = `${mood}${it.attack.telegraph || "attacks"}`;
       }
     }
   }
@@ -1170,6 +1286,12 @@ async function monsterTurn(f) {
   print("\n🔴 ENEMY TURN");
   f.staggered = false;
   let attacked = false, missed = false;
+  // A stun or poise break cancels a charge in progress.
+  const chargingEnemy = f.enemies?.[f.target];
+  if ((k === "stunned" || k === "staggered") && chargingEnemy?.charging) {
+    chargingEnemy.charging = null;
+    print(`💥 The ${name}'s charged attack is interrupted!`);
+  }
   if (k === "stunned") {
     print(`😵 The ${name} is stunned and can't act!`);
     f.last_move = "was stunned and lost its turn";
@@ -1192,6 +1314,10 @@ async function monsterTurn(f) {
         : `💨 The ${name} holds its dodge stance.`
     );
     f.last_move = `${st} stance`;
+  } else if (k === "charge") {
+    print(`🔥 The ${name} ${chargeInfo(f, it.attack)?.charge_text || "gathers overwhelming power for"} ${it.attack.name.toUpperCase()}...`);
+    print("   The air trembles. It will strike next turn!");
+    f.last_move = `charging ${it.attack.name.toUpperCase()}`;
   } else if (k === "heal") {
     const a = it.attack;
     const allies = (f.enemies || []).filter((enemy) => enemy.hp > 0 && enemy.hp < enemy.monster.hp);
@@ -1267,6 +1393,7 @@ function speakEnemy(f, event, attack = null) {
   }
 }
 function advanceBossForms(f) {
+  checkBossThresholds(f);
   let changed = false;
   for (let i = 0; i < (f.enemies || []).length; i++) {
     const e = f.enemies[i];
@@ -1287,6 +1414,12 @@ function advanceBossForms(f) {
     e.enrageAnnounced = false;
     e.intent = null;
     e.last_move = null;
+    // Calamity state resets with every new form.
+    e.patternIndex = 0;
+    e.charging = null;
+    e.forceIdle = null;
+    e.dmgMult = 1;
+    e.firedThresholds = [];
     f.target = i;
     changed = true;
     print(`\n👑 ${title(e.name)} transforms into ${e.displayName}!`);
@@ -1922,6 +2055,7 @@ function showBestiary(arg = "") {
         if (a.heal) parts.push(`heals ${a.heal[0]}-${a.heal[1]} HP`);
         if (a.element) parts.push(`${a.element} element`);
         if (a.special_effect) parts.push(`${a.special_effect.type} effect`);
+        if (a.charge) parts.push("charges first");
         print(`     ${title(move)}: ${parts.join(", ") || "special action"}`);
       });
     }
