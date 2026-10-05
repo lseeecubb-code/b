@@ -65,9 +65,7 @@
     if (!active() || e.repeat) return;
     const k = String(e.key || "").toLowerCase();
     held.add(k);
-    if (["arrowleft","arrowright","arrowup","arrowdown","w","a","s","d"].includes(k)) {
-      e.stopImmediatePropagation();
-    }
+    if (["arrowleft","arrowright","arrowup","arrowdown","w","a","s","d"].includes(k)) e.stopImmediatePropagation();
     const b = window.BattleKeybinds?.load?.() || {};
     if (k === b.dash) {
       const f = window.Battle25D.fight?.();
@@ -100,6 +98,7 @@
             s.y = Math.max(8, Math.min(FH - 8, s.y + dy / len * speed * dt));
           }
         }
+        f._rtPlayer = { x: s.x, y: s.y };
         pushPosition(s);
 
         if (t < s.dashUntil && f.stats.dash === "ram" && Number(f.stats.dash_damage || 0) > 0) {
