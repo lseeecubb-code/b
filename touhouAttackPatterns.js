@@ -1,6 +1,10 @@
 /* THE LAST SAVE - fictional real-time boss attack director.
  * Game-only behavior: adds denser projectile patterns for higher difficulty
  * and later bosses while keeping the existing RPG attack data as the source.
+ *
+ * Inspiration: high-pressure bullet-hell boss fights with readable telegraphs,
+ * converging shots, rotating formations and layered patterns. This is an
+ * original implementation and does not copy any particular attack sequence.
  */
 (function () {
   "use strict";
@@ -18,15 +22,16 @@
     inferno:   { speed: 1.48, damage: 1.40, density: 2.05 },
   };
 
-  // These names intentionally select the existing renderer's six distinct
-  // pattern families through its deterministic name hash.
+  // Original pattern-family names used by the battle renderer's deterministic
+  // pattern selector. These evoke bullet-hell ideas without reproducing a
+  // specific game's attack sequence.
   const PATTERN_NAMES = {
-    ring: "ring burst",
-    rain: "spiral barrage",
+    ring: "radiant ring",
+    rain: "orbiting spiral",
     needle: "needle stream",
-    wave: "wave",
-    fan: "meteor fan",
-    cross: "crossfire",
+    wave: "frost wave",
+    fan: "ember fan",
+    cross: "crossfire lattice",
   };
 
   function difficulty() {
@@ -69,7 +74,7 @@
     a.damage = a.damage.map((v) => Math.max(1, Math.round(v * scale)));
     a.hits = Math.max(1, Math.min(8, Math.round((a.hits || 1) * Math.min(1.9, density))));
     a.name = patternFor(a.name, a.element || a.type, boss, late, d);
-    a.telegraph = late ? "unleashes a dense pattern:" : boss ? "unleashes a patterned attack:" : (a.telegraph || "uses");
+    a.telegraph = late ? "unleashes a dense bullet pattern:" : boss ? "unleashes a patterned attack:" : (a.telegraph || "uses");
     return { ...out, attack: a };
   };
 })();
