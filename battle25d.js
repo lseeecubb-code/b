@@ -595,6 +595,10 @@
         g.fillStyle = "#2a2233"; g.beginPath(); g.arc(pp.x, pp.y - 10 * u, 6 * u, Math.PI, 0); g.fill();
         g.globalAlpha = 1;
         if (keys.has("shift")) { g.fillStyle = "#ffffff"; g.strokeStyle = "#ff4d6d"; g.lineWidth = 1.5; g.beginPath(); g.arc(pp.x, pp.y, Math.max(2.5, RT.HIT_R * pp.s), 0, TAU); g.fill(); g.stroke(); }
+        // Player health bar
+        const php = f.player_max_hp > 0 ? f.player_hp / f.player_max_hp : 0;
+        bar(pp.x, pp.y - 28 * u, 48 * u, php, php > 0.35 ? "#5ee0a0" : "#ff5f7a");
+        text(`${Math.max(0, Math.ceil(f.player_hp))}/${f.player_max_hp}`, pp.x, pp.y - 36 * u, "#e9e3f2", 11);
         for (const e of f.enemies) {
           const p = pr(e.x, e.y, 0);
           g.globalAlpha = e.fade; g.fillStyle = e.flash > 0 ? "#fff" : (e.monster.chance <= 0 ? "#d88cff" : "#ff6b9e"); g.beginPath(); g.arc(p.x, p.y, Math.max(9, (e.monster.chance <= 0 ? 20 : 15) * p.s), 0, TAU); g.fill();
