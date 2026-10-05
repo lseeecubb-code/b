@@ -64,7 +64,12 @@
     if (s.skill.cost != null && f.energy < s.skill.cost) return true;
     const cdKey = s.spell ? "spell:" + s.name : s.name;
     if (f.cooldowns && f.cooldowns[cdKey]) return true;
-    try { useSkill(f, s.skill); } catch (e) { return false; }
+    try {
+      useSkill(f, s.skill);
+      if (window.SkillProjectiles && typeof window.SkillProjectiles.spawn === "function") {
+        window.SkillProjectiles.spawn(s.name, f);
+      }
+    } catch (e) { return false; }
     return true;
   }
   window.openBattleSkillControls = openControls;
